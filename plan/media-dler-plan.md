@@ -148,6 +148,18 @@ app/
   - `release.yml`:推 `v*` tag → `assembleRelease` → 把簽章好的各 ABI APK 上傳到 Releases 頁(softprops/action-gh-release)。
 - yt-dlp 可在 app 內 `YoutubeDL.updateYoutubeDL()` 線上更新,平台改版時不必重發版。
 
+## 實測遇到的問題與解法(裝置實測記錄)
+
+依實機測試逐一遇到並修正,照此可少走彎路:
+
+1. **release 版引擎初始化失敗(「引擎尚未就緒 / 初始化失敗」),debug 正常** — R8 / minify 只在 release 跑,動到 youtubedl-android 的載入流程。解法:release 先**關閉 R8**(`isMinifyEnabled = false`);要開就得補齊 keep 規則並實機驗證。體積交給 ABI split。
+2. **YouTube 抓不動** — 打包的 yt-dlp 過期(YouTube 常改版)。解法:啟動時背景 `updateYoutubeDL` + 設定頁手動更新 + **解析失敗時自動 update 再重試一次**。
+3. **Bilibili「Requested format is not available」** — B 站是 DASH(只有 video-only / audio-only,**沒有 muxed `b`**),限制畫質的字串以 `/b` 收尾會失敗。解法:fallback 改為 `…/bv*+ba/b`,`-S res:H` 取最接近上限。
+4. **Threads 亂碼標題(如「Q3.e」)/ 抓不到** — yt-dlp 無 Threads extractor,generic 抓到 og:title 之類垃圾。解法:URL 改寫成 `…/embed`,讓 `html5` extractor 取 `<video>` 的 mp4(**影片可**);純圖 / 多圖不支援(embed 只給首圖,完整輪播需登入 / GraphQL)。
+5. **裝錯 ABI → native 載入失敗** — 單一 ABI 版裝到不符的機器。解法:不確定就裝 **universal**;Releases 同時提供各 ABI 與 universal。
+6. **沙箱 push tag 被擋(HTTP 403)** — Git proxy 只允許指定分支。解法:讓 **CI 用 `GITHUB_TOKEN` 在伺服器端建 tag / release**(`action-gh-release` 指定 `tag_name`),並改在「push 到分支」時發佈滾動的 `dev` 預發佈。
+7. **直接 CDN 連結可下載** — yt-dlp 的 generic 能直接抓直連 `.mp4` / `.jpg`,所以抽取端若拿到直連 URL,可直接交給既有下載器,不必另寫下載路徑。
+
 ## 風險與注意
 - **平台反爬**:IG/FB 部分內容需登入;先支援公開內容,登入(cookie)留作後續。
 - **進度回呼**:youtubedl-android 進度以行解析,精度有限,UI 以「解析中/下載中/完成」狀態為主,百分比盡力呈現。

@@ -13,6 +13,7 @@
 ## 功能
 
 - **分享即下載**：在任意 app 點「分享 → media-dler」，或對選取文字用「處理文字」、或開啟連結。
+- **貼上連結**：複製連結後在首頁按「貼上連結」，會讀剪貼簿解析並下載。
 - **兩種模式**（可在設定切換）：
   - **一鍵模式**：直接用預設值（畫質 / 格式 / 位置）下載，進度顯示在通知列。
   - **彈窗模式**：跳出對話框，逐項選畫質、音訊或圖片再下載。
@@ -78,14 +79,14 @@ Kotlin 2.0、Jetpack Compose（Material 3）、Navigation Compose、Coroutines /
 
 ## 發佈（Release）
 
-release 版啟用 **R8（程式 / 資源縮減）** 與 **ABI split**。原生 Python + ffmpeg 佔了體積大宗，R8 幫助有限，**真正縮小靠 ABI split**：
+release 版用 **ABI split** 縮小體積（原生 Python + ffmpeg 是大宗，每個 ABI 各出一支）。**R8 目前關閉**：minify 只在 release 跑，曾導致引擎初始化失敗（詳見 [plan](plan/media-dler-plan.md) 的實測記錄），驗證可靠前先關，體積交給 split。
 
 | APK | 大小 |
 | --- | --- |
-| `app-arm64-v8a-release.apk`（多數手機） | ~54 MB |
-| `app-armeabi-v7a-release.apk` | ~48 MB |
-| `app-x86-release.apk` / `app-x86_64-release.apk` | ~53 / 57 MB |
-| `app-universal-release.apk`（含全部 ABI） | ~193 MB |
+| `app-arm64-v8a-release.apk`（多數手機） | ~57 MB |
+| `app-armeabi-v7a-release.apk` | ~50 MB |
+| `app-x86-release.apk` / `app-x86_64-release.apk` | ~55 / 60 MB |
+| `app-universal-release.apk`（含全部 ABI） | ~202 MB |
 
 簽章金鑰（`release-keystore.jks` + `keystore.properties`）**直接放在 repo 內**——這是 sideload app，金鑰不具敏感性。本機手動建置：
 
@@ -93,7 +94,7 @@ release 版啟用 **R8（程式 / 資源縮減）** 與 **ABI split**。原生 P
 ./gradlew assembleRelease    # 產物在 app/build/outputs/apk/release/
 ```
 
-**自動發佈**：推一個 `v*` tag，CI 會建置並把簽章好的各 ABI APK 上傳到 GitHub **Releases** 頁：
+**自動發佈**：`release.yml` 在 push 到開發分支時發佈一個滾動的 **`dev` 預發佈**（CI 以 `GITHUB_TOKEN` 在伺服器端建 tag / release）；推 `v*` tag 則發佈正式版：
 
 ```bash
 git tag v0.1.0 && git push origin v0.1.0
@@ -125,6 +126,9 @@ git tag v0.1.0 && git push origin v0.1.0
 
 ## 注意與限制
 
+- **平台支援度取決於 yt-dlp**：絕大多數站由 yt-dlp 處理。**Threads 沒有官方 extractor** — 影片靠改寫 `/embed` 取得（可下載），**純圖 / 多圖貼文不支援**（embed 只給首圖，完整輪播需登入）。
+- **下載失敗先更新引擎**：打包的 yt-dlp 會過期（YouTube 尤其常壞）。app 會在啟動與解析失敗時自動更新，也可到「設定 → 下載引擎 → 更新 yt-dlp」手動更新。
+- **裝對 ABI**：native 函式庫需與裝置相符；不確定就裝 `universal`。
 - 部分內容（IG / FB 私人貼文等）需登入；目前僅支援公開內容，cookie 登入留待後續。
 - 進度回呼以行解析，百分比為盡力呈現；UI 以「解析中 / 下載中 / 完成」狀態為主。
 - 請尊重各平台服務條款與著作權，僅下載你有權保存的內容。

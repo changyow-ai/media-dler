@@ -1,8 +1,10 @@
 package com.changyow.mediadler.ui.home
 
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,12 +21,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -42,12 +46,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.getSystemService
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import coil.compose.AsyncImage
+import com.changyow.mediadler.ShareReceiverActivity
 import com.changyow.mediadler.appContainer
+import com.changyow.mediadler.core.extract.UrlExtractor
 import com.changyow.mediadler.core.model.DownloadStatus
 import com.changyow.mediadler.core.model.DownloadTask
 import com.changyow.mediadler.download.DownloadService
@@ -81,6 +88,13 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
                 },
             )
         },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = { pasteUrlAndDownload(context) },
+                icon = { Icon(Icons.Filled.ContentPaste, contentDescription = null) },
+                text = { Text("貼上連結") },
+            )
+        },
     ) { padding ->
         if (tasks.isEmpty()) {
             EmptyState(Modifier.padding(padding).fillMaxSize())
@@ -112,7 +126,7 @@ private fun EmptyState(modifier: Modifier = Modifier) {
             Text("還沒有下載項目", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.size(8.dp))
             Text(
-                "從其他 app 分享連結到 media-dler 即可下載影片或圖片",
+                "從其他 app 分享連結到 media-dler，或複製連結後按下方「貼上連結」",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -195,6 +209,19 @@ private fun statusText(task: DownloadTask): String = when (task.status) {
     DownloadStatus.COMPLETED -> "完成 · ${task.formatLabel}"
     DownloadStatus.FAILED -> "失敗：${task.errorMessage ?: "未知錯誤"}"
     DownloadStatus.CANCELED -> "已取消"
+}
+
+private fun pasteUrlAndDownload(context: Context) {
+    val clip = context.getSystemService<ClipboardManager>()?.primaryClip
+    val text = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString()
+    val url = UrlExtractor.firstUrl(text)
+    if (url == null) {
+        Toast.makeText(context, "剪貼簿沒有可用的連結", Toast.LENGTH_SHORT).show()
+        return
+    }
+    context.startActivity(
+        Intent(context, ShareReceiverActivity::class.java).putExtra(Intent.EXTRA_TEXT, url),
+    )
 }
 
 private fun openFile(context: Context, task: DownloadTask) {
