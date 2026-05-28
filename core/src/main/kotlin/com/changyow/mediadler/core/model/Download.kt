@@ -17,6 +17,7 @@ data class DownloadTask(
     val mimeType: String?,
     val errorMessage: String?,
     val createdAt: Long,
+    val previewPath: String? = null,
 )
 
 /** How the user wants a [MediaItem] downloaded. */

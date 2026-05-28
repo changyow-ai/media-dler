@@ -24,4 +24,9 @@ class ThreadsUrlTest {
         assertNull(ThreadsUrl.embedUrlOrNull("https://www.youtube.com/watch?v=abc"))
         assertNull(ThreadsUrl.embedUrlOrNull("https://www.threads.com/@someone"))
     }
+
+    @Test fun extractsPostCode() {
+        assertEquals("DY3m2JQjXHZ", ThreadsUrl.postCode("https://www.threads.com/@rico_y9527/post/DY3m2JQjXHZ?x=1"))
+        assertNull(ThreadsUrl.postCode("https://youtube.com/watch?v=x"))
+    }
 }

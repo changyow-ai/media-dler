@@ -69,6 +69,9 @@ class DownloadQueue {
         )
     }
 
+    fun setPreview(id: String, previewPath: String) =
+        updateTask(id) { it.copy(previewPath = previewPath) }
+
     fun fail(id: String, message: String) =
         updateTask(id) { it.copy(status = DownloadStatus.FAILED, errorMessage = message) }
 

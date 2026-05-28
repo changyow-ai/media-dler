@@ -39,6 +39,12 @@ class YtDlpMediaExtractor(
         val response = YoutubeDL.getInstance().execute(request)
         val items = YtDlpInfoParser.parse(response.out, target)
         check(items.isNotEmpty()) { "找不到可下載的媒體（可能不支援此網站或需要登入）" }
-        return items
+        // yt-dlp's html5 extractor names Threads media generically ("Threads (1)");
+        // give it a recognizable, post-specific name instead.
+        val code = ThreadsUrl.postCode(url) ?: return items
+        return items.mapIndexed { index, item ->
+            val suffix = if (items.size > 1) "_${index + 1}" else ""
+            item.copy(title = "ThreadsVideo_$code$suffix")
+        }
     }
 }

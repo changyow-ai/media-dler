@@ -59,6 +59,7 @@ import com.changyow.mediadler.core.model.DownloadStatus
 import com.changyow.mediadler.core.model.DownloadTask
 import com.changyow.mediadler.download.DownloadService
 import com.changyow.mediadler.ui.common.RequestNotificationPermission
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,7 +68,7 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
     val container = remember { context.appContainer }
     val viewModel: HomeViewModel = viewModel(
         factory = viewModelFactory {
-            initializer { HomeViewModel(container.downloadQueue, container.historyStore) }
+            initializer { HomeViewModel(container.downloadQueue, container.historyStore, container.previewStore) }
         },
     )
     val tasks by viewModel.tasks.collectAsStateWithLifecycle()
@@ -149,7 +150,7 @@ private fun TaskRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AsyncImage(
-                model = task.thumbnailUrl,
+                model = task.previewPath?.let(::File) ?: task.thumbnailUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier

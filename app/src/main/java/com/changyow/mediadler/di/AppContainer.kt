@@ -12,6 +12,7 @@ import com.changyow.mediadler.data.ytdlp.EngineInitializer
 import com.changyow.mediadler.data.ytdlp.YtDlpDownloader
 import com.changyow.mediadler.data.ytdlp.YtDlpMediaExtractor
 import com.changyow.mediadler.download.DownloadQueue
+import com.changyow.mediadler.download.PreviewStore
 
 /** Lightweight manual dependency container — wiring is explicit, no annotation processing. */
 class AppContainer(application: Application) {
@@ -20,6 +21,7 @@ class AppContainer(application: Application) {
     val settingsRepository: SettingsRepository = DataStoreSettingsRepository(application)
     val historyStore = HistoryStore(application)
     val downloadQueue = DownloadQueue()
+    val previewStore = PreviewStore(application)
 
     val mediaExtractor: MediaExtractor = YtDlpMediaExtractor(engine)
 

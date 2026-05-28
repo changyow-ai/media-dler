@@ -12,4 +12,8 @@ object ThreadsUrl {
         val match = POST.find(url) ?: return null
         return "https://www.threads.net/${match.groupValues[1]}/embed"
     }
+
+    /** The post short-code (e.g. "DY3m2JQjXHZ") from a Threads URL, or null. */
+    fun postCode(url: String): String? =
+        POST.find(url)?.groupValues?.get(1)?.substringAfterLast('/')
 }

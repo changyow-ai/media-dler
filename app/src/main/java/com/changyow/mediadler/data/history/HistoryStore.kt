@@ -66,6 +66,7 @@ class HistoryStore(private val context: Context) {
         val mimeType: String?,
         val errorMessage: String?,
         val createdAt: Long,
+        val previewPath: String? = null,
     ) {
         fun toTask() = DownloadTask(
             id = id,
@@ -79,6 +80,7 @@ class HistoryStore(private val context: Context) {
             mimeType = mimeType,
             errorMessage = errorMessage,
             createdAt = createdAt,
+            previewPath = previewPath,
         )
 
         companion object {
@@ -93,6 +95,7 @@ class HistoryStore(private val context: Context) {
                 mimeType = t.mimeType,
                 errorMessage = t.errorMessage,
                 createdAt = t.createdAt,
+                previewPath = t.previewPath,
             )
         }
     }

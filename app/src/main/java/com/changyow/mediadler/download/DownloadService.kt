@@ -4,6 +4,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.net.Uri
 import android.os.IBinder
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -37,6 +38,7 @@ class DownloadService : Service() {
     private lateinit var queue: DownloadQueue
     private lateinit var downloader: Downloader
     private lateinit var history: HistoryStore
+    private lateinit var previewStore: PreviewStore
 
     override fun onCreate() {
         super.onCreate()
@@ -44,6 +46,7 @@ class DownloadService : Service() {
         queue = container.downloadQueue
         downloader = container.downloader
         history = container.historyStore
+        previewStore = container.previewStore
         ServiceCompat.startForeground(
             this,
             Notifications.SUMMARY_ID,
@@ -92,6 +95,10 @@ class DownloadService : Service() {
         result.fold(
             onSuccess = { output ->
                 queue.complete(id, output.uri, output.mimeType)
+                if (output.mimeType.startsWith("video/")) {
+                    previewStore.generate(Uri.parse(output.uri), output.displayName)
+                        ?.let { queue.setPreview(id, it) }
+                }
                 queue.get(id)?.let { history.add(it) }
                 Notifications.completed(this, notifyId, title, output.uri, output.mimeType)
             },
