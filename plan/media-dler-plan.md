@@ -159,6 +159,8 @@ app/
 5. **裝錯 ABI → native 載入失敗** — 單一 ABI 版裝到不符的機器。解法:不確定就裝 **universal**;Releases 同時提供各 ABI 與 universal。
 6. **沙箱 push tag 被擋(HTTP 403)** — Git proxy 只允許指定分支。解法:讓 **CI 用 `GITHUB_TOKEN` 在伺服器端建 tag / release**(`action-gh-release` 指定 `tag_name`),並改在「push 到分支」時發佈滾動的 `dev` 預發佈。
 7. **直接 CDN 連結可下載** — yt-dlp 的 generic 能直接抓直連 `.mp4` / `.jpg`,所以抽取端若拿到直連 URL,可直接交給既有下載器,不必另寫下載路徑。
+8. **部分站點命名很爛(如「Threads (1)」)** — yt-dlp(html5 / generic)回的 title 不具辨識度,直接當檔名很糟。解法:抽取後針對該站覆寫成有意義的名稱,例如 Threads 用貼文短碼 → `ThreadsVideo_<code>`(見 `ThreadsUrl.postCode`)。
+9. **Threads / Bilibili 在清單中沒有預覽縮圖** — 這些來源沒有可用的遠端縮圖(B 站縮圖網域常需 Referer,Coil 直接載入會失敗),只有 YouTube 有。解法:影片下載完成後,用 Android 內建 **`MediaMetadataRetriever`** 抽一張影格存成本地預覽(app 私有 `media-dler/preview/<名>.jpg`),清單優先顯示本地預覽,並隨任務刪除一併清掉(`previewPath` 也存進歷史)。⚠️ **別指望 youtubedl-android 的 `FFmpeg` 跑任意指令**——它只有 `init` / `getInstance`,沒有 `execute`。
 
 ## 風險與注意
 - **平台反爬**:IG/FB 部分內容需登入;先支援公開內容,登入(cookie)留作後續。
