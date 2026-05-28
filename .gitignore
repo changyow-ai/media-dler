@@ -11,3 +11,8 @@ local.properties
 
 # Per-module build dirs
 **/build/
+
+# Signing — NEVER commit keystores or credentials
+*.jks
+*.keystore
+keystore.properties
