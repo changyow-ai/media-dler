@@ -17,7 +17,7 @@ sealed interface EngineState {
     data class Failed(val message: String) : EngineState
 }
 
-/** Initializes the bundled yt-dlp + ffmpeg runtimes exactly once. */
+/** Initializes and keeps the bundled yt-dlp + ffmpeg runtimes up to date. */
 class EngineInitializer(private val application: Application) {
 
     private val _state = MutableStateFlow<EngineState>(EngineState.Initializing)
@@ -37,5 +37,27 @@ class EngineInitializer(private val application: Application) {
             _state.value = EngineState.Failed(t.message ?: "yt-dlp 初始化失敗")
         }
         _state.value
+    }
+
+    /** Current bundled yt-dlp version (null if not yet initialized). */
+    fun version(): String? = runCatching { YoutubeDL.getInstance().version(application) }.getOrNull()
+
+    /**
+     * Updates the bundled yt-dlp. The shipped copy goes stale quickly (YouTube in
+     * particular breaks yt-dlp often), so refreshing it is what keeps downloads working.
+     */
+    suspend fun update(
+        channel: YoutubeDL.UpdateChannel = YoutubeDL.UpdateChannel._STABLE,
+    ): Result<String> = withContext(Dispatchers.IO) {
+        if (ensureInit() is EngineState.Failed) {
+            return@withContext Result.failure(IllegalStateException("引擎尚未就緒"))
+        }
+        runCatching {
+            when (YoutubeDL.getInstance().updateYoutubeDL(application, channel)) {
+                YoutubeDL.UpdateStatus.DONE -> "已更新 yt-dlp 至 ${version() ?: "最新版"}"
+                YoutubeDL.UpdateStatus.ALREADY_UP_TO_DATE -> "已是最新（yt-dlp ${version() ?: "?"}）"
+                else -> "yt-dlp ${version() ?: ""}"
+            }
+        }
     }
 }

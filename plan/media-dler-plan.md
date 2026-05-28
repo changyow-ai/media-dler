@@ -73,6 +73,8 @@ app/
 - 下載:`execute(request, processId, cb)`,`cb` 型別是 `(Float, Long, String) -> Unit`(progress 0–100,-1 代表未知)。
 - 組指令:`YoutubeDLRequest(url).addOption(k[, v])` 或 `addCommands(List<String>)`。
 - 取消:`YoutubeDL.getInstance().destroyProcessById(processId)`。
+- ⚠️ **線上更新是必要功能,不是可選**:打包進 APK 的 yt-dlp 很快就過期(尤其 YouTube 三天兩頭改版,舊版會抓不動)。用 `updateYoutubeDL(app, YoutubeDL.UpdateChannel._STABLE)`(回傳 `UpdateStatus`)+ `version(app)`。實作:**啟動時背景更新一次** + 設定頁手動「更新 yt-dlp」按鈕 + **解析失敗時自動 update 再重試一次**(self-heal)。少了它,使用者裝好後第一個遇到的就是「YouTube 不能下載」。
+- ⚠️ **平台支援度 = yt-dlp 有沒有對應 extractor**:例如撰寫時 yt-dlp **沒有 Threads extractor**(threads.com / threads.net 都不匹配),會 fallback 到 `generic` 硬爬網頁,常常只抓到 og:title / og:image 之類垃圾(會顯示成像亂碼的標題)。對策:偵測到 `generic` 或抓不到真正可下載媒體時,給明確「不支援或需登入」錯誤,別把垃圾當媒體丟給使用者。
 
 ## 實作步驟
 

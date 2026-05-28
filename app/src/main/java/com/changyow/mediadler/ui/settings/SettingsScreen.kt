@@ -56,10 +56,12 @@ fun SettingsScreen(onBack: () -> Unit) {
     val container = remember { context.appContainer }
     val viewModel: SettingsViewModel = viewModel(
         factory = viewModelFactory {
-            initializer { SettingsViewModel(container.settingsRepository) }
+            initializer { SettingsViewModel(container.settingsRepository, container.engine) }
         },
     )
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val engineStatus by viewModel.engineStatus.collectAsStateWithLifecycle()
+    val updating by viewModel.updating.collectAsStateWithLifecycle()
 
     val safLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
@@ -154,6 +156,17 @@ fun SettingsScreen(onBack: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     OutlinedButton(onClick = { safLauncher.launch(null) }) { Text("選擇資料夾") }
+                }
+            }
+
+            SettingSection("下載引擎") {
+                Text(
+                    engineStatus,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedButton(onClick = { viewModel.updateEngine() }, enabled = !updating) {
+                    Text(if (updating) "更新中…" else "更新 yt-dlp")
                 }
             }
         }
