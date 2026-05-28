@@ -9,11 +9,11 @@ object FormatSelector {
         FormatSelection.BestVideo -> listOf("-f", "bv*+ba/b")
         is FormatSelection.CappedVideo -> {
             val h = selection.maxHeight
-            // Prefer the best stream <= cap. The trailing "/b" is a last resort
-            // when nothing is at/under the cap; "-S res:H" then makes it pick the
-            // resolution closest to the cap (lowest above) instead of the global
-            // best, so a 720p cap never silently downloads 4K.
-            listOf("-f", "bv*[height<=$h]+ba/b[height<=$h]/b", "-S", "res:$h")
+            // Prefer best <= cap; otherwise fall back to an uncapped video+audio
+            // merge. DASH-only sites (e.g. Bilibili) have no muxed "b", so ending
+            // in "/b" alone errors with "Requested format is not available".
+            // -S res:H then picks the resolution closest to the cap.
+            listOf("-f", "bv*[height<=$h]+ba/b[height<=$h]/bv*+ba/b", "-S", "res:$h")
         }
         is FormatSelection.Audio ->
             listOf("-x", "--audio-format", selection.audioFormat.ext, "-f", "ba/b")

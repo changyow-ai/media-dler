@@ -1,5 +1,6 @@
 package com.changyow.mediadler.data.ytdlp
 
+import com.changyow.mediadler.core.extract.ThreadsUrl
 import com.changyow.mediadler.core.extract.YtDlpInfoParser
 import com.changyow.mediadler.core.model.MediaItem
 import com.changyow.mediadler.core.repo.MediaExtractor
@@ -28,13 +29,15 @@ class YtDlpMediaExtractor(
         }
 
     private fun doExtract(url: String): List<MediaItem> {
-        val request = YoutubeDLRequest(url).apply {
+        // Threads has no extractor; its /embed page is scrapeable by yt-dlp's html5 extractor.
+        val target = ThreadsUrl.embedUrlOrNull(url) ?: url
+        val request = YoutubeDLRequest(target).apply {
             addOption("-J")
             addOption("--no-warnings")
             addOption("--playlist-items", "1:50")
         }
         val response = YoutubeDL.getInstance().execute(request)
-        val items = YtDlpInfoParser.parse(response.out, url)
+        val items = YtDlpInfoParser.parse(response.out, target)
         check(items.isNotEmpty()) { "找不到可下載的媒體（可能不支援此網站或需要登入）" }
         return items
     }
