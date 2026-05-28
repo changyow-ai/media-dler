@@ -31,22 +31,7 @@ jobs:
           yes | sdkmanager --licenses > /dev/null || true
           sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
 
-      - name: Decode signing keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
-        run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "::error::SIGNING_KEYSTORE_BASE64 secret is not set"
-            exit 1
-          fi
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
-          echo "MEDIA_DLER_STORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
-
       - name: Assemble signed release APKs
-        env:
-          MEDIA_DLER_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
-          MEDIA_DLER_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
-          MEDIA_DLER_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: ./gradlew :app:assembleRelease --stacktrace
 
       - name: List built APKs

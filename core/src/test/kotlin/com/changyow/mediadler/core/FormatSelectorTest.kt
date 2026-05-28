@@ -19,7 +19,7 @@ class FormatSelectorTest {
 
     @Test fun cappedVideo() {
         assertEquals(
-            listOf("-f", "bv*[height<=720]+ba/b[height<=720]/b"),
+            listOf("-f", "bv*[height<=720]+ba/b[height<=720]/b", "-S", "res:720"),
             FormatSelector.args(FormatSelection.CappedVideo(720)),
         )
     }
@@ -33,7 +33,7 @@ class FormatSelectorTest {
 
     @Test fun specificVideoOnlyMergesAudio() {
         assertEquals(
-            listOf("-f", "137+ba/137/b"),
+            listOf("-f", "137+ba/b"),
             FormatSelector.args(FormatSelection.SpecificFormat(fmt("137", hasAudio = false))),
         )
     }

@@ -30,4 +30,18 @@ class UrlExtractorTest {
         assertNull(UrlExtractor.firstUrl(null))
         assertNull(UrlExtractor.firstUrl(""))
     }
+
+    @Test fun keepsBalancedParensInPath() {
+        assertEquals(
+            "https://en.wikipedia.org/wiki/Python_(programming_language)",
+            UrlExtractor.firstUrl("https://en.wikipedia.org/wiki/Python_(programming_language)"),
+        )
+    }
+
+    @Test fun keepsBalancedParensButDropsSentencePeriod() {
+        assertEquals(
+            "https://en.wikipedia.org/wiki/Python_(programming_language)",
+            UrlExtractor.firstUrl("read https://en.wikipedia.org/wiki/Python_(programming_language)."),
+        )
+    }
 }

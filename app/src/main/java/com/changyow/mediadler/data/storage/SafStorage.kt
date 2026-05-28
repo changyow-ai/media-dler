@@ -14,7 +14,7 @@ class SafStorage(private val context: Context) {
         withContext(Dispatchers.IO) {
             val tree = treeUri?.let(Uri::parse) ?: error("尚未選擇 SAF 目錄")
             val dir = DocumentFile.fromTreeUri(context, tree) ?: error("SAF 目錄無效")
-            dir.findFile(displayName)?.delete()
+            // Don't delete a same-named file; let SAF de-dup (avoids data loss).
             val doc = dir.createFile(mimeType, displayName) ?: error("無法在所選目錄建立檔案")
             context.contentResolver.openOutputStream(doc.uri)?.use { output ->
                 source.inputStream().use { it.copyTo(output) }

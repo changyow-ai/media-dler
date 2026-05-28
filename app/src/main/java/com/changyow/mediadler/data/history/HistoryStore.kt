@@ -41,6 +41,15 @@ class HistoryStore(private val context: Context) {
         context.historyDataStore.edit { it.remove(key) }
     }
 
+    suspend fun remove(id: String) {
+        context.historyDataStore.edit { p ->
+            val existing = p[key]?.let {
+                runCatching { json.decodeFromString<List<Record>>(it) }.getOrDefault(emptyList())
+            } ?: emptyList()
+            p[key] = json.encodeToString(existing.filter { it.id != id })
+        }
+    }
+
     private companion object {
         const val MAX = 200
     }

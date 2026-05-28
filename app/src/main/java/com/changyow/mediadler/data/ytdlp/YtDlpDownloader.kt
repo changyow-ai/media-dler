@@ -3,6 +3,7 @@ package com.changyow.mediadler.data.ytdlp
 import android.content.Context
 import com.changyow.mediadler.core.download.FormatSelector
 import com.changyow.mediadler.core.model.DownloadRequest
+import com.changyow.mediadler.core.model.FormatSelection
 import com.changyow.mediadler.core.model.StorageMode
 import com.changyow.mediadler.core.repo.DownloadOutput
 import com.changyow.mediadler.core.repo.Downloader
@@ -13,8 +14,10 @@ import com.changyow.mediadler.util.FileNames
 import com.changyow.mediadler.util.MimeTypes
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -51,11 +54,14 @@ class YtDlpDownloader(
                 addCommands(FormatSelector.args(request.selection))
             }
 
-            YoutubeDL.getInstance().execute(ytRequest, processId) { progress, _, line ->
-                if (progress >= 0f) onProgress(progress / 100f, line)
+            // runInterruptible so coroutine cancellation interrupts the blocking call.
+            runInterruptible {
+                YoutubeDL.getInstance().execute(ytRequest, processId) { progress, _, line ->
+                    if (progress >= 0f) onProgress(progress / 100f, line)
+                }
             }
 
-            val produced = workDir.walkTopDown().filter { it.isFile }.maxByOrNull { it.length() }
+            val produced = selectOutput(workDir, request.selection)
                 ?: return@withContext Result.failure(IllegalStateException("下載完成但找不到輸出檔"))
 
             val ext = produced.extension.ifBlank { "bin" }
@@ -70,9 +76,36 @@ class YtDlpDownloader(
             }
             Result.success(DownloadOutput(uri.toString(), displayName, mime))
         } catch (t: Throwable) {
+            // Kill the native yt-dlp process so it isn't orphaned on cancel/error.
+            runCatching { YoutubeDL.getInstance().destroyProcessById(processId) }
+            if (t is CancellationException) throw t
             Result.failure(t)
         } finally {
             workDir.deleteRecursively()
         }
+    }
+
+    /** Picks the real output file, matching the requested kind rather than blindly the largest. */
+    private fun selectOutput(workDir: File, selection: FormatSelection): File? {
+        val files = workDir.walkTopDown()
+            .filter { it.isFile && it.extension.lowercase() !in TEMP_EXTS }
+            .toList()
+        if (files.isEmpty()) return null
+        return when (selection) {
+            is FormatSelection.Audio ->
+                files.firstOrNull { it.extension.equals(selection.audioFormat.ext, ignoreCase = true) }
+                    ?: files.firstOrNull { it.extension.lowercase() in AUDIO_EXTS }
+                    ?: files.maxByOrNull { it.length() }
+            FormatSelection.ImageOriginal ->
+                files.firstOrNull { it.extension.lowercase() in IMAGE_EXTS }
+                    ?: files.maxByOrNull { it.length() }
+            else -> files.maxByOrNull { it.length() }
+        }
+    }
+
+    private companion object {
+        val TEMP_EXTS = setOf("part", "ytdl", "tmp", "temp")
+        val AUDIO_EXTS = setOf("mp3", "m4a", "aac", "opus", "ogg", "wav", "flac")
+        val IMAGE_EXTS = setOf("jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "bmp")
     }
 }

@@ -18,11 +18,13 @@ object YtDlpInfoParser {
     fun parse(infoJson: String, requestUrl: String): List<MediaItem> {
         val root = json.decodeFromString<RawInfo>(infoJson)
         val entries = root.entries
-        return if (!entries.isNullOrEmpty()) {
+        val items = if (!entries.isNullOrEmpty()) {
             entries.mapIndexedNotNull { i, e -> e?.toMediaItem(requestUrl, i + 1) }
         } else {
             listOf(root.toMediaItem(root.webpageUrl ?: requestUrl, null))
         }
+        // Drop items with nothing downloadable (e.g. nested-playlist containers).
+        return items.filter { it.formats.isNotEmpty() }
     }
 
     private fun RawInfo.toMediaItem(sourceUrl: String, playlistIndex: Int?): MediaItem {
@@ -34,7 +36,8 @@ object YtDlpInfoParser {
             media.isNotEmpty() -> false to media
             images.isNotEmpty() -> true to images
             url != null -> {
-                val e = ext ?: url.substringAfterLast('.', "").substringBefore('?')
+                val path = url.substringBefore('?').substringBefore('#')
+                val e = ext ?: path.substringAfterLast('/').substringAfterLast('.', "")
                 val img = e.lowercase() in IMAGE_EXTS
                 img to listOf(syntheticFormat(e, img))
             }

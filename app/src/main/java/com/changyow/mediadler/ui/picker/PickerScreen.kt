@@ -48,6 +48,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import coil.compose.AsyncImage
 import com.changyow.mediadler.appContainer
+import com.changyow.mediadler.ui.common.RequestNotificationPermission
 import com.changyow.mediadler.core.model.AudioFormat
 import com.changyow.mediadler.core.model.DownloadRequest
 import com.changyow.mediadler.core.model.FormatSelection
@@ -70,6 +71,8 @@ fun ShareSheet(url: String, onSubmitted: () -> Unit, onClose: () -> Unit) {
         },
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    RequestNotificationPermission()
 
     Dialog(onDismissRequest = onClose) {
         Surface(

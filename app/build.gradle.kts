@@ -7,16 +7,15 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-// Release signing credentials: local keystore.properties (git-ignored) takes
-// precedence; otherwise CI supplies them via MEDIA_DLER_* environment vars.
-// With neither, release builds are produced unsigned.
+// Release signing credentials live in keystore.properties, committed alongside
+// the keystore (this is a sideload app, not a Play release). Absent the file,
+// release builds are produced unsigned.
 val keystorePropertiesFile = rootProject.file("keystore.properties")
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.exists()) {
         keystorePropertiesFile.inputStream().use { load(it) }
     }
 }
-val storeFileFromEnv: String? = System.getenv("MEDIA_DLER_STORE_FILE")
 
 // ABI splits are only worth the extra build time for release artifacts.
 val isReleaseTask = gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
@@ -39,18 +38,12 @@ android {
     }
 
     signingConfigs {
-        when {
-            keystorePropertiesFile.exists() -> create("release") {
+        if (keystorePropertiesFile.exists()) {
+            create("release") {
                 storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
                 storePassword = keystoreProperties.getProperty("storePassword")
                 keyAlias = keystoreProperties.getProperty("keyAlias")
                 keyPassword = keystoreProperties.getProperty("keyPassword")
-            }
-            storeFileFromEnv != null -> create("release") {
-                storeFile = file(storeFileFromEnv)
-                storePassword = System.getenv("MEDIA_DLER_STORE_PASSWORD")
-                keyAlias = System.getenv("MEDIA_DLER_KEY_ALIAS")
-                keyPassword = System.getenv("MEDIA_DLER_KEY_PASSWORD")
             }
         }
     }

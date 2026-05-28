@@ -25,7 +25,10 @@ class HomeViewModel(
 
     fun retry(id: String): Boolean = queue.retry(id)
 
-    fun remove(id: String) = queue.remove(id)
+    fun remove(id: String) {
+        queue.remove(id)
+        viewModelScope.launch { history.remove(id) }
+    }
 
     fun clearFinished() {
         queue.clearFinished()

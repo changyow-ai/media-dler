@@ -73,4 +73,21 @@ class YtDlpInfoParserTest {
         assertFalse(items[0].isImage)
         assertEquals(1, items[0].formats.size)
     }
+
+    @Test fun allNullEntriesYieldEmpty() {
+        val json = """{"_type":"playlist","id":"p","entries":[null,null]}"""
+        assertEquals(0, YtDlpInfoParser.parse(json, "https://x/p").size)
+    }
+
+    @Test fun nestedPlaylistContainerIsDropped() {
+        val json = """{"_type":"playlist","entries":[{"_type":"playlist","entries":[{"id":"v"}]}]}"""
+        assertEquals(0, YtDlpInfoParser.parse(json, "https://x/chan").size)
+    }
+
+    @Test fun imageUrlWithDottedQueryIsClassifiedAsImage() {
+        val json = """{"id":"i","title":"P","url":"http://cdn/photo.jpg?v=1.0&x=a.b"}"""
+        val items = YtDlpInfoParser.parse(json, "http://cdn/photo.jpg")
+        assertEquals(1, items.size)
+        assertTrue(items[0].isImage)
+    }
 }

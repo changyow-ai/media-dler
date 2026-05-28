@@ -17,13 +17,22 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 /** Foreground service that drains [DownloadQueue] sequentially with progress notifications. */
 class DownloadService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val working = AtomicBoolean(false)
+
+    @Volatile
+    private var latestStartId = 0
+
+    // Stable, collision-free notification id per task (UUID.hashCode() can collide).
+    private val notifyIds = ConcurrentHashMap<String, Int>()
+    private val notifyCounter = AtomicInteger(Notifications.SUMMARY_ID + 1)
 
     private lateinit var queue: DownloadQueue
     private lateinit var downloader: Downloader
@@ -44,6 +53,7 @@ class DownloadService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        latestStartId = startId
         ensureWorker()
         return START_NOT_STICKY
     }
@@ -62,14 +72,15 @@ class DownloadService : Service() {
                     ensureWorker()
                 } else {
                     ServiceCompat.stopForeground(this@DownloadService, ServiceCompat.STOP_FOREGROUND_REMOVE)
-                    stopSelf()
+                    // stopSelf(id) is a no-op if a newer start arrived meanwhile.
+                    stopSelf(latestStartId)
                 }
             }
         }
     }
 
     private suspend fun process(id: String, request: DownloadRequest) {
-        val notifyId = id.hashCode()
+        val notifyId = notifyIds.getOrPut(id) { notifyCounter.getAndIncrement() }
         val title = queue.get(id)?.title ?: request.item.title
         Notifications.progress(this, notifyId, title, -1f)
 
@@ -101,7 +112,10 @@ class DownloadService : Service() {
 
     companion object {
         fun start(context: Context) {
-            ContextCompat.startForegroundService(context, Intent(context, DownloadService::class.java))
+            // Guard against the background-start restriction on Android 12+.
+            runCatching {
+                ContextCompat.startForegroundService(context, Intent(context, DownloadService::class.java))
+            }
         }
     }
 }
