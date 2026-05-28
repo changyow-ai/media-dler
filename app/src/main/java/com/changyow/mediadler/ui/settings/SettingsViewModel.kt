@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.changyow.mediadler.core.model.AppSettings
 import com.changyow.mediadler.core.repo.SettingsRepository
 import com.changyow.mediadler.data.ytdlp.EngineInitializer
+import com.changyow.mediadler.data.ytdlp.EngineState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,8 +29,10 @@ class SettingsViewModel(
 
     init {
         viewModelScope.launch {
-            engine.ensureInit()
-            _engineStatus.value = engine.version()?.let { "yt-dlp $it" } ?: "yt-dlp 未就緒"
+            when (val state = engine.ensureInit()) {
+                is EngineState.Failed -> _engineStatus.value = "引擎初始化失敗：${state.message}"
+                else -> _engineStatus.value = engine.version()?.let { "yt-dlp $it" } ?: "yt-dlp 未就緒"
+            }
         }
     }
 

@@ -50,13 +50,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // R8 is disabled for now: the bundled yt-dlp/ffmpeg engine must load
+            // reliably, and minification is a release-only variable we can't
+            // runtime-verify in this environment. ABI splits already give the
+            // meaningful size reduction; re-enable R8 once the engine is verified.
+            isMinifyEnabled = false
             signingConfig = signingConfigs.findByName("release")
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
         }
     }
 

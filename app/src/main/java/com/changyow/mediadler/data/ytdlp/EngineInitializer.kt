@@ -49,8 +49,9 @@ class EngineInitializer(private val application: Application) {
     suspend fun update(
         channel: YoutubeDL.UpdateChannel = YoutubeDL.UpdateChannel._STABLE,
     ): Result<String> = withContext(Dispatchers.IO) {
-        if (ensureInit() is EngineState.Failed) {
-            return@withContext Result.failure(IllegalStateException("引擎尚未就緒"))
+        val state = ensureInit()
+        if (state is EngineState.Failed) {
+            return@withContext Result.failure(IllegalStateException("引擎初始化失敗：${state.message}"))
         }
         runCatching {
             when (YoutubeDL.getInstance().updateYoutubeDL(application, channel)) {
