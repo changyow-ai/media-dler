@@ -1,6 +1,11 @@
 # 計劃:media-dler — Android 分享下載 App
 
-> 本計劃已於首次實作完成並驗證(`:core` 單元測試綠燈、`assembleDebug` / `assembleRelease` 成功、CI 建置)。下文已依實作經驗修正;**標 ⚠️ 的是首次實作踩到的坑與正確作法,照做即可直接避開。**
+> 本計劃已實作完成並實機測試。**已驗證可下載**:YouTube、Bilibili、Threads 影片;`:core` 單元測試綠燈、`assembleDebug` / `assembleRelease` 與 CI 建置通過,各 ABI 簽章 APK 由 CI 發佈到 Releases。
+>
+> **實作後新增**:首頁「貼上連結」(讀剪貼簿)、yt-dlp 自動 + 手動更新(自我修復)、影片本地預覽縮圖、Threads 專用 extractor。
+> **已知限制**:Threads 純圖 / 多圖貼文多半只取得首圖或不支援(完整輪播需登入);release 暫時關閉 R8(見「實測遇到的問題與解法」)。
+>
+> 下文已依實作經驗修正;**標 ⚠️ 的是踩過的坑與正確作法,照做即可直接避開。**
 
 ## Context(為什麼做這個)
 
