@@ -155,12 +155,13 @@ app/
 1. **release 版引擎初始化失敗(「引擎尚未就緒 / 初始化失敗」),debug 正常** — R8 / minify 只在 release 跑,動到 youtubedl-android 的載入流程。解法:release 先**關閉 R8**(`isMinifyEnabled = false`);要開就得補齊 keep 規則並實機驗證。體積交給 ABI split。
 2. **YouTube 抓不動** — 打包的 yt-dlp 過期(YouTube 常改版)。解法:啟動時背景 `updateYoutubeDL` + 設定頁手動更新 + **解析失敗時自動 update 再重試一次**。
 3. **Bilibili「Requested format is not available」** — B 站是 DASH(只有 video-only / audio-only,**沒有 muxed `b`**),限制畫質的字串以 `/b` 收尾會失敗。解法:fallback 改為 `…/bv*+ba/b`,`-S res:H` 取最接近上限。
-4. **Threads 亂碼標題(如「Q3.e」)/ 抓不到** — yt-dlp 無 Threads extractor,generic 抓到 og:title 之類垃圾。解法:URL 改寫成 `…/embed`,讓 `html5` extractor 取 `<video>` 的 mp4(**影片可**);純圖 / 多圖不支援(embed 只給首圖,完整輪播需登入 / GraphQL)。
+4. **Threads 亂碼標題(如「Q3.e」)/ 抓不到** — yt-dlp 無 Threads extractor,generic 抓到 og:title 之類垃圾。解法:走專用 extractor — **自己用瀏覽器 UA 抓 `…/embed`,regex 取 cdninstagram 直連 `.mp4` / 圖片**(`ThreadsEmbedParser` + `ThreadsExtractor`),直連 URL 交給既有下載器。⚠️ 別只靠 yt-dlp 的 `html5`-on-embed:它常被導到 `embed?_fb_noscript=1`(無 `<video>`)→「Unsupported URL」,只當 fallback。純圖 / 多圖多半只拿得到首圖(完整輪播需登入 / GraphQL)。
 5. **裝錯 ABI → native 載入失敗** — 單一 ABI 版裝到不符的機器。解法:不確定就裝 **universal**;Releases 同時提供各 ABI 與 universal。
 6. **沙箱 push tag 被擋(HTTP 403)** — Git proxy 只允許指定分支。解法:讓 **CI 用 `GITHUB_TOKEN` 在伺服器端建 tag / release**(`action-gh-release` 指定 `tag_name`),並改在「push 到分支」時發佈滾動的 `dev` 預發佈。
 7. **直接 CDN 連結可下載** — yt-dlp 的 generic 能直接抓直連 `.mp4` / `.jpg`,所以抽取端若拿到直連 URL,可直接交給既有下載器,不必另寫下載路徑。
 8. **部分站點命名很爛(如「Threads (1)」)** — yt-dlp(html5 / generic)回的 title 不具辨識度,直接當檔名很糟。解法:抽取後針對該站覆寫成有意義的名稱,例如 Threads 用貼文短碼 → `ThreadsVideo_<code>`(見 `ThreadsUrl.postCode`)。
 9. **Threads / Bilibili 在清單中沒有預覽縮圖** — 這些來源沒有可用的遠端縮圖(B 站縮圖網域常需 Referer,Coil 直接載入會失敗),只有 YouTube 有。解法:影片下載完成後,用 Android 內建 **`MediaMetadataRetriever`** 抽一張影格存成本地預覽(app 私有 `media-dler/preview/<名>.jpg`),清單優先顯示本地預覽,並隨任務刪除一併清掉(`previewPath` 也存進歷史)。⚠️ **別指望 youtubedl-android 的 `FFmpeg` 跑任意指令**——它只有 `init` / `getInstance`,沒有 `execute`。
+10. **自用時錯誤要夠詳細** — 解析 / 下載失敗訊息帶上來源 URL、HTTP 狀態、頁面大小等線索;錯誤對話框做成**可捲動 + 可選取複製**,回報 debug 方便很多。
 
 ## 風險與注意
 - **平台反爬**:IG/FB 部分內容需登入;先支援公開內容,登入(cookie)留作後續。

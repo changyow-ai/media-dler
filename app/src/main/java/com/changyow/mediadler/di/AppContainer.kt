@@ -10,6 +10,8 @@ import com.changyow.mediadler.data.storage.MediaStoreStorage
 import com.changyow.mediadler.data.storage.SafStorage
 import com.changyow.mediadler.data.ytdlp.EngineInitializer
 import com.changyow.mediadler.data.ytdlp.YtDlpDownloader
+import com.changyow.mediadler.data.RoutingMediaExtractor
+import com.changyow.mediadler.data.threads.ThreadsExtractor
 import com.changyow.mediadler.data.ytdlp.YtDlpMediaExtractor
 import com.changyow.mediadler.download.DownloadQueue
 import com.changyow.mediadler.download.PreviewStore
@@ -23,7 +25,10 @@ class AppContainer(application: Application) {
     val downloadQueue = DownloadQueue()
     val previewStore = PreviewStore(application)
 
-    val mediaExtractor: MediaExtractor = YtDlpMediaExtractor(engine)
+    val mediaExtractor: MediaExtractor = RoutingMediaExtractor(
+        threads = ThreadsExtractor(),
+        fallback = YtDlpMediaExtractor(engine),
+    )
 
     private val mediaStoreStorage = MediaStoreStorage(application)
     private val safStorage = SafStorage(application)

@@ -26,6 +26,7 @@ class YtDlpMediaExtractor(
                     engine.update()
                     doExtract(url)
                 }
+                .recoverCatching { throw IllegalStateException("${it.message}\n\n來源：$url", it) }
         }
 
     private fun doExtract(url: String): List<MediaItem> {
