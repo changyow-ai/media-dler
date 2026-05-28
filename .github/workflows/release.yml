@@ -1,14 +1,22 @@
 name: release
 
 # Publishes signed per-ABI (+ universal) APKs to the GitHub Releases page.
-# Trigger by pushing a tag like v0.1.0, or run manually (artifacts only).
+# - push a tag vX.Y.Z  -> a normal release with that version
+# - push to the dev branch / run manually -> a rolling "dev" pre-release
+# The action creates the tag/release server-side via GITHUB_TOKEN, so no
+# local tag push is needed.
 on:
   push:
+    branches: ["claude/serene-dirac-jGhvp"]
     tags: ["v*"]
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   release:
@@ -37,17 +45,25 @@ jobs:
       - name: List built APKs
         run: ls -la app/build/outputs/apk/release/
 
-      - name: Upload APKs as workflow artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: media-dler-release-apks
-          path: app/build/outputs/apk/release/*.apk
-          if-no-files-found: error
+      - name: Determine release tag
+        id: ver
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+            echo "name=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=dev" >> "$GITHUB_OUTPUT"
+            echo "name=Development build" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Publish APKs to the Releases page
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.name }}
+          prerelease: ${{ steps.ver.outputs.prerelease }}
           files: app/build/outputs/apk/release/*.apk
-          generate_release_notes: true
           fail_on_unmatched_files: true
+          generate_release_notes: true
