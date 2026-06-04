@@ -23,6 +23,7 @@ val isReleaseTask = gradle.startParameter.taskNames.any { it.contains("Release",
 android {
     namespace = "com.changyow.mediadler"
     compileSdk = 35
+    ndkVersion = "23.0.7344513-beta4"
 
     defaultConfig {
         applicationId = "com.changyow.mediadler"
@@ -32,8 +33,23 @@ android {
         versionName = "0.1.0"
 
         // yt-dlp / ffmpeg ship native libraries for these ABIs.
+        // TEMP (Phase 1): arm64-v8a only to speed the whisper.cpp native build during iteration.
+        // TODO: restore listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64") before release.
         ndk {
-            abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            abiFilters += listOf("arm64-v8a")
+        }
+
+        externalNativeBuild {
+            cmake {
+                cppFlags += "-std=c++17"
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
         }
     }
 
