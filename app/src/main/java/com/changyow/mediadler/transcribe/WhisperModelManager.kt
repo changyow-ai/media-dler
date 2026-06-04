@@ -27,6 +27,17 @@ class WhisperModelManager(private val context: Context) {
         return f.exists() && f.length() > model.approxBytes / 2
     }
 
+    /** On-disk size of the finalised model, or 0 if absent. */
+    fun sizeBytes(model: WhisperModel): Long =
+        file(model).takeIf { it.exists() }?.length() ?: 0L
+
+    /** Removes the model (and any leftover partial). Returns true if nothing remains afterwards. */
+    fun delete(model: WhisperModel): Boolean {
+        File(dir, "${model.fileName}.part").delete()
+        val f = file(model)
+        return !f.exists() || f.delete()
+    }
+
     /** Ensures [model] is present, downloading on first use. [onProgress] is 0f..1f, best-effort. */
     suspend fun ensure(model: WhisperModel, onProgress: (Float) -> Unit = {}): File =
         withContext(Dispatchers.IO) {

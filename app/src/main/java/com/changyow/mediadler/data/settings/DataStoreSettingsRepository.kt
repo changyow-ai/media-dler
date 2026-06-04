@@ -12,6 +12,7 @@ import com.changyow.mediadler.core.model.AudioFormat
 import com.changyow.mediadler.core.model.MediaKind
 import com.changyow.mediadler.core.model.ShareMode
 import com.changyow.mediadler.core.model.StorageMode
+import com.changyow.mediadler.core.model.TranscribeLanguage
 import com.changyow.mediadler.core.model.VideoQuality
 import com.changyow.mediadler.core.repo.SettingsRepository
 import com.changyow.mediadler.util.enumOrDefault
@@ -31,6 +32,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         val safTreeUri = stringPreferencesKey("saf_tree_uri")
         val downloadAllWhenMultiple = booleanPreferencesKey("download_all_when_multiple")
         val autoUpdateYtDlpOnStartup = booleanPreferencesKey("auto_update_ytdlp_on_startup")
+        val transcribeLanguage = stringPreferencesKey("transcribe_language")
     }
 
     override val settings: Flow<AppSettings> = context.settingsDataStore.data.map { it.toAppSettings() }
@@ -52,6 +54,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         safTreeUri = this[Keys.safTreeUri],
         downloadAllWhenMultiple = this[Keys.downloadAllWhenMultiple] ?: true,
         autoUpdateYtDlpOnStartup = this[Keys.autoUpdateYtDlpOnStartup] ?: false,
+        transcribeLanguage = enumOrDefault(this[Keys.transcribeLanguage], TranscribeLanguage.AUTO),
     )
 
     private fun MutablePreferences.write(settings: AppSettings) {
@@ -62,6 +65,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         this[Keys.storageMode] = settings.storageMode.name
         this[Keys.downloadAllWhenMultiple] = settings.downloadAllWhenMultiple
         this[Keys.autoUpdateYtDlpOnStartup] = settings.autoUpdateYtDlpOnStartup
+        this[Keys.transcribeLanguage] = settings.transcribeLanguage.name
         val saf = settings.safTreeUri
         if (saf != null) this[Keys.safTreeUri] = saf else remove(Keys.safTreeUri)
     }

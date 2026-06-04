@@ -2,38 +2,28 @@ package com.changyow.mediadler.ui.transcribe
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.changyow.mediadler.core.transcribe.AudioRef
-import com.changyow.mediadler.core.transcribe.TranscriptionEngine
-import kotlinx.coroutines.flow.MutableStateFlow
+import com.changyow.mediadler.transcribe.TranscriptJob
+import com.changyow.mediadler.transcribe.TranscriptStatus
+import com.changyow.mediadler.transcribe.TranscriptionManager
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 
-/** Runs the transcription for one shared audio source and exposes its progress/result. */
+/** Observes one transcription job from the manager and exposes cancel; the work runs in the service. */
 class TranscribeViewModel(
-    private val engine: TranscriptionEngine,
-    private val audio: AudioRef,
+    private val manager: TranscriptionManager,
+    private val jobId: String,
 ) : ViewModel() {
 
-    sealed interface UiState {
-        data class Running(val progress: Float) : UiState
-        data class Done(val text: String, val language: String?) : UiState
-        data class Error(val message: String) : UiState
-    }
-
-    private val _state = MutableStateFlow<UiState>(UiState.Running(0f))
-    val state: StateFlow<UiState> = _state.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            try {
-                val transcript = engine.transcribe(audio) { p ->
-                    _state.value = UiState.Running(p)
-                }
-                _state.value = UiState.Done(transcript.text, transcript.detectedLanguage)
-            } catch (t: Throwable) {
-                _state.value = UiState.Error(t.message ?: "轉錄失敗")
-            }
+    val job: StateFlow<TranscriptJob?> = manager.jobs
+        .map { list -> list.firstOrNull { it.id == jobId } }
+        .onEach { j ->
+            // Mark the result as seen once the user is looking at the finished page.
+            if (j?.status == TranscriptStatus.COMPLETED && !j.seen) manager.markSeen(jobId)
         }
-    }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), manager.job(jobId))
+
+    fun cancel() = manager.cancel(jobId)
 }

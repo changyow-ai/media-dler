@@ -1,5 +1,6 @@
 package com.changyow.mediadler
 
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -13,63 +14,72 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.changyow.mediadler.core.transcribe.AudioRef
 import com.changyow.mediadler.ui.theme.MediaDlerTheme
 import com.changyow.mediadler.ui.transcribe.TranscribeScreen
 import com.changyow.mediadler.ui.transcribe.TranscribeViewModel
 
 /**
- * Full-screen transcribe flow, launched from [ShareReceiverActivity] when the user shares a local
- * video/voice file. Runs the on-device engine and shows progress → text.
+ * Full-screen transcribe flow. Launched from [ShareReceiverActivity] (local file or link), from a
+ * completion notification, or auto-opened for an unseen finished job. It observes the shared job in
+ * [com.changyow.mediadler.transcribe.TranscriptionManager] — the work itself runs in the service.
  */
 class TranscribeActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val uri = intent.getStringExtra(EXTRA_URI)
-        if (uri == null) {
+        val jobId = intent.getStringExtra(EXTRA_JOB_ID)
+        if (jobId == null) {
             finish()
             return
         }
-        val label = intent.getStringExtra(EXTRA_LABEL) ?: uri
+        val manager = appContainer.transcriptionManager
 
         val viewModel: TranscribeViewModel by viewModels {
             viewModelFactory {
-                initializer {
-                    TranscribeViewModel(
-                        engine = appContainer.transcriptionEngine,
-                        audio = AudioRef(uri = uri, durationMs = null),
-                    )
-                }
+                initializer { TranscribeViewModel(manager, jobId) }
             }
         }
 
         setContent {
             MediaDlerTheme {
-                val state by viewModel.state.collectAsStateWithLifecycle()
-                TranscribeScreen(sourceLabel = label, state = state, onClose = { finish() })
+                val job by viewModel.job.collectAsStateWithLifecycle()
+                TranscribeScreen(
+                    job = job,
+                    onCancel = {
+                        viewModel.cancel()
+                        finish()
+                    },
+                    onClose = { finish() },
+                )
             }
         }
     }
 
     companion object {
-        private const val EXTRA_URI = "extra_uri"
-        private const val EXTRA_LABEL = "extra_label"
+        private const val EXTRA_JOB_ID = "extra_job_id"
 
-        /** Launches the transcribe page for [audioUri], granting it read access. */
-        fun start(context: Context, audioUri: Uri) {
-            val intent = Intent(context, TranscribeActivity::class.java).apply {
-                putExtra(EXTRA_URI, audioUri.toString())
-                putExtra(EXTRA_LABEL, displayName(context, audioUri))
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                data = audioUri
-            }
-            context.startActivity(intent)
+        fun start(context: Context, jobId: String) {
+            context.startActivity(intentFor(context, jobId))
         }
 
-        /** Best-effort human-readable name for a content/file [uri]. */
-        private fun displayName(context: Context, uri: Uri): String {
+        /** PendingIntent for a notification tap → opens this job's result page. */
+        fun contentIntent(context: Context, jobId: String): PendingIntent =
+            PendingIntent.getActivity(
+                context,
+                jobId.hashCode(),
+                intentFor(context, jobId),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+
+        private fun intentFor(context: Context, jobId: String): Intent =
+            Intent(context, TranscribeActivity::class.java).apply {
+                putExtra(EXTRA_JOB_ID, jobId)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+
+        /** Best-effort human-readable name for a content/file [uri] (used as the job label). */
+        fun displayName(context: Context, uri: Uri): String {
             if (uri.scheme == "content") {
                 runCatching {
                     context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {

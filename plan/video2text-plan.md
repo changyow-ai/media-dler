@@ -141,7 +141,33 @@ CMakeLists + `WhisperContext` Kotlin wrapper。模型不進 APK，首次使用�
   - `OpenCcConverter`（**opencc4j 1.14.0**，`toTraditional`；完整 s2twp 片語在地化列後續）。
   - 串接：`TranscribeActivity`→`TranscribeViewModel`→引擎，結果頁顯示進度→文字→複製/分享；引擎入 `AppContainer`（M3 換引擎用）。
 - **whisper 品質驗證（host 預跑，已驗）✅**：ggml-base 跑使用者華語短片，語言偵測 **zh p=0.998**、內容與桌面 Qwen 基準幾乎一致（僅少數同音字），33s/3.95s≈8x realtime。**on-device 路線成立**。
-- **待做**：實機跑（裝 APK→分享影音→看逐字稿；arm64 裝置，目前 abiFilters 暫只 arm64-v8a）；長音訊串流解碼；foreground service 讓長任務存活；模型 Wi-Fi gate；設定切 small。
+- **模型管理（設定頁）✅**：設定頁新增「語音轉文字模型」區塊 — 顯示 `ggml-base` 狀態（未下載/下載中含進度條/已下載含大小/失敗重試）、可手動下載與刪除（`WhisperModelManager.delete`/`sizeBytes`、`SettingsViewModel.ModelState`）。引擎內 `ensure` 保留為 fallback（刪除後直接轉錄仍會自動重抓，不硬失敗）。
+- **Wi-Fi gate（詢問式）✅**：模型下載前若非 Wi-Fi（`NetworkStatus.isMetered`，行動數據或計量 Wi-Fi）跳 `AlertDialog` 確認，不硬限 Wi-Fi。
+- **待做**：實機跑（裝 APK→分享影音→看逐字稿；arm64 裝置，目前 abiFilters 暫只 arm64-v8a）；長音訊串流解碼；foreground service 讓長任務存活；設定切 small。
+
+### 里程碑 2 — 連結輸入 + YouTube CC 捷徑（程式碼完成 ✅，待實機驗）
+- **`LinkAudioResolver`**（`:app/transcribe`）：給 URL →（1）先 best-effort 探字幕（`yt-dlp --skip-download --write-subs --write-auto-subs --sub-langs <優先序> --sub-format vtt`），抓到 → `SubtitleVtt` 去時間軸出純文字、依語言碼套 opencc（**完全跳過引擎**）；（2）抓不到 → `yt-dlp -f bestaudio -x --audio-format m4a` 下載音訊（含進度、`destroyProcessById` 取消保護），交回同一條 on-device pipeline。
+- **分享路由**：URL 分享的既有 picker/錯誤頁各加「轉文字」按鈕（`ShareSheet`→`onTranscribe`→`TranscribeActivity.startUrl`），與下載選項並列；既有下載完全不動。
+- **`TranscribeActivity`/`TranscribeViewModel` 泛化**：輸入分 `LocalFile`/`Link`；連結走「解析(0–40%)→轉錄(40–100%)」兩階段進度，captions 命中則秒出。
+- **限制**：one-tap 分享模式不顯示 picker，故連結轉文字目前僅在「彈窗選擇」模式可用（surgical，不動既有 one-tap 行為）；YouTube CC 為 best-effort，抓不到自動 fallback 下載音訊。
+- **待做**：實機驗（有 CC 的 YouTube 秒出文字、無 CC 的走轉錄、一般連結走轉錄）。
+
+### 里程碑 2b — 背景轉錄子系統（即時串流 / 通知 / 續跑 / 放棄 / history）✅ 程式完成、emulator 驗
+> 觀察到「< 10 分音訊單一大窗 → 進度凍結 0%」後，依使用者需求重構成背景化、串流化的完整子系統。
+
+- **JNI 原生 callback**：`whisper_jni.cpp` 接出 whisper 的 `progress_callback`/`new_segment_callback`/`abort_callback` → Kotlin `WhisperNative.WhisperCallback`（onProgress/onSegment/isCancelled）。即時文字+進度+可中止，**不縮窗、不犧牲準確度**（取代「切 10s」方案）。
+- **引擎串流 + 斷點**：`WhisperCppEngine.transcribeStreaming`，窗改 **60s+3s 重疊**當 checkpoint 單位；每窗用 native callback 串流、窗完成持久化 checkpoint，支援 `startWindow`/`priorText` 續跑。
+- **狀態層**：`TranscriptJob`（id 由來源導出可續跑、status/progress/text/completedWindows/seen…）+ `TranscriptStore`（DataStore JSON）+ `TranscriptionManager`（記憶體 live `StateFlow` 為 UI 單一真相、高頻更新只在記憶體、checkpoint/terminal 才持久化；佇列、續跑、`cancel`、`clearTempFiles`）。
+- **`TranscriptionService`**（foreground dataSync）：drain 佇列、link 先 resolve、跑引擎串流→更新 manager+通知（處理中 X% / 完成可點開）；**分享檔由 `ShareReceiverActivity` 複製進私有 storage**（content-URI grant 不跨行程，私有複本才能續跑）。
+- **UI**：結果頁改觀察 manager job（即時文字+進度+**放棄**）；`TranscriptHistoryScreen`（Home 加入口）；`MainActivity` 開啟時 `firstUnseenCompleted`→跳結果、`hasPending`→續跑；設定加「清除暫存檔」。
+- **emulator 實測（x86_64）**：✅ 進度脫離凍結（0→動起來）、✅ 端到端完成並渲染結果文字+複製/分享、✅ 前景通知、✅ 放棄（job 移除+`cache/transcribe` 清空+persist 變 `[]`）、✅ persisted job（COMPLETED/seen:true/1-1 窗/私有路徑）、✅ history 清單。
+- **已知**：(1) emulator 無 AVX，whisper 慢到不具代表性（15s 音訊 encode 要數分鐘）；真機 ~8x realtime。(2) 單窗短音訊的窗內進度較粗（encode 期間不動）。
+
+### 里程碑 2c — 轉錄語言設定（解語言誤判）✅
+- 起因：whisper 語言自動偵測在第一窗，片頭是音樂/無人聲時會誤判整段（測試片頭被判 `ko`）。whisper API 只吃單一 `language`，無「主+副」概念。
+- 作法：設定加 **`TranscribeLanguage`**（自動／中文／English／日本語／한국어／西/法/德），存 DataStore。非「自動」時，`TranscriptionService` 把該語言碼當 `knownLanguage` 傳給引擎 → 跳過自動偵測、直接鎖 whisper `language`。鎖主語言後，夾雜的英文等仍由多語模型照原文輸出（即使用者要的「中文為主夾雜英文」）；中文另套 OpenCC s2twp。
+- **emulator 驗**：設定 UI 下拉可選並持久化（`transcribe_language`）；鎖「中文」後重跑短片頭，語言不再是 `ko`（見測試）。
+- **TEMP**：`abiFilters` 仍含 `arm64-v8a`+`x86_64`（emulator 測試用，release 前還原四種）。測試用的 `READ_MEDIA_*` 權限已移除。
 
 ## 技術決策（多方檢視後）
 - **解碼器：MediaCodec/MediaExtractor**（已定）。原因：youtubedl-android 的 ffmpeg 不開放任意指令；MediaCodec 系統內建、零相依。

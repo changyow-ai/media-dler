@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Subject
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -63,7 +64,7 @@ import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(onOpenSettings: () -> Unit) {
+fun HomeScreen(onOpenSettings: () -> Unit, onOpenHistory: () -> Unit) {
     val context = LocalContext.current
     val container = remember { context.appContainer }
     val viewModel: HomeViewModel = viewModel(
@@ -80,6 +81,9 @@ fun HomeScreen(onOpenSettings: () -> Unit) {
             TopAppBar(
                 title = { Text("media-dler") },
                 actions = {
+                    IconButton(onClick = onOpenHistory) {
+                        Icon(Icons.Filled.Subject, contentDescription = "轉錄記錄")
+                    }
                     IconButton(onClick = { viewModel.clearFinished() }) {
                         Icon(Icons.Filled.DeleteSweep, contentDescription = "清除已完成")
                     }

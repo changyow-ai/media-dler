@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-only overlay. Lets adb-injected share intents (content:// from MediaStore) be read directly
+  during emulator testing, since adb's `am` URI grants don't forward to our service the way a real
+  app-to-app share does. NOT merged into release builds.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+</manifest>

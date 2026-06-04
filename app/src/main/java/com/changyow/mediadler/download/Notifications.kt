@@ -14,7 +14,10 @@ import com.changyow.mediadler.R
 object Notifications {
     const val CHANNEL_PROGRESS = "downloads_progress"
     const val CHANNEL_STATUS = "downloads_status"
+    const val CHANNEL_TX_PROGRESS = "transcribe_progress"
+    const val CHANNEL_TX_STATUS = "transcribe_status"
     const val SUMMARY_ID = 1
+    const val TX_SUMMARY_ID = 1001
 
     fun createChannels(context: Context) {
         val manager = context.getSystemService<NotificationManager>() ?: return
@@ -24,6 +27,58 @@ object Notifications {
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_STATUS, "下載狀態", NotificationManager.IMPORTANCE_DEFAULT),
         )
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL_TX_PROGRESS, "轉錄進度", NotificationManager.IMPORTANCE_LOW),
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL_TX_STATUS, "轉錄狀態", NotificationManager.IMPORTANCE_DEFAULT),
+        )
+    }
+
+    fun txSummary(context: Context): Notification =
+        NotificationCompat.Builder(context, CHANNEL_TX_PROGRESS)
+            .setSmallIcon(R.drawable.ic_stat_download)
+            .setContentTitle("media-dler")
+            .setContentText("轉文字中…")
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .build()
+
+    fun txProgress(context: Context, id: Int, title: String, progress: Float, open: PendingIntent?) {
+        val builder = NotificationCompat.Builder(context, CHANNEL_TX_PROGRESS)
+            .setSmallIcon(R.drawable.ic_stat_download)
+            .setContentTitle(title)
+            .setOnlyAlertOnce(true)
+            .setOngoing(true)
+        if (progress in 0f..1f) {
+            builder.setContentText("處理中… ${(progress * 100).toInt()}%")
+            builder.setProgress(100, (progress * 100).toInt(), false)
+        } else {
+            builder.setContentText("處理中…")
+            builder.setProgress(0, 0, true)
+        }
+        open?.let { builder.setContentIntent(it) }
+        notify(context, id, builder.build())
+    }
+
+    fun txCompleted(context: Context, id: Int, title: String, open: PendingIntent?) {
+        val builder = NotificationCompat.Builder(context, CHANNEL_TX_STATUS)
+            .setSmallIcon(R.drawable.ic_stat_download)
+            .setContentTitle(title)
+            .setContentText("轉文字完成，點擊查看")
+            .setAutoCancel(true)
+        open?.let { builder.setContentIntent(it) }
+        notify(context, id, builder.build())
+    }
+
+    fun txFailed(context: Context, id: Int, title: String, message: String?) {
+        val builder = NotificationCompat.Builder(context, CHANNEL_TX_STATUS)
+            .setSmallIcon(R.drawable.ic_stat_download)
+            .setContentTitle(title)
+            .setContentText("轉文字失敗：${message ?: "未知錯誤"}")
+            .setStyle(NotificationCompat.BigTextStyle().bigText("轉文字失敗：${message ?: "未知錯誤"}"))
+            .setAutoCancel(true)
+        notify(context, id, builder.build())
     }
 
     fun summary(context: Context, active: Int): Notification =

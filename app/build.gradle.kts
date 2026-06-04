@@ -33,10 +33,11 @@ android {
         versionName = "0.1.0"
 
         // yt-dlp / ffmpeg ship native libraries for these ABIs.
-        // TEMP (Phase 1): arm64-v8a only to speed the whisper.cpp native build during iteration.
+        // TEMP (Phase 1): arm64-v8a (devices) + x86_64 (emulator testing) only, to keep the
+        // whisper.cpp native build fast during iteration.
         // TODO: restore listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64") before release.
         ndk {
-            abiFilters += listOf("arm64-v8a")
+            abiFilters += listOf("arm64-v8a", "x86_64")
         }
 
         externalNativeBuild {

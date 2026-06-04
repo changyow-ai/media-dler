@@ -27,6 +27,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,7 +59,12 @@ import com.changyow.mediadler.core.model.FormatSelection
 import com.changyow.mediadler.core.model.MediaItem
 
 @Composable
-fun ShareSheet(url: String, onSubmitted: () -> Unit, onClose: () -> Unit) {
+fun ShareSheet(
+    url: String,
+    onSubmitted: () -> Unit,
+    onTranscribe: () -> Unit,
+    onClose: () -> Unit,
+) {
     val context = LocalContext.current
     val container = remember { context.appContainer }
     val viewModel: PickerViewModel = viewModel(
@@ -86,8 +92,9 @@ fun ShareSheet(url: String, onSubmitted: () -> Unit, onClose: () -> Unit) {
             Box(Modifier.padding(20.dp)) {
                 when (val s = state) {
                     PickerViewModel.UiState.Loading -> LoadingContent()
-                    is PickerViewModel.UiState.Error -> ErrorContent(s.message, onClose)
-                    is PickerViewModel.UiState.Picker -> PickerContent(s.items, viewModel::submit, onClose)
+                    is PickerViewModel.UiState.Error -> ErrorContent(s.message, onTranscribe, onClose)
+                    is PickerViewModel.UiState.Picker ->
+                        PickerContent(s.items, viewModel::submit, onTranscribe, onClose)
                     is PickerViewModel.UiState.Submitted -> LaunchedEffect(s.count) {
                         Toast.makeText(context, "已加入 ${s.count} 個下載", Toast.LENGTH_SHORT).show()
                         onSubmitted()
@@ -109,7 +116,7 @@ private fun LoadingContent() {
 }
 
 @Composable
-private fun ErrorContent(message: String, onClose: () -> Unit) {
+private fun ErrorContent(message: String, onTranscribe: () -> Unit, onClose: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("無法下載", style = MaterialTheme.typography.titleMedium)
         SelectionContainer(
@@ -119,8 +126,13 @@ private fun ErrorContent(message: String, onClose: () -> Unit) {
         ) {
             Text(message, style = MaterialTheme.typography.bodyMedium)
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+        ) {
             TextButton(onClick = onClose) { Text("關閉") }
+            // The link may still yield captions or audio even when metadata extraction failed.
+            OutlinedButton(onClick = onTranscribe) { Text("改用轉文字") }
         }
     }
 }
@@ -129,6 +141,7 @@ private fun ErrorContent(message: String, onClose: () -> Unit) {
 private fun PickerContent(
     items: List<MediaItem>,
     onConfirm: (List<DownloadRequest>) -> Unit,
+    onTranscribe: () -> Unit,
     onCancel: () -> Unit,
 ) {
     val checked = remember(items) { mutableStateListOf<Boolean>().apply { addAll(List(items.size) { true }) } }
@@ -155,9 +168,12 @@ private fun PickerContent(
         val selectedCount = checked.count { it }
         Row(
             modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
         ) {
             TextButton(onClick = onCancel) { Text("取消") }
+            // Transcribe the link instead of downloading — captions shortcut or audio → on-device.
+            OutlinedButton(onClick = onTranscribe) { Text("轉文字") }
             Button(
                 onClick = {
                     val requests = items.indices

@@ -7,6 +7,46 @@
 #define LOG_TAG "whisper_jni"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
+// Bridges whisper.cpp's C callbacks back to a Kotlin WhisperCallback. whisper_full runs on the
+// calling (JNI) thread, so the captured JNIEnv is valid inside these callbacks — no thread attach.
+struct CallbackBridge {
+    JNIEnv* env;
+    jobject callback;       // Kotlin WhisperCallback
+    jmethodID onProgress;   // (I)V
+    jmethodID onSegment;    // (Ljava/lang/String;)V
+    jmethodID isCancelled;  // ()Z
+};
+
+// Returning true makes whisper_full abort the current window — used by the "放棄" action.
+static bool abort_bridge(void* user_data) {
+    auto* b = reinterpret_cast<CallbackBridge*>(user_data);
+    if (b != nullptr && b->callback != nullptr) {
+        return b->env->CallBooleanMethod(b->callback, b->isCancelled) == JNI_TRUE;
+    }
+    return false;
+}
+
+static void progress_bridge(struct whisper_context*, struct whisper_state*, int progress, void* user_data) {
+    auto* b = reinterpret_cast<CallbackBridge*>(user_data);
+    if (b != nullptr && b->callback != nullptr) {
+        b->env->CallVoidMethod(b->callback, b->onProgress, progress);
+    }
+}
+
+static void segment_bridge(struct whisper_context* ctx, struct whisper_state*, int n_new, void* user_data) {
+    auto* b = reinterpret_cast<CallbackBridge*>(user_data);
+    if (b == nullptr || b->callback == nullptr) return;
+    const int total = whisper_full_n_segments(ctx);
+    for (int i = total - n_new; i < total; i++) {
+        if (i < 0) continue;
+        const char* text = whisper_full_get_segment_text(ctx, i);
+        if (text == nullptr) continue;
+        jstring js = b->env->NewStringUTF(text);
+        b->env->CallVoidMethod(b->callback, b->onSegment, js);
+        b->env->DeleteLocalRef(js);
+    }
+}
+
 extern "C" {
 
 JNIEXPORT jlong JNICALL
@@ -30,7 +70,8 @@ Java_com_changyow_mediadler_transcribe_WhisperNative_nativeFree(
 
 JNIEXPORT jstring JNICALL
 Java_com_changyow_mediadler_transcribe_WhisperNative_nativeFullTranscribe(
-        JNIEnv* env, jobject, jlong ptr, jfloatArray samples, jstring language, jint threads) {
+        JNIEnv* env, jobject, jlong ptr, jfloatArray samples, jstring language, jint threads,
+        jobject callback) {
     auto* ctx = reinterpret_cast<whisper_context*>(ptr);
     if (ctx == nullptr) return env->NewStringUTF("");
 
@@ -55,6 +96,29 @@ Java_com_changyow_mediadler_transcribe_WhisperNative_nativeFullTranscribe(
     // "auto" lets whisper detect the language, then transcribe.
     params.language = (lang.empty() || lang == "auto") ? "auto" : lang.c_str();
     params.detect_language = false;
+
+    // Wire live progress + per-segment text back to Kotlin (skipped when no callback given).
+    CallbackBridge bridge{};
+    if (callback != nullptr) {
+        jclass cls = env->GetObjectClass(callback);
+        bridge.env = env;
+        bridge.callback = callback;
+        bridge.onProgress = env->GetMethodID(cls, "onProgress", "(I)V");
+        bridge.onSegment = env->GetMethodID(cls, "onSegment", "(Ljava/lang/String;)V");
+        bridge.isCancelled = env->GetMethodID(cls, "isCancelled", "()Z");
+        if (bridge.onProgress != nullptr) {
+            params.progress_callback = progress_bridge;
+            params.progress_callback_user_data = &bridge;
+        }
+        if (bridge.onSegment != nullptr) {
+            params.new_segment_callback = segment_bridge;
+            params.new_segment_callback_user_data = &bridge;
+        }
+        if (bridge.isCancelled != nullptr) {
+            params.abort_callback = abort_bridge;
+            params.abort_callback_user_data = &bridge;
+        }
+    }
 
     const int rc = whisper_full(ctx, params, reinterpret_cast<const float*>(data), static_cast<int>(n));
     env->ReleaseFloatArrayElements(samples, data, JNI_ABORT);

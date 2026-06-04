@@ -16,12 +16,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -47,7 +49,9 @@ import com.changyow.mediadler.core.model.AudioFormat
 import com.changyow.mediadler.core.model.MediaKind
 import com.changyow.mediadler.core.model.ShareMode
 import com.changyow.mediadler.core.model.StorageMode
+import com.changyow.mediadler.core.model.TranscribeLanguage
 import com.changyow.mediadler.core.model.VideoQuality
+import com.changyow.mediadler.util.NetworkStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,12 +60,25 @@ fun SettingsScreen(onBack: () -> Unit) {
     val container = remember { context.appContainer }
     val viewModel: SettingsViewModel = viewModel(
         factory = viewModelFactory {
-            initializer { SettingsViewModel(container.settingsRepository, container.engine) }
+            initializer {
+                SettingsViewModel(
+                    container.settingsRepository,
+                    container.engine,
+                    container.whisperModelManager,
+                    container.transcriptionManager,
+                )
+            }
         },
     )
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val engineStatus by viewModel.engineStatus.collectAsStateWithLifecycle()
     val updating by viewModel.updating.collectAsStateWithLifecycle()
+    val modelState by viewModel.modelState.collectAsStateWithLifecycle()
+    var confirmMeteredDownload by remember { mutableStateOf(false) }
+    // On Wi-Fi just download; on mobile data ask first (gate-as-prompt, not a hard block).
+    val requestModelDownload = {
+        if (NetworkStatus.isMetered(context)) confirmMeteredDownload = true else viewModel.downloadModel()
+    }
 
     val safLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
@@ -174,8 +191,95 @@ fun SettingsScreen(onBack: () -> Unit) {
                     Text(if (updating) "更新中…" else "更新 yt-dlp")
                 }
             }
+
+            SettingSection("語音轉文字模型") {
+                DropdownSetting(
+                    label = "轉錄語言",
+                    options = TranscribeLanguage.entries,
+                    selected = settings.transcribeLanguage,
+                    optionLabel = { it.label },
+                    onSelect = { lang -> viewModel.update { it.copy(transcribeLanguage = lang) } },
+                )
+                Text(
+                    "鎖定主要語言可避免短片頭被誤判；夾雜的其他語言仍會照原文輸出。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    "${viewModel.modelName}（離線轉錄；不附帶於 App，需下載）",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                when (val state = modelState) {
+                    is SettingsViewModel.ModelState.Absent -> {
+                        Text(
+                            "尚未下載 · 約 ${formatBytes(state.approxBytes)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        OutlinedButton(onClick = requestModelDownload) { Text("下載模型") }
+                    }
+                    is SettingsViewModel.ModelState.Downloading -> {
+                        LinearProgressIndicator(
+                            progress = { state.progress },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            "下載中… ${(state.progress * 100).toInt()}%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    is SettingsViewModel.ModelState.Present -> {
+                        Text(
+                            "已下載 · ${formatBytes(state.bytes)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        OutlinedButton(onClick = { viewModel.deleteModel() }) { Text("刪除模型") }
+                    }
+                    is SettingsViewModel.ModelState.Failed -> {
+                        Text(
+                            "下載失敗：${state.message}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        OutlinedButton(onClick = requestModelDownload) { Text("重試下載") }
+                    }
+                }
+                Text(
+                    "暫存檔為下載的音訊／字幕與分享進來的檔案複本，可安全清除。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedButton(onClick = { viewModel.clearTempFiles() }) { Text("清除暫存檔") }
+            }
         }
     }
+
+    if (confirmMeteredDownload) {
+        AlertDialog(
+            onDismissRequest = { confirmMeteredDownload = false },
+            title = { Text("使用行動數據下載？") },
+            text = {
+                Text("目前不是 Wi-Fi 連線，模型約 ${formatBytes(viewModel.modelApproxBytes)}，仍要下載嗎？")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmMeteredDownload = false
+                    viewModel.downloadModel()
+                }) { Text("仍要下載") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmMeteredDownload = false }) { Text("取消") }
+            },
+        )
+    }
+}
+
+private fun formatBytes(bytes: Long): String {
+    val mb = bytes.toDouble() / (1024 * 1024)
+    return if (mb >= 1024) "%.1f GB".format(mb / 1024) else "%.0f MB".format(mb)
 }
 
 private fun qualityLabel(quality: VideoQuality): String =
