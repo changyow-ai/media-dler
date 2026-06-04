@@ -65,12 +65,13 @@ object AudioToPcm {
 
             val inputFormat = extractor.getTrackFormat(track)
             val mime = inputFormat.getString(MediaFormat.KEY_MIME)!!
+            val startUs = if (startMs > 0) startMs * 1000 else 0L
             val endUs = if (endMs == Long.MAX_VALUE) Long.MAX_VALUE else endMs * 1000
             val codec = MediaCodec.createDecoderByType(mime)
             codec.configure(inputFormat, null, null, 0)
             codec.start()
             try {
-                val decoded = drainToMonoFloat(extractor, codec, inputFormat, endUs)
+                val decoded = drainToMonoFloat(extractor, codec, inputFormat, startUs, endUs)
                 resampleTo16k(decoded.samples, decoded.sampleRate)
             } finally {
                 runCatching { codec.stop() }
@@ -90,19 +91,22 @@ object AudioToPcm {
 
     /**
      * Runs the decode loop until end-of-stream or the first decoded buffer at/after [endUs],
-     * returning mono float samples still at the source sample rate.
+     * returning mono float samples still at the source sample rate. Leading frames before [startUs]
+     * are trimmed: SEEK_TO_CLOSEST_SYNC can land seconds before the requested window start, and
+     * keeping that pre-roll would inflate the inter-window overlap beyond what [SegmentMerge] dedups.
      */
     private fun drainToMonoFloat(
         extractor: MediaExtractor,
         codec: MediaCodec,
         inputFormat: MediaFormat,
+        startUs: Long,
         endUs: Long,
     ): Decoded {
         val raw = ByteArrayOutputStream()
         val info = MediaCodec.BufferInfo()
         var sawInputEos = false
         var sawOutputEos = false
-        var sampleRate = inputFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+        var sampleRate = inputFormat.getIntegerOrDefault(MediaFormat.KEY_SAMPLE_RATE, TARGET_SAMPLE_RATE)
         var channels = inputFormat.getIntegerOrDefault(MediaFormat.KEY_CHANNEL_COUNT, 1)
         var pcmEncoding = inputFormat.getIntegerOrDefault(MediaFormat.KEY_PCM_ENCODING, ENCODING_PCM_16BIT)
         val timeoutUs = 10_000L
@@ -141,10 +145,21 @@ object AudioToPcm {
                 outIndex >= 0 -> {
                     val outBuf = codec.getOutputBuffer(outIndex)!!
                     if (info.size > 0) {
-                        val chunk = ByteArray(info.size)
-                        outBuf.position(info.offset)
-                        outBuf.get(chunk, 0, info.size)
-                        raw.write(chunk)
+                        // Drop pre-roll decoded before the requested window start (seek slop).
+                        val bytesPerFrame = channels.coerceAtLeast(1) * bytesPerSample(pcmEncoding)
+                        val skip = if (startUs > 0 && info.presentationTimeUs < startUs && bytesPerFrame > 0) {
+                            val framesAhead = (startUs - info.presentationTimeUs) * sampleRate / 1_000_000L
+                            (framesAhead * bytesPerFrame).coerceIn(0L, info.size.toLong()).toInt()
+                        } else {
+                            0
+                        }
+                        if (skip < info.size) {
+                            val len = info.size - skip
+                            val chunk = ByteArray(len)
+                            outBuf.position(info.offset + skip)
+                            outBuf.get(chunk, 0, len)
+                            raw.write(chunk)
+                        }
                     }
                     val pastEnd = endUs != Long.MAX_VALUE && info.presentationTimeUs >= endUs
                     codec.releaseOutputBuffer(outIndex, false)
@@ -185,9 +200,12 @@ object AudioToPcm {
         }
     }
 
+    /** Bytes per sample for the PCM encodings [toMonoFloat] reads (float = 4, everything else 16-bit). */
+    private fun bytesPerSample(pcmEncoding: Int): Int = if (pcmEncoding == ENCODING_PCM_FLOAT) 4 else 2
+
     /** Linear-interpolation resample of mono [src] from [srcRate] to [TARGET_SAMPLE_RATE]. */
     private fun resampleTo16k(src: FloatArray, srcRate: Int): FloatArray {
-        if (srcRate == TARGET_SAMPLE_RATE || src.isEmpty()) return src
+        if (srcRate <= 0 || srcRate == TARGET_SAMPLE_RATE || src.isEmpty()) return src
         val ratio = TARGET_SAMPLE_RATE.toDouble() / srcRate
         val outLen = (src.size * ratio).toInt().coerceAtLeast(1)
         val out = FloatArray(outLen)

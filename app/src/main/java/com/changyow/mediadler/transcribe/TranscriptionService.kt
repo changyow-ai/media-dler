@@ -12,6 +12,7 @@ import com.changyow.mediadler.MediaDlerApp
 import com.changyow.mediadler.TranscribeActivity
 import com.changyow.mediadler.core.repo.SettingsRepository
 import com.changyow.mediadler.download.Notifications
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,6 +23,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.coroutineContext
 
 /**
  * Foreground service that drains the [TranscriptionManager] queue sequentially. For each job it
@@ -34,8 +36,16 @@ class TranscriptionService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val working = AtomicBoolean(false)
 
+    // Guards the (set latestStartId + ensureWorker) of onStartCommand against the (check idle +
+    // stopSelf) of stopIfIdle, so a job enqueued just as the worker drains the queue can't be
+    // acked away and have its service torn down mid-run.
+    private val lifecycleLock = Any()
+
     @Volatile
     private var latestStartId = 0
+
+    // False if we never managed to promote to a foreground service (background-start restriction).
+    private var foregrounded = false
 
     private val notifyIds = ConcurrentHashMap<String, Int>()
     private val notifyCounter = AtomicInteger(Notifications.TX_SUMMARY_ID + 1)
@@ -51,17 +61,29 @@ class TranscriptionService : Service() {
         manager = container.transcriptionManager
         resolver = container.linkAudioResolver
         settings = container.settingsRepository
-        ServiceCompat.startForeground(
-            this,
-            Notifications.TX_SUMMARY_ID,
-            Notifications.txSummary(this),
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
-        )
+        // Promoting to foreground can be refused (background-start limits on Android 12+); catch it
+        // and bail cleanly rather than letting the service crash. The launch-time resume path will
+        // try again next time the app is in the foreground.
+        foregrounded = runCatching {
+            ServiceCompat.startForeground(
+                this,
+                Notifications.TX_SUMMARY_ID,
+                Notifications.txSummary(this),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+            )
+        }.isSuccess
+        if (!foregrounded) stopSelf()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        latestStartId = startId
-        ensureWorker()
+        if (!foregrounded) {
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
+        synchronized(lifecycleLock) {
+            latestStartId = startId
+            ensureWorker()
+        }
         return START_NOT_STICKY
     }
 
@@ -69,18 +91,48 @@ class TranscriptionService : Service() {
         if (!working.compareAndSet(false, true)) return
         scope.launch {
             try {
-                while (isActive) {
-                    val job = manager.claimNext() ?: break
-                    runCatching { process(job) }
-                }
+                drainQueue()
             } finally {
-                working.set(false)
-                if (manager.hasPending()) {
-                    ensureWorker()
-                } else {
-                    ServiceCompat.stopForeground(this@TranscriptionService, ServiceCompat.STOP_FOREGROUND_REMOVE)
-                    stopSelf(latestStartId)
+                stopIfIdle()
+            }
+        }
+    }
+
+    /** Processes jobs until the queue is empty; records each job's own failure and keeps draining. */
+    private suspend fun drainQueue() {
+        while (coroutineContext.isActive) {
+            val job = manager.claimNext() ?: break
+            try {
+                process(job)
+            } catch (c: CancellationException) {
+                throw c // service teardown: stop draining, leave the job checkpointed for resume
+            } catch (_: Throwable) {
+                // process() already recorded the failure on the job; keep draining the queue.
+            }
+        }
+    }
+
+    /**
+     * Releases the worker and stops the service only if nothing raced in. A job enqueued in the gap
+     * is re-claimed; and the idle check + stopSelf run under [lifecycleLock] (paired with
+     * onStartCommand) so a concurrent start either keeps the worker alive or is acked by a newer id.
+     */
+    private fun stopIfIdle() {
+        working.set(false)
+        if (manager.hasPending() && working.compareAndSet(false, true)) {
+            scope.launch {
+                try {
+                    drainQueue()
+                } finally {
+                    stopIfIdle()
                 }
+            }
+            return
+        }
+        synchronized(lifecycleLock) {
+            if (!working.get() && !manager.hasPending()) {
+                ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+                stopSelf(latestStartId)
             }
         }
     }
@@ -93,6 +145,10 @@ class TranscriptionService : Service() {
 
         var audioToDelete: java.io.File? = null
         var inputCopy: java.io.File? = null
+        // The private input copy is the only readable source once the share grant expires, so keep it
+        // unless the job reached a non-resumable terminal state (completed, or user-cancelled). On a
+        // plain failure or service teardown it is preserved so the job can resume next launch.
+        var inputCopyDisposable = false
         try {
             // Resolve a link to captions (instant) or a downloaded audio file before transcribing.
             val audioUri: String = if (job.isUrl) {
@@ -121,7 +177,10 @@ class TranscriptionService : Service() {
                 job.sourceUri
             }
 
-            if (manager.isCancelRequested(id)) return finishCancelled(notifyId)
+            if (manager.isCancelRequested(id)) {
+                inputCopyDisposable = true
+                return finishCancelled(notifyId)
+            }
 
             // A forced language (settings) wins over auto-detect; else keep the resumed/detected one.
             val snapshot = settings.settings.first()
@@ -144,25 +203,35 @@ class TranscriptionService : Service() {
             )
 
             when {
-                result.cancelled || manager.isCancelRequested(id) -> finishCancelled(notifyId)
+                result.cancelled || manager.isCancelRequested(id) -> {
+                    finishCancelled(notifyId)
+                    inputCopyDisposable = true
+                }
                 else -> {
                     manager.complete(id, result.transcript.text, result.transcript.detectedLanguage)
                     Notifications.txCompleted(this, notifyId, job.label, open)
+                    inputCopyDisposable = true
                 }
             }
+        } catch (c: CancellationException) {
+            // Service teardown (scope.cancel): leave the job RUNNING/checkpointed and keep its input
+            // copy so it resumes next launch. Do NOT mark it FAILED or delete the copy.
+            throw c
         } catch (t: Throwable) {
             if (manager.isCancelRequested(id)) {
                 finishCancelled(notifyId)
+                inputCopyDisposable = true
             } else {
+                // FAILED resumes from its checkpoint, so the input copy must survive.
                 manager.fail(id, t.message ?: "轉文字失敗")
                 Notifications.txFailed(this, notifyId, job.label, t.message)
             }
         } finally {
-            // On normal terminal/cancel, drop scratch files. On process death this is skipped, so
-            // the private copy survives and the job resumes from its checkpoint next launch.
-            // The downloaded audio sits in its own scratch dir — remove the dir, not just the file.
+            // The downloaded audio is always disposable (URL jobs re-download on resume); remove its
+            // whole scratch dir. The private input copy is only dropped once the job no longer needs
+            // it to resume — see inputCopyDisposable.
             (audioToDelete?.parentFile ?: audioToDelete)?.deleteRecursively()
-            inputCopy?.delete()
+            if (inputCopyDisposable) inputCopy?.delete()
         }
     }
 
@@ -184,6 +253,9 @@ class TranscriptionService : Service() {
 
     override fun onDestroy() {
         scope.cancel()
+        // Clear any in-flight per-job progress notifications (setOngoing) so a job interrupted by
+        // teardown doesn't leave an undismissable notification behind.
+        notifyIds.values.forEach { runCatching { Notifications.cancel(this, it) } }
         super.onDestroy()
     }
 

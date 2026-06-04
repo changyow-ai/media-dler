@@ -54,15 +54,16 @@ class SettingsViewModel(
                 else -> _engineStatus.value = engine.version()?.let { "yt-dlp $it" } ?: "yt-dlp 未就緒"
             }
         }
-        // Follow the model setting: reflect the chosen model's download state (unless mid-download).
+        // Follow the model setting: reflect the newly-chosen model's own download state. A download
+        // still running for the previously-selected model keeps going but no longer drives this UI
+        // (downloadModel's callbacks bail once selectedModel has moved on), so we must not leave the
+        // new model's section showing the old model's "downloading" / size.
         viewModelScope.launch {
             repository.settings.collect { s ->
                 val model = WhisperModel.of(s.transcribeModel)
                 if (model != selectedModel) {
                     selectedModel = model
-                    if (_modelState.value !is ModelState.Downloading) {
-                        _modelState.value = modelStateOf(model)
-                    }
+                    _modelState.value = modelStateOf(model)
                 }
             }
         }
@@ -94,11 +95,19 @@ class SettingsViewModel(
         val model = selectedModel
         viewModelScope.launch {
             _modelState.value = ModelState.Downloading(0f)
+            // Only this download drives the UI while its model is still the selected one; if the user
+            // switches models mid-download, the state belongs to the new model, not this result.
             runCatching {
-                models.ensure(model) { p -> _modelState.value = ModelState.Downloading(p) }
+                models.ensure(model) { p ->
+                    if (selectedModel == model) _modelState.value = ModelState.Downloading(p)
+                }
             }.fold(
-                onSuccess = { _modelState.value = ModelState.Present(models.sizeBytes(model)) },
-                onFailure = { _modelState.value = ModelState.Failed(it.message ?: "下載失敗") },
+                onSuccess = {
+                    if (selectedModel == model) _modelState.value = ModelState.Present(models.sizeBytes(model))
+                },
+                onFailure = {
+                    if (selectedModel == model) _modelState.value = ModelState.Failed(it.message ?: "下載失敗")
+                },
             )
         }
     }

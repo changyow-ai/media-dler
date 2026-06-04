@@ -37,4 +37,21 @@ object WindowPlanner {
         }
         return windows
     }
+
+    /**
+     * The [index]-th window for open-ended streaming when the total duration is unknown:
+     * `[index*step, index*step + windowMs)` with the same overlap as [plan]. The caller decodes
+     * windows in order and stops at the first window that yields no samples (past end-of-stream),
+     * which keeps memory bounded even without container duration metadata.
+     */
+    fun openWindow(
+        index: Int,
+        windowMs: Long = DEFAULT_WINDOW_MS,
+        overlapMs: Long = DEFAULT_OVERLAP_MS,
+    ): AudioWindow {
+        require(windowMs > 0) { "windowMs must be > 0" }
+        require(overlapMs in 0 until windowMs) { "overlapMs must be in [0, windowMs)" }
+        val start = index.toLong() * (windowMs - overlapMs)
+        return AudioWindow(start, start + windowMs)
+    }
 }

@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.Uri
 import com.changyow.mediadler.core.repo.SettingsRepository
 import com.changyow.mediadler.core.transcribe.AudioRef
-import com.changyow.mediadler.core.transcribe.AudioWindow
 import com.changyow.mediadler.core.transcribe.SegmentMerge
 import com.changyow.mediadler.core.transcribe.Transcript
 import com.changyow.mediadler.core.transcribe.TranscriptionEngine
@@ -52,14 +51,11 @@ class WhisperCppEngine(
         val threads = Runtime.getRuntime().availableProcessors().coerceIn(2, 8)
 
         // Plan windows from container duration so PCM is decoded one window at a time (bounded
-        // memory). If the duration is unknown, fall back to one streaming pass over the whole file.
+        // memory). When the duration is unknown we can't pre-plan, so we stream open-ended windows
+        // and stop at the first that decodes to nothing — never loading the whole file at once.
         val durationMs = AudioToPcm.durationMs(context, uri)
-        val windows = if (durationMs != null) {
-            WindowPlanner.plan(durationMs, WINDOW_MS, OVERLAP_MS)
-        } else {
-            listOf(AudioWindow(0L, Long.MAX_VALUE))
-        }
-        val total = windows.size
+        val planned = durationMs?.let { WindowPlanner.plan(it, WINDOW_MS, OVERLAP_MS) }
+        val total = planned?.size ?: 0 // 0 ⇒ unknown duration (open-ended)
 
         val ctx = WhisperNative.nativeInit(modelFile.absolutePath)
         require(ctx != 0L) { "whisper model load failed: ${modelFile.name}" }
@@ -69,27 +65,33 @@ class WhisperCppEngine(
             var detected: String? = knownLanguage
             var lastCompleted = startWindow
 
-            for (index in startWindow until total) {
+            var index = startWindow
+            while (planned == null || index < planned.size) {
                 if (isCancelled()) {
                     return@withContext result(parts, detected, lastCompleted, total, cancelled = true)
                 }
-                val window = windows[index]
+                val window = planned?.get(index) ?: WindowPlanner.openWindow(index, WINDOW_MS, OVERLAP_MS)
                 // Decode just this window's PCM, then drop it before the next window is decoded.
                 val slice = AudioToPcm.decodeRange(context, uri, window.startMs, window.endMs)
                 if (slice.isEmpty()) {
+                    if (planned == null) break // unknown duration: empty slice = past end-of-stream
                     lastCompleted = index + 1
                     onCheckpoint(lastCompleted, total, render(parts, "", detected), detected)
+                    index++
                     continue
                 }
 
+                // Convert the already-committed windows once per window; each live segment then only
+                // re-converts its own small delta instead of re-merging + converting the whole text.
+                val committed = OpenCcConverter.normalize(SegmentMerge.merge(parts), detected)
                 val live = StringBuilder()
                 val callback = object : WhisperNative.WhisperCallback {
                     override fun onProgress(percent: Int) {
-                        onProgress(0.05f + 0.93f * ((index + percent / 100f) / total))
+                        onProgress(0.05f + 0.93f * windowFraction(index, percent / 100f, total))
                     }
                     override fun onSegment(text: String) {
                         live.append(text)
-                        onPartial(render(parts, live.toString(), detected))
+                        onPartial(joinLive(committed, OpenCcConverter.normalize(live.toString(), detected)))
                     }
                     override fun isCancelled(): Boolean = isCancelled()
                 }
@@ -106,9 +108,10 @@ class WhisperCppEngine(
                 val merged = render(parts, "", detected)
                 onPartial(merged)
                 onCheckpoint(lastCompleted, total, merged, detected)
+                index++
             }
             onProgress(1f)
-            result(parts, detected, total, total, cancelled = false)
+            result(parts, detected, lastCompleted, maxOf(total, lastCompleted), cancelled = false)
         } finally {
             WhisperNative.nativeFree(ctx)
         }
@@ -133,6 +136,19 @@ class WhisperCppEngine(
         val full = if (live.isBlank()) merged else if (merged.isBlank()) live else "$merged$live"
         return OpenCcConverter.normalize(full, language)
     }
+
+    /** Appends the in-flight (already-converted) live text to the committed text for a live preview. */
+    private fun joinLive(committed: String, live: String): String =
+        if (committed.isBlank()) live else if (live.isBlank()) committed else "$committed$live"
+
+    /**
+     * Global progress fraction for window [index] at [withinWindow] (0..1) of its own work. With a
+     * known [total] it is linear; with an unknown total (0) it asymptotes toward 1 so the bar still
+     * advances without ever falsely reading complete.
+     */
+    private fun windowFraction(index: Int, withinWindow: Float, total: Int): Float =
+        if (total > 0) ((index + withinWindow) / total).coerceIn(0f, 1f)
+        else 1f - 1f / (index + 1f + withinWindow)
 
     private companion object {
         const val WINDOW_MS = 60_000L  // checkpoint/resume granularity

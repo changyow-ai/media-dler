@@ -63,4 +63,40 @@ class SubtitleVttTest {
     @Test fun emptyInputYieldsEmpty() {
         assertEquals("", SubtitleVtt.toPlainText("WEBVTT\n\n"))
     }
+
+    @Test fun keepsNumericCaptionLines() {
+        // A caption whose text is a bare number must not be mistaken for a cue index. Here the
+        // standalone "2024" is the cue's text (followed by a blank/next cue), and "100" is mid-line.
+        val vtt = """
+            WEBVTT
+
+            00:00:00.000 --> 00:00:02.000
+            2024
+
+            00:00:02.000 --> 00:00:04.000
+            100
+        """.trimIndent()
+        assertEquals("2024\n100", SubtitleVtt.toPlainText(vtt))
+    }
+
+    @Test fun dropsNumericCueIndexBeforeTimestamp() {
+        val vtt = """
+            WEBVTT
+
+            7
+            00:00:00.000 --> 00:00:02.000
+            hello
+        """.trimIndent()
+        assertEquals("hello", SubtitleVtt.toPlainText(vtt))
+    }
+
+    @Test fun keepsCaptionStartingWithHeaderKeywordAfterFirstCue() {
+        val vtt = """
+            WEBVTT
+
+            00:00:00.000 --> 00:00:02.000
+            Language: a barrier we crossed
+        """.trimIndent()
+        assertEquals("Language: a barrier we crossed", SubtitleVtt.toPlainText(vtt))
+    }
 }

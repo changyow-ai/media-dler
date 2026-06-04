@@ -17,7 +17,9 @@ object Notifications {
     const val CHANNEL_TX_PROGRESS = "transcribe_progress"
     const val CHANNEL_TX_STATUS = "transcribe_status"
     const val SUMMARY_ID = 1
-    const val TX_SUMMARY_ID = 1001
+    // Far above the download per-job counter (which starts at SUMMARY_ID+1 and climbs) so the two
+    // services' notification IDs can never collide within a session.
+    const val TX_SUMMARY_ID = 100_000
 
     fun createChannels(context: Context) {
         val manager = context.getSystemService<NotificationManager>() ?: return

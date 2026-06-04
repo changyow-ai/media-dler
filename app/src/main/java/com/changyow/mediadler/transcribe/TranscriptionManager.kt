@@ -8,8 +8,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.util.Collections
 
@@ -32,8 +35,21 @@ class TranscriptionManager(
     private val queue = ArrayDeque<String>()
     private val cancelRequested = Collections.synchronizedSet(HashSet<String>())
 
+    // Serialises persistence so a late upsert can't interleave with a remove and resurrect a job.
+    private val persistMutex = Mutex()
+
+    // Flips true once persisted jobs are loaded; launch-time resume/auto-open must await this so they
+    // don't read empty state before hydrate() (which reads DataStore off the main thread) has run.
+    private val _hydrated = MutableStateFlow(false)
+    val hydrated: StateFlow<Boolean> = _hydrated.asStateFlow()
+
     init {
         scope.launch { hydrate() }
+    }
+
+    /** Suspends until the persisted jobs/queue have been loaded. */
+    suspend fun awaitHydrated() {
+        hydrated.first { it }
     }
 
     /** Loads persisted jobs, requeuing any left RUNNING by a previous process (resume on launch). */
@@ -55,6 +71,7 @@ class TranscriptionManager(
             !it.isUrl && (it.status == TranscriptStatus.QUEUED || it.status == TranscriptStatus.FAILED)
         }.mapTo(HashSet()) { it.id }
         pruneOrphanInputs(keep)
+        _hydrated.value = true
     }
 
     fun job(id: String): TranscriptJob? = _jobs.value.firstOrNull { it.id == id }
@@ -81,7 +98,7 @@ class TranscriptionManager(
         }
         cancelRequested.remove(id)
         put(job)
-        scope.launch { store.upsert(job) }
+        persistUpsert(job)
         synchronized(queue) { if (id !in queue) queue.add(id) }
         return id
     }
@@ -93,7 +110,7 @@ class TranscriptionManager(
         if (job.isTerminal && job.status != TranscriptStatus.FAILED) return claimNext()
         val running = job.copy(status = TranscriptStatus.RUNNING, error = null)
         put(running)
-        scope.launch { store.upsert(running) }
+        persistUpsert(running)
         return running
     }
 
@@ -112,7 +129,7 @@ class TranscriptionManager(
                 it.copy(engineId = engineId)
             }
         } ?: return null
-        scope.launch { store.upsert(job) }
+        persistUpsert(job)
         return job
     }
 
@@ -126,7 +143,7 @@ class TranscriptionManager(
     /** Repoints a job at a private-storage copy (so it survives the share grant / process death). */
     fun updateSource(id: String, sourceUri: String) {
         val job = mutate(id) { it.copy(sourceUri = sourceUri) } ?: return
-        scope.launch { store.upsert(job) }
+        persistUpsert(job)
     }
 
     // --- persisted ---
@@ -136,7 +153,7 @@ class TranscriptionManager(
             it.copy(completedWindows = completedWindows, totalWindows = totalWindows,
                 text = text, language = language)
         } ?: return
-        scope.launch { store.upsert(job) }
+        persistUpsert(job)
     }
 
     fun complete(id: String, text: String, language: String?) {
@@ -144,19 +161,19 @@ class TranscriptionManager(
             it.copy(status = TranscriptStatus.COMPLETED, progress = 1f, text = text,
                 language = language, seen = false, error = null)
         } ?: return
-        scope.launch { store.upsert(job) }
+        persistUpsert(job)
     }
 
     fun fail(id: String, message: String) {
         val job = mutate(id) { it.copy(status = TranscriptStatus.FAILED, error = message) } ?: return
-        scope.launch { store.upsert(job) }
+        persistUpsert(job)
     }
 
     fun markSeen(id: String) {
         val job = job(id) ?: return
         if (job.seen) return
         val updated = mutate(id) { it.copy(seen = true) } ?: return
-        scope.launch { store.upsert(updated) }
+        persistUpsert(updated)
     }
 
     /** Requests cancellation ("放棄"): aborts the running window, drops the job, cleans its temp. */
@@ -165,7 +182,7 @@ class TranscriptionManager(
         synchronized(queue) { queue.remove(id) }
         _jobs.update { list -> list.filterNot { it.id == id } }
         scope.launch {
-            store.remove(id)
+            persistMutex.withLock { store.remove(id) }
             // Only this job's scratch; a running job's downloaded audio is freed by the service.
             deleteInputCopy(id)
         }
@@ -178,7 +195,7 @@ class TranscriptionManager(
         cancelRequested.remove(id)
         _jobs.update { list -> list.filterNot { it.id == id } }
         scope.launch {
-            store.remove(id)
+            persistMutex.withLock { store.remove(id) }
             deleteInputCopy(id)
         }
     }
@@ -187,7 +204,7 @@ class TranscriptionManager(
         synchronized(queue) { queue.clear() }
         _jobs.value = emptyList()
         scope.launch {
-            store.clear()
+            persistMutex.withLock { store.clear() }
             clearTempFiles()
         }
     }
@@ -210,6 +227,20 @@ class TranscriptionManager(
         runCatching {
             File(context.cacheDir, "transcribe/input").listFiles()?.forEach { file ->
                 if (file.name !in keep) file.delete()
+            }
+        }
+    }
+
+    /**
+     * Persists [job], serialised with removals. A job cancelled while this write was queued is not
+     * re-created: the cancelled-id guard makes a late upsert a no-op regardless of which order it and
+     * the cancel's removal reach the store.
+     */
+    private fun persistUpsert(job: TranscriptJob) {
+        scope.launch {
+            persistMutex.withLock {
+                if (job.id in cancelRequested) return@withLock
+                store.upsert(job)
             }
         }
     }

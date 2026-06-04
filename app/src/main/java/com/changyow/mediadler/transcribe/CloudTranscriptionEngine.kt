@@ -4,12 +4,12 @@ import android.content.Context
 import android.net.Uri
 import com.changyow.mediadler.core.model.CloudTranscribeConfig
 import com.changyow.mediadler.core.repo.SettingsRepository
-import com.changyow.mediadler.core.transcribe.AudioWindow
 import com.changyow.mediadler.core.transcribe.SegmentMerge
 import com.changyow.mediadler.core.transcribe.Transcript
 import com.changyow.mediadler.core.transcribe.WindowPlanner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -49,14 +49,12 @@ class CloudTranscriptionEngine(
         require(config.isConfigured) { "雲端引擎尚未設定（缺少 API 位址、金鑰或模型）" }
         val uri = Uri.parse(audioUri)
 
-        // Window the audio so every uploaded WAV chunk stays under the provider's size limit.
+        // Window the audio so every uploaded WAV chunk stays under the provider's size limit. When
+        // the duration is unknown we stream open-ended windows and stop at the first empty slice,
+        // rather than decoding the whole file into one over-cap (and OOM-prone) upload.
         val durationMs = AudioToPcm.durationMs(context, uri)
-        val windows = if (durationMs != null) {
-            WindowPlanner.plan(durationMs, WINDOW_MS, OVERLAP_MS)
-        } else {
-            listOf(AudioWindow(0L, Long.MAX_VALUE))
-        }
-        val total = windows.size
+        val planned = durationMs?.let { WindowPlanner.plan(it, WINDOW_MS, OVERLAP_MS) }
+        val total = planned?.size ?: 0 // 0 ⇒ unknown duration (open-ended)
 
         val parts = ArrayList<String>()
         if (priorText.isNotBlank()) parts.add(priorText)
@@ -65,22 +63,27 @@ class CloudTranscriptionEngine(
 
         val scratch = File(context.cacheDir, "transcribe/cloud").apply { mkdirs() }
         try {
-            for (index in startWindow until total) {
+            var index = startWindow
+            while (planned == null || index < planned.size) {
                 if (isCancelled()) {
                     return@withContext result(parts, detected, lastCompleted, total, cancelled = true)
                 }
-                onProgress(index.toFloat() / total)
-                val window = windows[index]
+                onProgress(fractionAt(index, total))
+                val window = planned?.get(index) ?: WindowPlanner.openWindow(index, WINDOW_MS, OVERLAP_MS)
                 val pcm = AudioToPcm.decodeRange(context, uri, window.startMs, window.endMs)
                 if (pcm.isEmpty()) {
+                    if (planned == null) break // unknown duration: empty slice = past end-of-stream
                     lastCompleted = index + 1
                     onCheckpoint(lastCompleted, total, render(parts, detected), detected)
+                    index++
                     continue
                 }
                 val wav = File(scratch, "chunk-$index.wav")
                 try {
                     writeWav(wav, pcm)
-                    val response = postTranscription(config, wav, knownLanguage)
+                    // runInterruptible so service teardown (scope.cancel) actually aborts the blocking
+                    // upload/read instead of leaking the connection until readTimeout.
+                    val response = runInterruptible { postTranscription(config, wav, knownLanguage) }
                     if (isCancelled()) {
                         return@withContext result(parts, detected, lastCompleted, total, cancelled = true)
                     }
@@ -91,16 +94,24 @@ class CloudTranscriptionEngine(
                 }
                 lastCompleted = index + 1
                 val merged = render(parts, detected)
-                onProgress((index + 1).toFloat() / total)
+                onProgress(fractionAt(index + 1, total))
                 onPartial(merged)
                 onCheckpoint(lastCompleted, total, merged, detected)
+                index++
             }
             onProgress(1f)
-            result(parts, detected, total, total, cancelled = false)
+            result(parts, detected, lastCompleted, maxOf(total, lastCompleted), cancelled = false)
         } finally {
             scratch.deleteRecursively()
         }
     }
+
+    /**
+     * Global progress fraction at window [index]. With a known [total] it is linear; with an unknown
+     * total (0) it asymptotes toward 1 so the bar advances without ever falsely reading complete.
+     */
+    private fun fractionAt(index: Int, total: Int): Float =
+        if (total > 0) (index.toFloat() / total).coerceIn(0f, 1f) else 1f - 1f / (index + 1f)
 
     private fun result(
         parts: List<String>,
