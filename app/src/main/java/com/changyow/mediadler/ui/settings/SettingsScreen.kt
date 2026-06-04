@@ -26,6 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -39,6 +40,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -49,7 +52,9 @@ import com.changyow.mediadler.core.model.AudioFormat
 import com.changyow.mediadler.core.model.MediaKind
 import com.changyow.mediadler.core.model.ShareMode
 import com.changyow.mediadler.core.model.StorageMode
+import com.changyow.mediadler.core.model.TranscribeEngine
 import com.changyow.mediadler.core.model.TranscribeLanguage
+import com.changyow.mediadler.core.model.TranscribeModel
 import com.changyow.mediadler.core.model.VideoQuality
 import com.changyow.mediadler.util.NetworkStatus
 
@@ -192,7 +197,13 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
 
-            SettingSection("語音轉文字模型") {
+            SettingSection("語音轉文字") {
+                ChoiceChips(
+                    options = TranscribeEngine.entries,
+                    selected = settings.transcribeEngine,
+                    label = { if (it == TranscribeEngine.ON_DEVICE) "裝置端" else "雲端" },
+                    onSelect = { e -> viewModel.update { it.copy(transcribeEngine = e) } },
+                )
                 DropdownSetting(
                     label = "轉錄語言",
                     options = TranscribeLanguage.entries,
@@ -205,48 +216,97 @@ fun SettingsScreen(onBack: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(
-                    "${viewModel.modelName}（離線轉錄；不附帶於 App，需下載）",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                when (val state = modelState) {
-                    is SettingsViewModel.ModelState.Absent -> {
-                        Text(
-                            "尚未下載 · 約 ${formatBytes(state.approxBytes)}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        OutlinedButton(onClick = requestModelDownload) { Text("下載模型") }
+
+                if (settings.transcribeEngine == TranscribeEngine.ON_DEVICE) {
+                    DropdownSetting(
+                        label = "模型",
+                        options = TranscribeModel.entries,
+                        selected = settings.transcribeModel,
+                        optionLabel = { it.label },
+                        onSelect = { m -> viewModel.update { it.copy(transcribeModel = m) } },
+                    )
+                    Text(
+                        "ggml-${settings.transcribeModel.name.lowercase()}（離線轉錄；不附帶於 App，需下載）",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    when (val state = modelState) {
+                        is SettingsViewModel.ModelState.Absent -> {
+                            Text(
+                                "尚未下載 · 約 ${formatBytes(state.approxBytes)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            OutlinedButton(onClick = requestModelDownload) { Text("下載模型") }
+                        }
+                        is SettingsViewModel.ModelState.Downloading -> {
+                            LinearProgressIndicator(
+                                progress = { state.progress },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Text(
+                                "下載中… ${(state.progress * 100).toInt()}%",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        is SettingsViewModel.ModelState.Present -> {
+                            Text(
+                                "已下載 · ${formatBytes(state.bytes)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            OutlinedButton(onClick = { viewModel.deleteModel() }) { Text("刪除模型") }
+                        }
+                        is SettingsViewModel.ModelState.Failed -> {
+                            Text(
+                                "下載失敗：${state.message}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                            OutlinedButton(onClick = requestModelDownload) { Text("重試下載") }
+                        }
                     }
-                    is SettingsViewModel.ModelState.Downloading -> {
-                        LinearProgressIndicator(
-                            progress = { state.progress },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                } else {
+                    Text(
+                        "OpenAI 相容的 /audio/transcriptions（OpenAI、Groq、OpenRouter…）。金鑰只存在本機，不會內建於 App 或上傳。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextFieldSetting(
+                        label = "API 位址（base URL）",
+                        value = settings.cloud.baseUrl,
+                        placeholder = "https://api.groq.com/openai/v1",
+                        onValueChange = { v ->
+                            viewModel.update { it.copy(cloud = it.cloud.copy(baseUrl = v.trim())) }
+                        },
+                    )
+                    TextFieldSetting(
+                        label = "模型名稱",
+                        value = settings.cloud.model,
+                        placeholder = "whisper-large-v3",
+                        onValueChange = { v ->
+                            viewModel.update { it.copy(cloud = it.cloud.copy(model = v.trim())) }
+                        },
+                    )
+                    TextFieldSetting(
+                        label = "API 金鑰",
+                        value = settings.cloud.apiKey,
+                        placeholder = "貼上你的金鑰",
+                        isPassword = true,
+                        onValueChange = { v ->
+                            viewModel.update { it.copy(cloud = it.cloud.copy(apiKey = v.trim())) }
+                        },
+                    )
+                    if (!settings.cloud.isConfigured) {
                         Text(
-                            "下載中… ${(state.progress * 100).toInt()}%",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    is SettingsViewModel.ModelState.Present -> {
-                        Text(
-                            "已下載 · ${formatBytes(state.bytes)}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        OutlinedButton(onClick = { viewModel.deleteModel() }) { Text("刪除模型") }
-                    }
-                    is SettingsViewModel.ModelState.Failed -> {
-                        Text(
-                            "下載失敗：${state.message}",
+                            "填妥位址、模型與金鑰後才能使用雲端引擎。",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                         )
-                        OutlinedButton(onClick = requestModelDownload) { Text("重試下載") }
                     }
                 }
+
                 Text(
                     "暫存檔為下載的音訊／字幕與分享進來的檔案複本，可安全清除。",
                     style = MaterialTheme.typography.bodySmall,
@@ -262,7 +322,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             onDismissRequest = { confirmMeteredDownload = false },
             title = { Text("使用行動數據下載？") },
             text = {
-                Text("目前不是 Wi-Fi 連線，模型約 ${formatBytes(viewModel.modelApproxBytes)}，仍要下載嗎？")
+                Text("目前不是 Wi-Fi 連線，模型約 ${formatBytes(viewModel.selectedModelApproxBytes)}，仍要下載嗎？")
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -348,6 +408,26 @@ private fun <T> DropdownSetting(
             }
         }
     }
+}
+
+@Composable
+private fun TextFieldSetting(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String? = null,
+    isPassword: Boolean = false,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text(label) },
+        placeholder = placeholder?.let { { Text(it) } },
+        singleLine = true,
+        visualTransformation =
+            if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+    )
 }
 
 @Composable

@@ -21,7 +21,6 @@ class SettingsViewModel(
     private val engine: EngineInitializer,
     private val models: WhisperModelManager,
     private val transcriptionManager: TranscriptionManager,
-    private val model: WhisperModel = WhisperModel.BASE,
 ) : ViewModel() {
 
     /** UI state for the on-device whisper model the transcription engine uses. */
@@ -41,10 +40,11 @@ class SettingsViewModel(
     private val _updating = MutableStateFlow(false)
     val updating: StateFlow<Boolean> = _updating.asStateFlow()
 
-    val modelName: String = model.fileName
-    val modelApproxBytes: Long = model.approxBytes
+    // The on-device model the download/delete controls act on, tracked from the model setting.
+    private var selectedModel: WhisperModel = WhisperModel.of(AppSettings().transcribeModel)
+    val selectedModelApproxBytes: Long get() = selectedModel.approxBytes
 
-    private val _modelState = MutableStateFlow<ModelState>(currentModelState())
+    private val _modelState = MutableStateFlow<ModelState>(modelStateOf(selectedModel))
     val modelState: StateFlow<ModelState> = _modelState.asStateFlow()
 
     init {
@@ -54,9 +54,21 @@ class SettingsViewModel(
                 else -> _engineStatus.value = engine.version()?.let { "yt-dlp $it" } ?: "yt-dlp 未就緒"
             }
         }
+        // Follow the model setting: reflect the chosen model's download state (unless mid-download).
+        viewModelScope.launch {
+            repository.settings.collect { s ->
+                val model = WhisperModel.of(s.transcribeModel)
+                if (model != selectedModel) {
+                    selectedModel = model
+                    if (_modelState.value !is ModelState.Downloading) {
+                        _modelState.value = modelStateOf(model)
+                    }
+                }
+            }
+        }
     }
 
-    private fun currentModelState(): ModelState =
+    private fun modelStateOf(model: WhisperModel): ModelState =
         if (models.isDownloaded(model)) ModelState.Present(models.sizeBytes(model))
         else ModelState.Absent(model.approxBytes)
 
@@ -79,6 +91,7 @@ class SettingsViewModel(
 
     fun downloadModel() {
         if (_modelState.value is ModelState.Downloading) return
+        val model = selectedModel
         viewModelScope.launch {
             _modelState.value = ModelState.Downloading(0f)
             runCatching {
@@ -92,6 +105,7 @@ class SettingsViewModel(
 
     fun deleteModel() {
         if (_modelState.value is ModelState.Downloading) return
+        val model = selectedModel
         models.delete(model)
         _modelState.value = ModelState.Absent(model.approxBytes)
     }

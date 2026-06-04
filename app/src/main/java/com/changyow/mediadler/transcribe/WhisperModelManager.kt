@@ -1,6 +1,7 @@
 package com.changyow.mediadler.transcribe
 
 import android.content.Context
+import com.changyow.mediadler.core.model.TranscribeModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -11,7 +12,15 @@ enum class WhisperModel(val id: String, val fileName: String, val url: String, v
     BASE("base", "ggml-base.bin",
         "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin", 147_951_465L),
     SMALL("small", "ggml-small.bin",
-        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin", 487_601_967L),
+        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin", 487_601_967L);
+
+    companion object {
+        /** Maps the user-facing [TranscribeModel] setting to its concrete ggml model. */
+        fun of(choice: TranscribeModel): WhisperModel = when (choice) {
+            TranscribeModel.BASE -> BASE
+            TranscribeModel.SMALL -> SMALL
+        }
+    }
 }
 
 /** Downloads and caches ggml models under the app's files dir. Models are never bundled in the APK. */

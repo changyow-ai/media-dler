@@ -49,6 +49,12 @@ class TranscriptionManager(
             loaded.filter { it.status == TranscriptStatus.QUEUED && it.id !in queue }
                 .forEach { queue.add(it.id) }
         }
+        // Sweep input copies orphaned by a crash/old build: keep only those a resumable local-file
+        // job still needs (URL jobs re-download; completed/cancelled jobs don't resume).
+        val keep = loaded.filter {
+            !it.isUrl && (it.status == TranscriptStatus.QUEUED || it.status == TranscriptStatus.FAILED)
+        }.mapTo(HashSet()) { it.id }
+        pruneOrphanInputs(keep)
     }
 
     fun job(id: String): TranscriptJob? = _jobs.value.firstOrNull { it.id == id }
@@ -93,6 +99,23 @@ class TranscriptionManager(
 
     fun hasPending(): Boolean = synchronized(queue) { queue.isNotEmpty() }
 
+    /**
+     * Binds the job to the engine about to run it, returning the job to resume from. If the engine
+     * differs from the one that wrote the checkpoint (different window scheme), the checkpoint is
+     * discarded so the job re-transcribes cleanly instead of stitching incompatible windows.
+     */
+    fun beginRun(id: String, engineId: String): TranscriptJob? {
+        val job = mutate(id) {
+            if (it.engineId != null && it.engineId != engineId) {
+                it.copy(engineId = engineId, completedWindows = 0, totalWindows = 0, text = "", language = null)
+            } else {
+                it.copy(engineId = engineId)
+            }
+        } ?: return null
+        scope.launch { store.upsert(job) }
+        return job
+    }
+
     // --- live, in-memory only (high frequency) ---
 
     fun setProgress(id: String, progress: Float) =
@@ -136,14 +159,15 @@ class TranscriptionManager(
         scope.launch { store.upsert(updated) }
     }
 
-    /** Requests cancellation ("放棄"): aborts the running window, drops the job, cleans temp files. */
+    /** Requests cancellation ("放棄"): aborts the running window, drops the job, cleans its temp. */
     fun cancel(id: String) {
         cancelRequested.add(id)
         synchronized(queue) { queue.remove(id) }
         _jobs.update { list -> list.filterNot { it.id == id } }
         scope.launch {
             store.remove(id)
-            clearTempFiles()
+            // Only this job's scratch; a running job's downloaded audio is freed by the service.
+            deleteInputCopy(id)
         }
     }
 
@@ -153,7 +177,10 @@ class TranscriptionManager(
         synchronized(queue) { queue.remove(id) }
         cancelRequested.remove(id)
         _jobs.update { list -> list.filterNot { it.id == id } }
-        scope.launch { store.remove(id) }
+        scope.launch {
+            store.remove(id)
+            deleteInputCopy(id)
+        }
     }
 
     fun clearAll() {
@@ -168,9 +195,23 @@ class TranscriptionManager(
     fun firstUnseenCompleted(): TranscriptJob? =
         _jobs.value.firstOrNull { it.status == TranscriptStatus.COMPLETED && !it.seen }
 
-    /** Deletes all transcription scratch files (downloaded audio, fetched subtitles). */
+    /** Deletes all transcription scratch files (downloaded audio, fetched subtitles, file copies). */
     fun clearTempFiles() {
         runCatching { File(context.cacheDir, "transcribe").deleteRecursively() }
+    }
+
+    /** Deletes one job's private input copy (no-op if it was never copied / already gone). */
+    private fun deleteInputCopy(id: String) {
+        runCatching { File(File(context.cacheDir, "transcribe/input"), id).delete() }
+    }
+
+    /** Drops input copies whose id isn't in [keep] (orphans left by a crash or older build). */
+    private fun pruneOrphanInputs(keep: Set<String>) {
+        runCatching {
+            File(context.cacheDir, "transcribe/input").listFiles()?.forEach { file ->
+                if (file.name !in keep) file.delete()
+            }
+        }
     }
 
     private fun put(job: TranscriptJob) {

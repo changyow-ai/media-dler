@@ -25,6 +25,8 @@ data class TranscriptJob(
     /** Checkpoint: windows fully transcribed (resume starts here). */
     val completedWindows: Int = 0,
     val totalWindows: Int = 0,
+    /** Engine that produced the checkpoint; a switch invalidates it (different window scheme). */
+    val engineId: String? = null,
     val error: String? = null,
     /** Whether the user has already opened the finished result (drives the auto-jump). */
     val seen: Boolean = false,

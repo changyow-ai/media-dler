@@ -40,16 +40,15 @@ class TranscriptionService : Service() {
     private val notifyIds = ConcurrentHashMap<String, Int>()
     private val notifyCounter = AtomicInteger(Notifications.TX_SUMMARY_ID + 1)
 
+    private lateinit var container: com.changyow.mediadler.di.AppContainer
     private lateinit var manager: TranscriptionManager
-    private lateinit var engine: WhisperCppEngine
     private lateinit var resolver: LinkAudioResolver
     private lateinit var settings: SettingsRepository
 
     override fun onCreate() {
         super.onCreate()
-        val container = (application as MediaDlerApp).container
+        container = (application as MediaDlerApp).container
         manager = container.transcriptionManager
-        engine = container.whisperCppEngine
         resolver = container.linkAudioResolver
         settings = container.settingsRepository
         ServiceCompat.startForeground(
@@ -125,8 +124,11 @@ class TranscriptionService : Service() {
             if (manager.isCancelRequested(id)) return finishCancelled(notifyId)
 
             // A forced language (settings) wins over auto-detect; else keep the resumed/detected one.
-            val forced = settings.settings.first().transcribeLanguage.code
-            val current = manager.job(id) ?: job
+            val snapshot = settings.settings.first()
+            val forced = snapshot.transcribeLanguage.code
+            val engine = container.streamingEngine(snapshot.transcribeEngine)
+            // Bind to the engine; a switch since the last run discards an incompatible checkpoint.
+            val current = manager.beginRun(id, engine.id) ?: manager.job(id) ?: job
             val result = engine.transcribeStreaming(
                 audioUri = audioUri,
                 startWindow = current.completedWindows,
@@ -158,7 +160,8 @@ class TranscriptionService : Service() {
         } finally {
             // On normal terminal/cancel, drop scratch files. On process death this is skipped, so
             // the private copy survives and the job resumes from its checkpoint next launch.
-            audioToDelete?.delete()
+            // The downloaded audio sits in its own scratch dir — remove the dir, not just the file.
+            (audioToDelete?.parentFile ?: audioToDelete)?.deleteRecursively()
             inputCopy?.delete()
         }
     }

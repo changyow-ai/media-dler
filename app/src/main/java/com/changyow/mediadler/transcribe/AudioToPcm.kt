@@ -15,28 +15,62 @@ import java.nio.ByteOrder
  * for whisper, using the platform [MediaExtractor]/[MediaCodec] — no ffmpeg dependency. Downmix to
  * mono and linear-resample to 16 kHz happen here.
  *
- * NOTE: decodes the whole file into memory. Fine for voice messages / short clips; hour-long audio
- * should switch to time-windowed streaming decode (tracked for later, see plan WindowPlanner).
+ * To keep memory bounded for hour-long audio, the engine decodes one **time window** at a time via
+ * [decodeRange] (a 60 s window of 16 kHz mono float is ~3.8 MB, vs ~230 MB for a whole hour). Each
+ * call seeks to the window start and decodes just that span; windows overlap slightly and the text
+ * seam is de-duplicated downstream, so the coarse (frame-granularity) seek slop is harmless.
  */
 object AudioToPcm {
     const val TARGET_SAMPLE_RATE = 16_000
 
-    suspend fun decode(context: Context, uri: Uri): FloatArray = withContext(Dispatchers.IO) {
+    /** Whole-file decode (single pass). Kept for callers that don't window. */
+    suspend fun decode(context: Context, uri: Uri): FloatArray =
+        decodeRange(context, uri, 0L, Long.MAX_VALUE)
+
+    /** Audio duration in ms from container metadata, or null if the track doesn't carry it. */
+    suspend fun durationMs(context: Context, uri: Uri): Long? = withContext(Dispatchers.IO) {
         val extractor = MediaExtractor()
         try {
             extractor.setDataSource(context, uri, null)
-            val track = (0 until extractor.trackCount).firstOrNull {
-                extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
-            } ?: error("no audio track in $uri")
+            val track = audioTrack(extractor) ?: return@withContext null
+            val format = extractor.getTrackFormat(track)
+            if (format.containsKey(MediaFormat.KEY_DURATION)) {
+                (format.getLong(MediaFormat.KEY_DURATION) / 1000).takeIf { it > 0 }
+            } else {
+                null
+            }
+        } catch (_: Throwable) {
+            null
+        } finally {
+            extractor.release()
+        }
+    }
+
+    /**
+     * Decodes the audio span `[startMs, endMs)` to 16 kHz mono float PCM. [endMs] of
+     * [Long.MAX_VALUE] decodes to the end of the stream. Only this span is held in memory.
+     */
+    suspend fun decodeRange(
+        context: Context,
+        uri: Uri,
+        startMs: Long,
+        endMs: Long,
+    ): FloatArray = withContext(Dispatchers.IO) {
+        val extractor = MediaExtractor()
+        try {
+            extractor.setDataSource(context, uri, null)
+            val track = audioTrack(extractor) ?: error("no audio track in $uri")
             extractor.selectTrack(track)
+            if (startMs > 0) extractor.seekTo(startMs * 1000, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
 
             val inputFormat = extractor.getTrackFormat(track)
             val mime = inputFormat.getString(MediaFormat.KEY_MIME)!!
+            val endUs = if (endMs == Long.MAX_VALUE) Long.MAX_VALUE else endMs * 1000
             val codec = MediaCodec.createDecoderByType(mime)
             codec.configure(inputFormat, null, null, 0)
             codec.start()
             try {
-                val decoded = drainToMonoFloat(extractor, codec, inputFormat)
+                val decoded = drainToMonoFloat(extractor, codec, inputFormat, endUs)
                 resampleTo16k(decoded.samples, decoded.sampleRate)
             } finally {
                 runCatching { codec.stop() }
@@ -47,13 +81,22 @@ object AudioToPcm {
         }
     }
 
+    private fun audioTrack(extractor: MediaExtractor): Int? =
+        (0 until extractor.trackCount).firstOrNull {
+            extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
+        }
+
     private class Decoded(val samples: FloatArray, val sampleRate: Int)
 
-    /** Runs the decode loop, returning mono float samples still at the source sample rate. */
+    /**
+     * Runs the decode loop until end-of-stream or the first decoded buffer at/after [endUs],
+     * returning mono float samples still at the source sample rate.
+     */
     private fun drainToMonoFloat(
         extractor: MediaExtractor,
         codec: MediaCodec,
         inputFormat: MediaFormat,
+        endUs: Long,
     ): Decoded {
         val raw = ByteArrayOutputStream()
         val info = MediaCodec.BufferInfo()
@@ -68,14 +111,21 @@ object AudioToPcm {
             if (!sawInputEos) {
                 val inIndex = codec.dequeueInputBuffer(timeoutUs)
                 if (inIndex >= 0) {
-                    val inBuf = codec.getInputBuffer(inIndex)!!
-                    val size = extractor.readSampleData(inBuf, 0)
-                    if (size < 0) {
+                    val sampleTime = extractor.sampleTime
+                    // Stop feeding once we've passed the requested span; flush with EOS.
+                    if (sampleTime < 0 || (endUs != Long.MAX_VALUE && sampleTime >= endUs)) {
                         codec.queueInputBuffer(inIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
                         sawInputEos = true
                     } else {
-                        codec.queueInputBuffer(inIndex, 0, size, extractor.sampleTime, 0)
-                        extractor.advance()
+                        val inBuf = codec.getInputBuffer(inIndex)!!
+                        val size = extractor.readSampleData(inBuf, 0)
+                        if (size < 0) {
+                            codec.queueInputBuffer(inIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            sawInputEos = true
+                        } else {
+                            codec.queueInputBuffer(inIndex, 0, size, sampleTime, 0)
+                            extractor.advance()
+                        }
                     }
                 }
             }
@@ -96,8 +146,11 @@ object AudioToPcm {
                         outBuf.get(chunk, 0, info.size)
                         raw.write(chunk)
                     }
+                    val pastEnd = endUs != Long.MAX_VALUE && info.presentationTimeUs >= endUs
                     codec.releaseOutputBuffer(outIndex, false)
-                    if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) sawOutputEos = true
+                    if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0 || pastEnd) {
+                        sawOutputEos = true
+                    }
                 }
             }
         }

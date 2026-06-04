@@ -15,9 +15,11 @@ import com.changyow.mediadler.data.threads.ThreadsExtractor
 import com.changyow.mediadler.data.ytdlp.YtDlpMediaExtractor
 import com.changyow.mediadler.download.DownloadQueue
 import com.changyow.mediadler.download.PreviewStore
-import com.changyow.mediadler.core.transcribe.TranscriptionEngine
+import com.changyow.mediadler.core.model.TranscribeEngine
 import com.changyow.mediadler.data.transcribe.TranscriptStore
+import com.changyow.mediadler.transcribe.CloudTranscriptionEngine
 import com.changyow.mediadler.transcribe.LinkAudioResolver
+import com.changyow.mediadler.transcribe.StreamingEngine
 import com.changyow.mediadler.transcribe.TranscriptionManager
 import com.changyow.mediadler.transcribe.WhisperCppEngine
 import com.changyow.mediadler.transcribe.WhisperModelManager
@@ -31,10 +33,17 @@ class AppContainer(application: Application) {
     val downloadQueue = DownloadQueue()
     val previewStore = PreviewStore(application)
 
-    // On-device transcription (default engine). Cloud OpenRouter engine is added in milestone 3.
+    // Transcription engines: on-device whisper.cpp (default, offline) and a cloud OpenAI-compatible
+    // backend (opt-in, user-supplied key). Both implement StreamingEngine; the service picks per the
+    // transcribeEngine setting.
     val whisperModelManager = WhisperModelManager(application)
-    val whisperCppEngine = WhisperCppEngine(application, whisperModelManager)
-    val transcriptionEngine: TranscriptionEngine = whisperCppEngine
+    val whisperCppEngine = WhisperCppEngine(application, whisperModelManager, settingsRepository)
+    val cloudTranscriptionEngine = CloudTranscriptionEngine(application, settingsRepository)
+
+    fun streamingEngine(engine: TranscribeEngine): StreamingEngine = when (engine) {
+        TranscribeEngine.ON_DEVICE -> whisperCppEngine
+        TranscribeEngine.CLOUD -> cloudTranscriptionEngine
+    }
 
     // Resolves a shared link to captions (CC shortcut) or a downloaded audio file (milestone 2).
     val linkAudioResolver = LinkAudioResolver(application, engine)

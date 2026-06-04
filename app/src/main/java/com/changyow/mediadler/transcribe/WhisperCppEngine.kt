@@ -2,59 +2,63 @@ package com.changyow.mediadler.transcribe
 
 import android.content.Context
 import android.net.Uri
+import com.changyow.mediadler.core.repo.SettingsRepository
 import com.changyow.mediadler.core.transcribe.AudioRef
+import com.changyow.mediadler.core.transcribe.AudioWindow
 import com.changyow.mediadler.core.transcribe.SegmentMerge
 import com.changyow.mediadler.core.transcribe.Transcript
 import com.changyow.mediadler.core.transcribe.TranscriptionEngine
 import com.changyow.mediadler.core.transcribe.WindowPlanner
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 /**
- * On-device [TranscriptionEngine] backed by whisper.cpp (JNI). Pipeline: ensure model → decode to
- * 16 kHz mono PCM → window the PCM (~60 s windows = resume checkpoints) → run whisper per window
- * with live segment/progress callbacks → merge → normalise Chinese to traditional.
+ * On-device [TranscriptionEngine]/[StreamingEngine] backed by whisper.cpp (JNI). Pipeline: ensure
+ * model → decode to 16 kHz mono PCM → window the PCM (~60 s windows = resume checkpoints) → run
+ * whisper per window with live segment/progress callbacks → merge → normalise Chinese to traditional.
  *
  * The streaming entry point feeds partial text and progress out as whisper decodes, persists a
  * checkpoint after each window (so an interrupted job resumes from [startWindow] with [priorText]),
- * and honours a cancel flag that aborts mid-window.
+ * and honours a cancel flag that aborts mid-window. The whisper model is read from [settings] per run
+ * so a model change in settings takes effect on the next job without rebuilding the engine.
  */
 class WhisperCppEngine(
     private val context: Context,
     private val models: WhisperModelManager,
-    private val model: WhisperModel = WhisperModel.BASE,
-) : TranscriptionEngine {
+    private val settings: SettingsRepository,
+    private val fallbackModel: WhisperModel = WhisperModel.BASE,
+) : TranscriptionEngine, StreamingEngine {
 
     override val id = "whisper-cpp"
-
-    /** Result of one streaming run; [completedWindows] < [totalWindows] means it was cancelled. */
-    data class StreamResult(
-        val transcript: Transcript,
-        val completedWindows: Int,
-        val totalWindows: Int,
-        val cancelled: Boolean,
-    )
 
     override suspend fun transcribe(audio: AudioRef, onProgress: (Float) -> Unit): Transcript =
         transcribeStreaming(audio.uri, onProgress = onProgress).transcript
 
-    suspend fun transcribeStreaming(
+    override suspend fun transcribeStreaming(
         audioUri: String,
-        startWindow: Int = 0,
-        priorText: String = "",
-        knownLanguage: String? = null,
-        isCancelled: () -> Boolean = { false },
-        onProgress: (Float) -> Unit = {},
-        onPartial: (String) -> Unit = {},
-        onCheckpoint: (Int, Int, String, String?) -> Unit = { _, _, _, _ -> },
+        startWindow: Int,
+        priorText: String,
+        knownLanguage: String?,
+        isCancelled: () -> Boolean,
+        onProgress: (Float) -> Unit,
+        onPartial: (String) -> Unit,
+        onCheckpoint: (Int, Int, String, String?) -> Unit,
     ): StreamResult = withContext(Dispatchers.Default) {
+        val model = runCatching { settings.settings.first().transcribeModel }
+            .getOrNull()?.let(WhisperModel::of) ?: fallbackModel
         val modelFile = models.ensure(model) { onProgress(it * 0.05f) }
-        val pcm = AudioToPcm.decode(context, Uri.parse(audioUri))
-        val sampleRate = AudioToPcm.TARGET_SAMPLE_RATE
+        val uri = Uri.parse(audioUri)
         val threads = Runtime.getRuntime().availableProcessors().coerceIn(2, 8)
 
-        val totalMs = pcm.size.toLong() * 1000 / sampleRate
-        val windows = WindowPlanner.plan(totalMs, WINDOW_MS, OVERLAP_MS)
+        // Plan windows from container duration so PCM is decoded one window at a time (bounded
+        // memory). If the duration is unknown, fall back to one streaming pass over the whole file.
+        val durationMs = AudioToPcm.durationMs(context, uri)
+        val windows = if (durationMs != null) {
+            WindowPlanner.plan(durationMs, WINDOW_MS, OVERLAP_MS)
+        } else {
+            listOf(AudioWindow(0L, Long.MAX_VALUE))
+        }
         val total = windows.size
 
         val ctx = WhisperNative.nativeInit(modelFile.absolutePath)
@@ -70,9 +74,13 @@ class WhisperCppEngine(
                     return@withContext result(parts, detected, lastCompleted, total, cancelled = true)
                 }
                 val window = windows[index]
-                val from = (window.startMs * sampleRate / 1000).toInt().coerceIn(0, pcm.size)
-                val to = (window.endMs * sampleRate / 1000).toInt().coerceIn(from, pcm.size)
-                val slice = if (from == 0 && to == pcm.size) pcm else pcm.copyOfRange(from, to)
+                // Decode just this window's PCM, then drop it before the next window is decoded.
+                val slice = AudioToPcm.decodeRange(context, uri, window.startMs, window.endMs)
+                if (slice.isEmpty()) {
+                    lastCompleted = index + 1
+                    onCheckpoint(lastCompleted, total, render(parts, "", detected), detected)
+                    continue
+                }
 
                 val live = StringBuilder()
                 val callback = object : WhisperNative.WhisperCallback {

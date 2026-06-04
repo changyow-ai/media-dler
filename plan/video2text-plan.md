@@ -121,6 +121,13 @@ CMakeLists + `WhisperContext` Kotlin wrapper。模型不進 APK，首次使用�
 
 ## 進度日誌
 
+### 目前狀態總覽（2026-06-05）
+- **完成度 ~90%**：M0 / M1（含收尾）/ M2 / M2b / M2c / M3 / 資源管理稽核 — 程式皆完成；僅選配的 **M4（存成 .txt）未做**。
+- **建置**：`:app:compileDebugKotlin`、`:core:test`、`:app:assembleDebug`（arm64-v8a + x86_64）皆綠。
+- **本批變更（feat/video2text-transcribe，14 檔，尚未 commit）**：長音訊串流解碼、模型 base/small 切換、M3 雲端引擎 + 引擎切換、資源清理修補。
+- **測試**：host build/test ✅；emulator 驗本批變更 ✅（見下方「emulator 驗」）。**待真機**：多窗 seek 全程轉錄、含金鑰雲端轉錄、M2 連結/CC、四種 ABI。
+- 已知問題彙整見文末「## 已知問題 / 限制」。
+
 ### 環境（已驗證可用）
 - branch：`feat/video2text-transcribe`。
 - Sandbox Android 工具鏈完整：JDK 17（JBR）、SDK `~/adt-bundle-mac-x86_64/sdk`（platform 35/36、build-tools 35/36）、**NDK `ndk-bundle` r23（clang 12）**、CMake 3.22.1、網路可達、gradle 8.14.3。
@@ -131,9 +138,12 @@ CMakeLists + `WhisperContext` Kotlin wrapper。模型不進 APK，首次使用�
 - `:app` 骨架：`TranscribeScreen`（結果頁，複製/分享可用）、`TranscribeActivity`、`ShareReceiverActivity` 加本機檔分支、Manifest 補 `video/*`、`audio/*` SEND filter。`:app:assembleDebug` 綠燈。
 - 刻意延後：`TranscriptionService`（無引擎前是空殼，挪 M1）、URL「轉文字」picker 動作（屬 M2）、本機檔的單選選單（折進結果頁初始狀態）。
 
-### 里程碑 1 — 進行中
+### 里程碑 1 — 完成 ✅（程式；待真機驗逐字稿品質/長音訊）
 - **P1-1 完成 ✅**：whisper.cpp **v1.8.6**（`app/src/main/cpp/whisper.cpp`，submodule）+ ggml 經 NDK r23 編譯，`BUILD_SHARED_LIBS=OFF` 將 ggml 靜態折入單一 `libwhisper_jni.so`（arm64-v8a，4.3MB，已進 APK）。JNI 橋接 `whisper_jni.cpp` + Kotlin `WhisperNative`（init/free/fullTranscribe/detectedLanguage）。CMake 選項：`WHISPER_BUILD_TESTS/EXAMPLES/SERVER=OFF`、`GGML_NATIVE/OPENMP/CCACHE=OFF`。
   - **TEMP**：`build.gradle` abiFilters 暫縮 `arm64-v8a` 加速 native 迭代，release 前還原四種 ABI。
+- **P1 收尾（程式完成 ✅，待實機驗）**：
+  - **長音訊串流解碼**：`AudioToPcm` 新增 `durationMs`（讀容器 metadata）與 `decodeRange(start,end)`（seek + 逐窗解碼），引擎改成「依時長分窗 → 每窗只 `decodeRange` 出該窗 PCM → 用完即丟」，不再整檔載入 float（1hr 從 ~230MB 降到單窗 ~3.8MB）。時長未知時 fallback 整檔單窗。
+  - **設定切 small**：`AppSettings.transcribeModel`（base/small）存 DataStore；`WhisperCppEngine` 每次執行從設定讀模型（`WhisperModel.of`），改設定下一個 job 即生效；設定頁加模型下拉 + 該模型的下載/刪除狀態。
 - **P1-2/3/4/5 完成（程式碼）✅，可建置成 APK**：
   - `AudioToPcm`（MediaCodec/MediaExtractor → 16kHz mono float PCM，整檔解碼；長音訊串流解碼列 TODO）。
   - `WhisperModelManager`（首次下載 ggml-base，HF resolve URL，存 app filesDir，不進 APK）。
@@ -143,7 +153,7 @@ CMakeLists + `WhisperContext` Kotlin wrapper。模型不進 APK，首次使用�
 - **whisper 品質驗證（host 預跑，已驗）✅**：ggml-base 跑使用者華語短片，語言偵測 **zh p=0.998**、內容與桌面 Qwen 基準幾乎一致（僅少數同音字），33s/3.95s≈8x realtime。**on-device 路線成立**。
 - **模型管理（設定頁）✅**：設定頁新增「語音轉文字模型」區塊 — 顯示 `ggml-base` 狀態（未下載/下載中含進度條/已下載含大小/失敗重試）、可手動下載與刪除（`WhisperModelManager.delete`/`sizeBytes`、`SettingsViewModel.ModelState`）。引擎內 `ensure` 保留為 fallback（刪除後直接轉錄仍會自動重抓，不硬失敗）。
 - **Wi-Fi gate（詢問式）✅**：模型下載前若非 Wi-Fi（`NetworkStatus.isMetered`，行動數據或計量 Wi-Fi）跳 `AlertDialog` 確認，不硬限 Wi-Fi。
-- **待做**：實機跑（裝 APK→分享影音→看逐字稿；arm64 裝置，目前 abiFilters 暫只 arm64-v8a）；長音訊串流解碼；foreground service 讓長任務存活；設定切 small。
+- ~~待做：長音訊串流解碼；foreground service；設定切 small~~ → **皆已完成**（串流解碼見「P1 收尾」、service 見 M2b、模型切換見「P1 收尾」）。**僅剩真機跑**（裝 APK→分享影音→看逐字稿/長音訊不 OOM）。
 
 ### 里程碑 2 — 連結輸入 + YouTube CC 捷徑（程式碼完成 ✅，待實機驗）
 - **`LinkAudioResolver`**（`:app/transcribe`）：給 URL →（1）先 best-effort 探字幕（`yt-dlp --skip-download --write-subs --write-auto-subs --sub-langs <優先序> --sub-format vtt`），抓到 → `SubtitleVtt` 去時間軸出純文字、依語言碼套 opencc（**完全跳過引擎**）；（2）抓不到 → `yt-dlp -f bestaudio -x --audio-format m4a` 下載音訊（含進度、`destroyProcessById` 取消保護），交回同一條 on-device pipeline。
@@ -169,6 +179,27 @@ CMakeLists + `WhisperContext` Kotlin wrapper。模型不進 APK，首次使用�
 - **emulator 驗**：設定 UI 下拉可選並持久化（`transcribe_language`）；鎖「中文」後重跑短片頭，語言不再是 `ko`（見測試）。
 - **TEMP**：`abiFilters` 仍含 `arm64-v8a`+`x86_64`（emulator 測試用，release 前還原四種）。測試用的 `READ_MEDIA_*` 權限已移除。
 
+### 里程碑 3 — 雲端引擎 + 引擎切換（程式完成 ✅，待實機驗）
+> 註：plan 原命名 `OpenRouterEngine`，改用更精確的 `CloudTranscriptionEngine`（任何 OpenAI 相容 `/audio/transcriptions`：OpenAI/Groq/OpenRouter…）。
+- **`StreamingEngine` 介面**：抽出 `transcribeStreaming` + `StreamResult`，on-device 與雲端都實作；`TranscriptionService` 改依 `transcribeEngine` 設定選引擎，續跑/取消/通知邏輯兩者共用。
+- **`CloudTranscriptionEngine`**：讀 `cloud`（baseUrl/apiKey/model）設定；以 `WindowPlanner`（10min 窗，~19MB WAV < 25MB 上限）逐窗 `decodeRange`→寫 16k mono WAV→multipart POST（`HttpURLConnection`，`response_format=verbose_json`，鎖定語言時帶 `language`）→解析 text/language→`SegmentMerge`+OpenCC；每窗一個 checkpoint（可續跑），WAV 用完即刪、結束清 `cache/transcribe/cloud`。
+- **金鑰**：`CloudTranscribeConfig` 三欄存 DataStore（裝置本機），設定頁密碼欄輸入；原始碼/APK 不內建任何 key。設定頁加引擎 chips（裝置端/雲端）、雲端三欄輸入、未設定提示。
+- **引擎切換安全**：`TranscriptJob.engineId` 記錄產生 checkpoint 的引擎；`TranscriptionManager.beginRun` 在引擎不同時丟棄 checkpoint（窗制不同會接縫錯亂），改乾淨重轉。
+- **限制**：雲端路徑未實機驗（需使用者自備金鑰）；切 http base URL 受 cleartext 政策限制（預期 https）。
+
+### emulator 驗（本批變更，x86_64 emulator-5554）
+- ✅ **串流解碼 on-device 端到端**：clip2.mp4（33s 單窗）`COMPLETED`、`language=zh`、出正體逐字稿；新 `decodeRange` 的 MediaCodec/seek 路徑正常。
+- ✅ **partial-window endUs 停止**：longvideo.mp4（208s）window 0 解出 `[0,60s)` 並進入 whisper（emulator 無 AVX，15min 才到 5%，多窗全跑不切實際，未跑完）。**真機才測得完整多窗 seek。**
+- ✅ **新 `engineId` 持久化**（whisper-cpp / cloud 皆驗）。
+- ✅ **cancel→清理**：放棄 longvideo 後 job 移除、`cache/transcribe/input/<id>`（8.5MB 複本）刪除。
+- ✅ **pruneOrphanInputs**：植入孤兒檔 → 冷啟動 hydrate 後被清除。
+- ✅ **雲端引擎 wiring**：設定切「雲端」持久化；未設定金鑰時跑檔 → 快速 `FAILED`、`engineId=cloud`、通知「雲端引擎尚未設定（缺少 API 位址、金鑰或模型）」。**含金鑰的實際雲端轉錄仍需使用者自備 key 驗。**
+- **發現（既有、非本批引入）**：`TranscriptionService` finally 無論成敗都刪 `inputCopy`，故 FAILED 的本機檔 job 之私有複本被刪、無法從 checkpoint 續跑（會再失敗）。原碼即如此；若要支援 FAILED 續跑需改成只在 成功/取消 時刪複本。
+
+### 資源管理稽核與修補 ✅
+- **缺口**：`TranscriptionManager.delete(id)`（history「移除」）只刪 job/store，未刪私有輸入複本 `cache/transcribe/input/<id>` → 殘留。
+- **修補**：`delete`/`cancel` 改呼叫 targeted `deleteInputCopy(id)`（不再用 `clearTempFiles` 整夾刪除，避免誤刪其他 job 的複本）；`hydrate` 加 `pruneOrphanInputs`（開機掃除非可續跑 job 的孤兒輸入複本，清掉 crash/舊版殘留）；`TranscriptionService` finally 改刪下載音訊的整個 scratch 子夾（原本只刪檔、留空目錄）。`clearTempFiles`/`clearAll`/設定「清除暫存檔」維持整夾清除語義。
+
 ## 技術決策（多方檢視後）
 - **解碼器：MediaCodec/MediaExtractor**（已定）。原因：youtubedl-android 的 ffmpeg 不開放任意指令；MediaCodec 系統內建、零相依。
 - **whisper 模型**：預設 `ggml-base`（~142MB，快）；設定可換 `ggml-small`（~466MB，中文較準）。模型不進 APK，首次使用下載（建議 Wi-Fi gate）。
@@ -176,6 +207,23 @@ CMakeLists + `WhisperContext` Kotlin wrapper。模型不進 APK，首次使用�
 - **whisper.cpp 取得**：官方 `examples/whisper.android` 自建（submodule + CMake，可控、無 maven 依賴風險）。
 - **建置環境**：使用者已有 Android 開發環境（Android Studio）；whisper.cpp 需 NDK + CMake，缺什麼實作時再提示。實機測試由使用者執行。
 - **既有專案前提**：minSdk 29 / compileSdk 35 / ABI = armeabi-v7a, arm64-v8a, x86, x86_64（whisper.cpp 四種都要編）；R8 關閉；JNI `useLegacyPackaging`。
+
+## 已知問題 / 限制
+- **FAILED 本機檔無法續跑**（既有、非本批引入）：`TranscriptionService` finally 不論成敗都刪 `inputCopy`，FAILED 的本機檔 job 私有複本被刪，重試會再失敗。修法：刪複本限縮在「成功／取消」時，FAILED 保留以利從 checkpoint 續跑。
+- **多窗 seek 全程未實機驗**：emulator 無 AVX（15min 才 5%）跑不完多窗；真機（~8x realtime）才測得完整 seek 接縫品質。window 0 的 partial-window 解碼已驗。
+- **雲端實際轉錄未驗**：wiring 與「未設定→FAIL」已驗，但含金鑰打通 API、size 切段、verbose_json 解析需使用者自備 key 在真機/emulator 驗。
+- **雲端 base URL 須 https**：http 受 Android cleartext 政策擋下。
+- **雲端上傳無行動數據 gate**（模型下載有 Wi-Fi 詢問；雲端逐窗上傳目前不擋）。
+- **連結轉文字僅「彈窗選擇」分享模式可用**：one-tap 模式不顯示 picker，未動既有 one-tap 行為（surgical）。
+- **YouTube CC 為 best-effort**：常需 PO token／被擋，抓不到自動 fallback 下載音訊轉錄。
+- **on-device 中文品質** base < 桌面 Qwen3-ASR；可切 small 或雲端補。
+- **引擎切換 mid-resume**：已用 `TranscriptJob.engineId` + `TranscriptionManager.beginRun` 防呆（窗制不同丟棄 checkpoint 重轉）。
+- **單窗短音訊窗內進度較粗**：encode 期間進度不動（whisper progress callback 顆粒）。
+
+## Release 前待辦（TEMP 還原）
+- `app/build.gradle.kts` abiFilters 還原四種 ABI（目前暫縮 `arm64-v8a, x86_64` 供 emulator 測試）。
+- `app/src/debug/AndroidManifest.xml` 的 `READ_MEDIA_*` 為 debug-only（正式 build 不含），可保留。
+- 完整 s2twp 片語在地化（目前 opencc4j 字元級 s2t）。
 
 ## 風險
 - whisper.cpp NDK 建置 + 模型下載是最重的一塊（故列里程碑 1）。

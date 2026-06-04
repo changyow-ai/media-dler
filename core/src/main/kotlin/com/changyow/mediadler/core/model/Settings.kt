@@ -29,6 +29,25 @@ enum class TranscribeLanguage(val code: String?, val label: String) {
     DE("de", "Deutsch"),
 }
 
+/** Which transcription backend runs. On-device is the offline default; cloud is opt-in (see below). */
+enum class TranscribeEngine { ON_DEVICE, CLOUD }
+
+/** On-device whisper.cpp model. Larger = more accurate (esp. Chinese) but bigger download + slower. */
+enum class TranscribeModel(val label: String) { BASE("base（快）"), SMALL("small（較準）") }
+
+/**
+ * Cloud engine config for an OpenAI-compatible `/audio/transcriptions` endpoint (OpenAI, Groq,
+ * OpenRouter…). The [apiKey] is entered by the user and only ever stored on-device — never bundled
+ * in source or the APK. Empty [baseUrl]/[apiKey] means the cloud engine isn't usable yet.
+ */
+data class CloudTranscribeConfig(
+    val baseUrl: String = "",
+    val apiKey: String = "",
+    val model: String = "",
+) {
+    val isConfigured: Boolean get() = baseUrl.isNotBlank() && apiKey.isNotBlank() && model.isNotBlank()
+}
+
 data class AppSettings(
     val shareMode: ShareMode = ShareMode.ASK,
     val defaultMediaKind: MediaKind = MediaKind.VIDEO,
@@ -39,4 +58,7 @@ data class AppSettings(
     val downloadAllWhenMultiple: Boolean = true,
     val autoUpdateYtDlpOnStartup: Boolean = false,
     val transcribeLanguage: TranscribeLanguage = TranscribeLanguage.AUTO,
+    val transcribeEngine: TranscribeEngine = TranscribeEngine.ON_DEVICE,
+    val transcribeModel: TranscribeModel = TranscribeModel.BASE,
+    val cloud: CloudTranscribeConfig = CloudTranscribeConfig(),
 )

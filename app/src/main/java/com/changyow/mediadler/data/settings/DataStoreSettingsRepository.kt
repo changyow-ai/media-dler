@@ -9,10 +9,13 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.changyow.mediadler.core.model.AppSettings
 import com.changyow.mediadler.core.model.AudioFormat
+import com.changyow.mediadler.core.model.CloudTranscribeConfig
 import com.changyow.mediadler.core.model.MediaKind
 import com.changyow.mediadler.core.model.ShareMode
 import com.changyow.mediadler.core.model.StorageMode
+import com.changyow.mediadler.core.model.TranscribeEngine
 import com.changyow.mediadler.core.model.TranscribeLanguage
+import com.changyow.mediadler.core.model.TranscribeModel
 import com.changyow.mediadler.core.model.VideoQuality
 import com.changyow.mediadler.core.repo.SettingsRepository
 import com.changyow.mediadler.util.enumOrDefault
@@ -33,6 +36,11 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         val downloadAllWhenMultiple = booleanPreferencesKey("download_all_when_multiple")
         val autoUpdateYtDlpOnStartup = booleanPreferencesKey("auto_update_ytdlp_on_startup")
         val transcribeLanguage = stringPreferencesKey("transcribe_language")
+        val transcribeEngine = stringPreferencesKey("transcribe_engine")
+        val transcribeModel = stringPreferencesKey("transcribe_model")
+        val cloudBaseUrl = stringPreferencesKey("cloud_base_url")
+        val cloudApiKey = stringPreferencesKey("cloud_api_key")
+        val cloudModel = stringPreferencesKey("cloud_model")
     }
 
     override val settings: Flow<AppSettings> = context.settingsDataStore.data.map { it.toAppSettings() }
@@ -55,6 +63,13 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         downloadAllWhenMultiple = this[Keys.downloadAllWhenMultiple] ?: true,
         autoUpdateYtDlpOnStartup = this[Keys.autoUpdateYtDlpOnStartup] ?: false,
         transcribeLanguage = enumOrDefault(this[Keys.transcribeLanguage], TranscribeLanguage.AUTO),
+        transcribeEngine = enumOrDefault(this[Keys.transcribeEngine], TranscribeEngine.ON_DEVICE),
+        transcribeModel = enumOrDefault(this[Keys.transcribeModel], TranscribeModel.BASE),
+        cloud = CloudTranscribeConfig(
+            baseUrl = this[Keys.cloudBaseUrl] ?: "",
+            apiKey = this[Keys.cloudApiKey] ?: "",
+            model = this[Keys.cloudModel] ?: "",
+        ),
     )
 
     private fun MutablePreferences.write(settings: AppSettings) {
@@ -66,6 +81,11 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         this[Keys.downloadAllWhenMultiple] = settings.downloadAllWhenMultiple
         this[Keys.autoUpdateYtDlpOnStartup] = settings.autoUpdateYtDlpOnStartup
         this[Keys.transcribeLanguage] = settings.transcribeLanguage.name
+        this[Keys.transcribeEngine] = settings.transcribeEngine.name
+        this[Keys.transcribeModel] = settings.transcribeModel.name
+        this[Keys.cloudBaseUrl] = settings.cloud.baseUrl
+        this[Keys.cloudApiKey] = settings.cloud.apiKey
+        this[Keys.cloudModel] = settings.cloud.model
         val saf = settings.safTreeUri
         if (saf != null) this[Keys.safTreeUri] = saf else remove(Keys.safTreeUri)
     }
