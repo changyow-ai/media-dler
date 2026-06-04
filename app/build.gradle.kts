@@ -134,5 +134,7 @@ dependencies {
     implementation(libs.youtubedl.library)
     implementation(libs.youtubedl.ffmpeg)
 
+    implementation(libs.opencc4j)
+
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

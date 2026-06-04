@@ -15,6 +15,9 @@ import com.changyow.mediadler.data.threads.ThreadsExtractor
 import com.changyow.mediadler.data.ytdlp.YtDlpMediaExtractor
 import com.changyow.mediadler.download.DownloadQueue
 import com.changyow.mediadler.download.PreviewStore
+import com.changyow.mediadler.core.transcribe.TranscriptionEngine
+import com.changyow.mediadler.transcribe.WhisperCppEngine
+import com.changyow.mediadler.transcribe.WhisperModelManager
 
 /** Lightweight manual dependency container — wiring is explicit, no annotation processing. */
 class AppContainer(application: Application) {
@@ -24,6 +27,10 @@ class AppContainer(application: Application) {
     val historyStore = HistoryStore(application)
     val downloadQueue = DownloadQueue()
     val previewStore = PreviewStore(application)
+
+    // On-device transcription (default engine). Cloud OpenRouter engine is added in milestone 3.
+    val whisperModelManager = WhisperModelManager(application)
+    val transcriptionEngine: TranscriptionEngine = WhisperCppEngine(application, whisperModelManager)
 
     val mediaExtractor: MediaExtractor = RoutingMediaExtractor(
         threads = ThreadsExtractor(),

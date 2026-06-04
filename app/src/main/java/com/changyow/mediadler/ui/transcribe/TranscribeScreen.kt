@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -30,16 +32,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 
 /**
- * Result page for a transcription. Milestone 0 renders the skeleton — the source label and a
- * placeholder body — so a shared file lands here end-to-end; the engine that fills [transcript]
- * is wired in milestone 1. Copy / Share already operate on whatever text is present.
+ * Result page for a transcription. Renders the [TranscribeViewModel.UiState]: progress while the
+ * engine runs, then the selectable text with copy / share, or an error.
  */
 @Composable
 fun TranscribeScreen(
     sourceLabel: String,
-    transcript: String,
+    state: TranscribeViewModel.UiState,
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -55,34 +57,50 @@ fun TranscribeScreen(
                 modifier = Modifier.padding(top = 4.dp),
             )
 
-            SelectionContainer(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp)
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                Text(
-                    text = transcript.ifBlank { "（尚未轉錄）" },
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+            Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(vertical = 16.dp)) {
+                when (state) {
+                    is TranscribeViewModel.UiState.Running -> RunningBody(state.progress)
+                    is TranscribeViewModel.UiState.Error -> Text(
+                        "轉錄失敗：${state.message}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    is TranscribeViewModel.UiState.Done -> SelectionContainer(
+                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                    ) {
+                        Text(
+                            state.text.ifBlank { "（沒有辨識到語音）" },
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                }
             }
 
+            val done = state as? TranscribeViewModel.UiState.Done
+            val text = done?.text.orEmpty()
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
             ) {
                 TextButton(onClick = onClose) { Text("關閉") }
-                OutlinedButton(onClick = { copyToClipboard(context, transcript) }, enabled = transcript.isNotBlank()) {
+                OutlinedButton(onClick = { copyToClipboard(context, text) }, enabled = text.isNotBlank()) {
                     Icon(Icons.Filled.ContentCopy, contentDescription = null)
                     Text("複製")
                 }
-                Button(onClick = { shareText(context, transcript) }, enabled = transcript.isNotBlank()) {
+                Button(onClick = { shareText(context, text) }, enabled = text.isNotBlank()) {
                     Icon(Icons.Filled.Share, contentDescription = null)
                     Text("分享")
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RunningBody(progress: Float) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("轉錄中… ${(progress * 100).roundToInt()}%", style = MaterialTheme.typography.bodyMedium)
+        LinearProgressIndicator(progress = { progress.coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
     }
 }
 

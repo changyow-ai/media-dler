@@ -8,13 +8,19 @@ import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.changyow.mediadler.core.transcribe.AudioRef
 import com.changyow.mediadler.ui.theme.MediaDlerTheme
 import com.changyow.mediadler.ui.transcribe.TranscribeScreen
+import com.changyow.mediadler.ui.transcribe.TranscribeViewModel
 
 /**
- * Full-screen result page for the transcribe flow, launched from [ShareReceiverActivity] when the
- * user shares a local video/voice file. Milestone 0 only displays the skeleton; the engine that
- * produces the text is wired in milestone 1.
+ * Full-screen transcribe flow, launched from [ShareReceiverActivity] when the user shares a local
+ * video/voice file. Runs the on-device engine and shows progress → text.
  */
 class TranscribeActivity : ComponentActivity() {
 
@@ -22,14 +28,27 @@ class TranscribeActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val uri = intent.getStringExtra(EXTRA_URI)
-        val label = intent.getStringExtra(EXTRA_LABEL) ?: uri.orEmpty()
+        if (uri == null) {
+            finish()
+            return
+        }
+        val label = intent.getStringExtra(EXTRA_LABEL) ?: uri
+
+        val viewModel: TranscribeViewModel by viewModels {
+            viewModelFactory {
+                initializer {
+                    TranscribeViewModel(
+                        engine = appContainer.transcriptionEngine,
+                        audio = AudioRef(uri = uri, durationMs = null),
+                    )
+                }
+            }
+        }
+
         setContent {
             MediaDlerTheme {
-                TranscribeScreen(
-                    sourceLabel = label,
-                    transcript = "",
-                    onClose = { finish() },
-                )
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                TranscribeScreen(sourceLabel = label, state = state, onClose = { finish() })
             }
         }
     }
@@ -38,7 +57,7 @@ class TranscribeActivity : ComponentActivity() {
         private const val EXTRA_URI = "extra_uri"
         private const val EXTRA_LABEL = "extra_label"
 
-        /** Launches the result page for [audioUri], granting it read access. */
+        /** Launches the transcribe page for [audioUri], granting it read access. */
         fun start(context: Context, audioUri: Uri) {
             val intent = Intent(context, TranscribeActivity::class.java).apply {
                 putExtra(EXTRA_URI, audioUri.toString())

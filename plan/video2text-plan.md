@@ -134,9 +134,14 @@ CMakeLists + `WhisperContext` Kotlin wrapper。模型不進 APK，首次使用�
 ### 里程碑 1 — 進行中
 - **P1-1 完成 ✅**：whisper.cpp **v1.8.6**（`app/src/main/cpp/whisper.cpp`，submodule）+ ggml 經 NDK r23 編譯，`BUILD_SHARED_LIBS=OFF` 將 ggml 靜態折入單一 `libwhisper_jni.so`（arm64-v8a，4.3MB，已進 APK）。JNI 橋接 `whisper_jni.cpp` + Kotlin `WhisperNative`（init/free/fullTranscribe/detectedLanguage）。CMake 選項：`WHISPER_BUILD_TESTS/EXAMPLES/SERVER=OFF`、`GGML_NATIVE/OPENMP/CCACHE=OFF`。
   - **TEMP**：`build.gradle` abiFilters 暫縮 `arm64-v8a` 加速 native 迭代，release 前還原四種 ABI。
-  - runtime 載入/轉錄待實機（P1-5 驗）。
-- P1-2 AudioToPcm、P1-3 ModelManager、P1-4 WhisperCppEngine+OpenCc、P1-5 串接+管路驗證：待做。
-- 驗證素材：使用者提供的測試短片大量為**台語**，僅適合驗「管路」（解碼→引擎→顯示通不通），品質基準待換華語片。
+- **P1-2/3/4/5 完成（程式碼）✅，可建置成 APK**：
+  - `AudioToPcm`（MediaCodec/MediaExtractor → 16kHz mono float PCM，整檔解碼；長音訊串流解碼列 TODO）。
+  - `WhisperModelManager`（首次下載 ggml-base，HF resolve URL，存 app filesDir，不進 APK）。
+  - `WhisperCppEngine`（下載→解碼→`WindowPlanner` 分窗→JNI 逐窗→`SegmentMerge`→`OpenCcConverter`），首窗偵測語言後沿用。
+  - `OpenCcConverter`（**opencc4j 1.14.0**，`toTraditional`；完整 s2twp 片語在地化列後續）。
+  - 串接：`TranscribeActivity`→`TranscribeViewModel`→引擎，結果頁顯示進度→文字→複製/分享；引擎入 `AppContainer`（M3 換引擎用）。
+- **whisper 品質驗證（host 預跑，已驗）✅**：ggml-base 跑使用者華語短片，語言偵測 **zh p=0.998**、內容與桌面 Qwen 基準幾乎一致（僅少數同音字），33s/3.95s≈8x realtime。**on-device 路線成立**。
+- **待做**：實機跑（裝 APK→分享影音→看逐字稿；arm64 裝置，目前 abiFilters 暫只 arm64-v8a）；長音訊串流解碼；foreground service 讓長任務存活；模型 Wi-Fi gate；設定切 small。
 
 ## 技術決策（多方檢視後）
 - **解碼器：MediaCodec/MediaExtractor**（已定）。原因：youtubedl-android 的 ffmpeg 不開放任意指令；MediaCodec 系統內建、零相依。
