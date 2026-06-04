@@ -20,4 +20,5 @@ data class AppSettings(
     val storageMode: StorageMode = StorageMode.DOWNLOADS,
     val safTreeUri: String? = null,
     val downloadAllWhenMultiple: Boolean = true,
+    val autoUpdateYtDlpOnStartup: Boolean = false,
 )

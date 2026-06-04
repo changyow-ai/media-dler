@@ -30,6 +30,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         val storageMode = stringPreferencesKey("storage_mode")
         val safTreeUri = stringPreferencesKey("saf_tree_uri")
         val downloadAllWhenMultiple = booleanPreferencesKey("download_all_when_multiple")
+        val autoUpdateYtDlpOnStartup = booleanPreferencesKey("auto_update_ytdlp_on_startup")
     }
 
     override val settings: Flow<AppSettings> = context.settingsDataStore.data.map { it.toAppSettings() }
@@ -50,6 +51,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         storageMode = enumOrDefault(this[Keys.storageMode], StorageMode.DOWNLOADS),
         safTreeUri = this[Keys.safTreeUri],
         downloadAllWhenMultiple = this[Keys.downloadAllWhenMultiple] ?: true,
+        autoUpdateYtDlpOnStartup = this[Keys.autoUpdateYtDlpOnStartup] ?: false,
     )
 
     private fun MutablePreferences.write(settings: AppSettings) {
@@ -59,6 +61,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         this[Keys.audioFormat] = settings.audioFormat.name
         this[Keys.storageMode] = settings.storageMode.name
         this[Keys.downloadAllWhenMultiple] = settings.downloadAllWhenMultiple
+        this[Keys.autoUpdateYtDlpOnStartup] = settings.autoUpdateYtDlpOnStartup
         val saf = settings.safTreeUri
         if (saf != null) this[Keys.safTreeUri] = saf else remove(Keys.safTreeUri)
     }

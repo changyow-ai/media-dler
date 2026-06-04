@@ -165,6 +165,11 @@ fun SettingsScreen(onBack: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                SwitchSetting(
+                    label = "啟動時自動更新 yt-dlp",
+                    checked = settings.autoUpdateYtDlpOnStartup,
+                    onChange = { value -> viewModel.update { it.copy(autoUpdateYtDlpOnStartup = value) } },
+                )
                 OutlinedButton(onClick = { viewModel.updateEngine() }, enabled = !updating) {
                     Text(if (updating) "更新中…" else "更新 yt-dlp")
                 }
