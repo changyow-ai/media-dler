@@ -150,6 +150,8 @@ dependencies {
     implementation(libs.youtubedl.ffmpeg)
 
     implementation(libs.opencc4j)
+    // Extracts the sherpa-onnx model .tar.bz2 archives on-device (bzip2 + tar, pure Java).
+    implementation(libs.commons.compress)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

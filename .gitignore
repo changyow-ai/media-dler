@@ -12,3 +12,6 @@ local.properties
 
 # Per-module build dirs
 **/build/
+
+# sherpa-onnx prebuilt native libs — fetched by scripts/fetch-sherpa-libs.sh, not committed
+/app/src/main/jniLibs/
