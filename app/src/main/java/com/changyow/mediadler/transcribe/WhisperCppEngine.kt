@@ -8,6 +8,7 @@ import com.changyow.mediadler.core.transcribe.SegmentMerge
 import com.changyow.mediadler.core.transcribe.Transcript
 import com.changyow.mediadler.core.transcribe.TranscriptionEngine
 import com.changyow.mediadler.core.transcribe.WindowPlanner
+import com.changyow.mediadler.util.NetworkStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -46,6 +47,11 @@ class WhisperCppEngine(
     ): StreamResult = withContext(Dispatchers.Default) {
         val model = runCatching { settings.settings.first().transcribeModel }
             .getOrNull()?.let(WhisperModel::of) ?: fallbackModel
+        // Don't silently pull a model over mobile data; fail with an actionable message (FAILED keeps
+        // the input copy, so it resumes once the model is downloaded on Wi-Fi / via Settings).
+        if (!models.isDownloaded(model) && NetworkStatus.isMetered(context)) {
+            error("模型「${model.id}」尚未下載，且目前為行動數據。請連 Wi-Fi，或到設定頁先下載模型再轉錄。")
+        }
         val modelFile = models.ensure(model) { onProgress(it * 0.05f) }
         val uri = Uri.parse(audioUri)
         val threads = Runtime.getRuntime().availableProcessors().coerceIn(2, 8)

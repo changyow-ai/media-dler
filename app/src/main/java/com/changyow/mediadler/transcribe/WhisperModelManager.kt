@@ -16,13 +16,24 @@ enum class WhisperModel(val id: String, val fileName: String, val url: String, v
     BASE("base", "ggml-base.bin",
         "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin", 147_951_465L),
     SMALL("small", "ggml-small.bin",
-        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin", 487_601_967L);
+        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin", 487_601_967L),
+    // Quantised large-v3-turbo (q5_0): turbo-level accuracy at ~small's footprint (574 MB vs 1.6 GB
+    // for the full turbo). Same JNI/ggml load path — only a new download entry.
+    TURBO_Q5("large-v3-turbo-q5_0", "ggml-large-v3-turbo-q5_0.bin",
+        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin",
+        574_041_600L);
 
     companion object {
-        /** Maps the user-facing [TranscribeModel] setting to its concrete ggml model. */
+        /**
+         * Maps a whisper-backed [TranscribeModel] to its concrete ggml model. Sherpa-backed models
+         * have no ggml mapping and must be routed to the sherpa engine instead — callers should check
+         * [TranscribeModel.backend] first; this throws if given a sherpa model.
+         */
         fun of(choice: TranscribeModel): WhisperModel = when (choice) {
             TranscribeModel.BASE -> BASE
             TranscribeModel.SMALL -> SMALL
+            TranscribeModel.TURBO_Q5 -> TURBO_Q5
+            else -> error("${choice.name} is not a whisper.cpp model")
         }
     }
 }

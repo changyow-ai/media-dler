@@ -32,8 +32,26 @@ enum class TranscribeLanguage(val code: String?, val label: String) {
 /** Which transcription backend runs. On-device is the offline default; cloud is opt-in (see below). */
 enum class TranscribeEngine { ON_DEVICE, CLOUD }
 
-/** On-device whisper.cpp model. Larger = more accurate (esp. Chinese) but bigger download + slower. */
-enum class TranscribeModel(val label: String) { BASE("base（快）"), SMALL("small（較準）") }
+/**
+ * Which on-device inference runtime backs a [TranscribeModel]. whisper.cpp runs ggml models via JNI;
+ * sherpa-onnx runs ONNX models (SenseVoice/Paraformer/Qwen3) via ONNX Runtime. The UI never exposes
+ * this — the chosen model implies its backend (see [AppContainer.streamingEngine]).
+ */
+enum class OnDeviceBackend { WHISPER_CPP, SHERPA }
+
+/**
+ * On-device model. The single "裝置端" model dropdown lists all of these; each carries the [backend]
+ * that runs it. whisper models are multilingual ggml; sherpa models (SenseVoice/Paraformer) are
+ * non-autoregressive and far stronger/faster on Chinese, Qwen3 is high-quality but large + slower.
+ */
+enum class TranscribeModel(val label: String, val backend: OnDeviceBackend) {
+    BASE("base（快）", OnDeviceBackend.WHISPER_CPP),
+    SMALL("small（較準）", OnDeviceBackend.WHISPER_CPP),
+    TURBO_Q5("large-v3-turbo 量化（更準）", OnDeviceBackend.WHISPER_CPP),
+    SENSE_VOICE("SenseVoice（中文快又準）", OnDeviceBackend.SHERPA),
+    PARAFORMER("Paraformer（純中文最準）", OnDeviceBackend.SHERPA),
+    QWEN3("Qwen3-ASR（實驗 · 大 · 較慢）", OnDeviceBackend.SHERPA),
+}
 
 /**
  * Cloud engine config for OpenRouter's `/audio/transcriptions` endpoint (JSON + base64 audio).
