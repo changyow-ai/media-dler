@@ -66,6 +66,20 @@ android {
     }
 
     buildTypes {
+        debug {
+            // The debug variant would otherwise compile whisper.cpp/ggml at -O0, which makes
+            // inference ~10-50x slower — unusable for on-device testing and meaningless for timing.
+            // Force an optimized native build so debug speed reflects what release ships.
+            // AGP forces CMAKE_BUILD_TYPE=Debug here, so override the Debug-config opt flags instead.
+            externalNativeBuild {
+                cmake {
+                    arguments += listOf(
+                        "-DCMAKE_C_FLAGS_DEBUG=-O3 -DNDEBUG",
+                        "-DCMAKE_CXX_FLAGS_DEBUG=-O3 -DNDEBUG",
+                    )
+                }
+            }
+        }
         release {
             // R8 is disabled for now: the bundled yt-dlp/ffmpeg engine must load
             // reliably, and minification is a release-only variable we can't
