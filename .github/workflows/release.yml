@@ -58,9 +58,41 @@ jobs:
       - name: List built APKs
         run: ls -la app/build/outputs/apk/release/
 
-      - name: Upload signed release APKs (Actions artifact only)
+      # One artifact per APK so each can be downloaded on its own (no need to grab
+      # the whole bundle just for one ABI). Missing ABIs (e.g. when abiFilters is
+      # temporarily narrowed) are skipped via if-no-files-found: ignore; arm64-v8a
+      # is the primary device target so its absence fails the run.
+      - name: Upload arm64-v8a APK
         uses: actions/upload-artifact@v4
         with:
-          name: media-dler-release-${{ github.ref_name }}
-          path: app/build/outputs/apk/release/*.apk
+          name: media-dler-arm64-v8a-${{ github.ref_name }}
+          path: app/build/outputs/apk/release/app-arm64-v8a-release.apk
+          if-no-files-found: error
+
+      - name: Upload armeabi-v7a APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-dler-armeabi-v7a-${{ github.ref_name }}
+          path: app/build/outputs/apk/release/app-armeabi-v7a-release.apk
+          if-no-files-found: ignore
+
+      - name: Upload x86_64 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-dler-x86_64-${{ github.ref_name }}
+          path: app/build/outputs/apk/release/app-x86_64-release.apk
+          if-no-files-found: ignore
+
+      - name: Upload x86 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-dler-x86-${{ github.ref_name }}
+          path: app/build/outputs/apk/release/app-x86-release.apk
+          if-no-files-found: ignore
+
+      - name: Upload universal APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-dler-universal-${{ github.ref_name }}
+          path: app/build/outputs/apk/release/app-universal-release.apk
           if-no-files-found: error
