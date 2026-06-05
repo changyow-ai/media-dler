@@ -23,14 +23,14 @@ val isReleaseTask = gradle.startParameter.taskNames.any { it.contains("Release",
 android {
     namespace = "com.changyow.mediadler"
     compileSdk = 35
-    ndkVersion = "23.0.7344513-beta4"
+    ndkVersion = "23.2.8568313"
 
     defaultConfig {
         applicationId = "com.changyow.mediadler"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.1.1"
 
         // yt-dlp / ffmpeg ship native libraries for these ABIs.
         // TEMP (Phase 1): arm64-v8a (devices) + x86_64 (emulator testing) only, to keep the

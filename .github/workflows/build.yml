@@ -32,7 +32,9 @@ jobs:
       - name: Install SDK packages
         run: |
           yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+          # :app's whisper.cpp native build needs the pinned NDK + CMake, or Gradle
+          # fails at project configuration (even for :core tasks).
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools" "ndk;23.2.8568313" "cmake;3.22.1"
 
       - name: Run :core unit tests (red/green gate)
         run: ./gradlew :core:test --stacktrace
