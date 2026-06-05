@@ -45,6 +45,13 @@ jobs:
           # fails at project configuration (even for :core tasks).
           sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools" "ndk;23.2.8568313" "cmake;3.22.1"
 
+      # sherpa-onnx's runtime .so (libsherpa-onnx-jni.so + libonnxruntime.so) are
+      # prebuilt downloads, NOT a submodule and NOT committed (jniLibs is gitignored).
+      # Without this the APK ships no sherpa libs and the on-device sherpa engine
+      # (SenseVoice/Paraformer/Qwen3) crashes at runtime: dlopen "libsherpa-onnx-jni.so" not found.
+      - name: Fetch sherpa-onnx prebuilt native libs
+        run: bash scripts/fetch-sherpa-libs.sh
+
       - name: Assemble signed release APKs
         run: ./gradlew :app:assembleRelease --stacktrace
 

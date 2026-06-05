@@ -42,6 +42,11 @@ jobs:
       - name: Run :core unit tests (red/green gate)
         run: ./gradlew :core:test --stacktrace
 
+      # sherpa-onnx's runtime .so are prebuilt downloads, not committed (jniLibs is
+      # gitignored). Fetch them so the debug APK matches what the release build ships.
+      - name: Fetch sherpa-onnx prebuilt native libs
+        run: bash scripts/fetch-sherpa-libs.sh
+
       # Build-only gate: compile the debug APK to catch breakage, but do NOT
       # upload it as an artifact (artifacts on a public repo are downloadable
       # by anyone). No APK is published from this workflow.
