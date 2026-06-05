@@ -10,6 +10,8 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.changyow.mediadler.MediaDlerApp
 import com.changyow.mediadler.TranscribeActivity
+import com.changyow.mediadler.core.model.AppSettings
+import com.changyow.mediadler.core.model.TranscribeEngine
 import com.changyow.mediadler.core.repo.SettingsRepository
 import com.changyow.mediadler.download.Notifications
 import kotlinx.coroutines.CancellationException
@@ -155,6 +157,7 @@ class TranscriptionService : Service() {
                 when (val r = resolver.resolve(job.sourceUri) { p -> manager.setProgress(id, p * 0.3f) }) {
                     is LinkAudioResolver.Resolved.Captions -> {
                         if (manager.isCancelRequested(id)) return finishCancelled(notifyId)
+                        manager.setMethod(id, "內嵌字幕（未經辨識）")
                         val text = OpenCcConverter.normalize(r.text, r.language).trim()
                         manager.complete(id, text, r.language)
                         Notifications.txCompleted(this, notifyId, job.label, open)
@@ -186,6 +189,7 @@ class TranscriptionService : Service() {
             val snapshot = settings.settings.first()
             val forced = snapshot.transcribeLanguage.code
             val engine = container.streamingEngine(snapshot.transcribeEngine)
+            manager.setMethod(id, transcriptionMethod(snapshot))
             // Bind to the engine; a switch since the last run discards an incompatible checkpoint.
             val current = manager.beginRun(id, engine.id) ?: manager.job(id) ?: job
             val result = engine.transcribeStreaming(
@@ -233,6 +237,15 @@ class TranscriptionService : Service() {
             (audioToDelete?.parentFile ?: audioToDelete)?.deleteRecursively()
             if (inputCopyDisposable) inputCopy?.delete()
         }
+    }
+
+    /** Human-readable "engine · model" actually used, shown on the result screen. */
+    private fun transcriptionMethod(s: AppSettings): String = when (s.transcribeEngine) {
+        TranscribeEngine.CLOUD -> {
+            val fmt = if (s.cloud.compressAudio) "m4a" else "WAV"
+            "雲端 · ${s.cloud.model.ifBlank { "未設定" }}（$fmt）"
+        }
+        TranscribeEngine.ON_DEVICE -> "裝置端 · ${s.transcribeModel.name.lowercase()}"
     }
 
     /** Copies a shared content:// file into private cache (idempotent), returning the local file. */

@@ -140,6 +140,12 @@ class TranscriptionManager(
 
     fun setLiveText(id: String, text: String) = mutate(id) { it.copy(text = text) }
 
+    /** Records the human-readable transcription method (engine + model) for display; persisted. */
+    fun setMethod(id: String, method: String) {
+        val job = mutate(id) { it.copy(method = method) } ?: return
+        persistUpsert(job)
+    }
+
     /** Repoints a job at a private-storage copy (so it survives the share grant / process death). */
     fun updateSource(id: String, sourceUri: String) {
         val job = mutate(id) { it.copy(sourceUri = sourceUri) } ?: return

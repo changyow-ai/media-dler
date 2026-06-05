@@ -70,6 +70,16 @@ fun TranscribeScreen(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 4.dp),
             )
+            job?.method?.let { method ->
+                Text(
+                    "轉譯方式：$method",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
 
             if (running) {
                 val progress = job?.progress ?: 0f

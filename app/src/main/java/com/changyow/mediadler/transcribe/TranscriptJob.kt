@@ -27,6 +27,8 @@ data class TranscriptJob(
     val totalWindows: Int = 0,
     /** Engine that produced the checkpoint; a switch invalidates it (different window scheme). */
     val engineId: String? = null,
+    /** Human-readable engine+model actually used, for display (e.g. "雲端 · …" / "裝置端 · base"). */
+    val method: String? = null,
     val error: String? = null,
     /** Whether the user has already opened the finished result (drives the auto-jump). */
     val seen: Boolean = false,
