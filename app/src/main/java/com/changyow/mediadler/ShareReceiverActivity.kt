@@ -10,8 +10,10 @@ import androidx.core.content.IntentCompat
 import androidx.lifecycle.lifecycleScope
 import com.changyow.mediadler.core.extract.UrlExtractor
 import com.changyow.mediadler.download.DownloadService
+import com.changyow.mediadler.transcribe.AudioExtractionService
 import com.changyow.mediadler.transcribe.TranscriptJob
 import com.changyow.mediadler.transcribe.TranscriptionService
+import com.changyow.mediadler.ui.picker.LocalMediaSheet
 import com.changyow.mediadler.ui.picker.ShareSheet
 import com.changyow.mediadler.ui.theme.MediaDlerTheme
 import kotlinx.coroutines.Dispatchers
@@ -25,10 +27,24 @@ class ShareReceiverActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // A shared local video/voice file goes straight to the transcribe pipeline.
+        // A shared local media file: ask what to do. Video → 轉文字 or 取出聲音; audio → 轉文字 only.
         val mediaStream = extractMediaStream(intent)
         if (mediaStream != null) {
-            transcribeLocalFile(mediaStream)
+            val isVideo = intent.type?.startsWith("video/") == true
+            setContent {
+                MediaDlerTheme {
+                    LocalMediaSheet(
+                        isVideo = isVideo,
+                        onText = { transcribeLocalFile(mediaStream) },
+                        onAudio = {
+                            AudioExtractionService.start(this, mediaStream)
+                            Toast.makeText(this, "開始取出聲音…", Toast.LENGTH_SHORT).show()
+                            finish()
+                        },
+                        onClose = { finish() },
+                    )
+                }
+            }
             return
         }
 

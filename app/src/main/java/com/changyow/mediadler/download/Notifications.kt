@@ -83,6 +83,37 @@ object Notifications {
         notify(context, id, builder.build())
     }
 
+    /** Ongoing foreground notification for the audio-extraction service. */
+    fun extractSummary(context: Context): Notification =
+        NotificationCompat.Builder(context, CHANNEL_PROGRESS)
+            .setSmallIcon(R.drawable.ic_stat_download)
+            .setContentTitle("media-dler")
+            .setContentText("取出聲音中…")
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .build()
+
+    /** Terminal notification when an extracted audio file has been saved; tap to play. */
+    fun extracted(context: Context, id: Int, title: String, uri: String, mime: String) {
+        val builder = NotificationCompat.Builder(context, CHANNEL_STATUS)
+            .setSmallIcon(R.drawable.ic_stat_download)
+            .setContentTitle(title)
+            .setContentText("聲音已儲存，點擊播放")
+            .setAutoCancel(true)
+        openIntent(context, uri, mime)?.let { builder.setContentIntent(it) }
+        notify(context, id, builder.build())
+    }
+
+    fun extractFailed(context: Context, id: Int, title: String, message: String?) {
+        val builder = NotificationCompat.Builder(context, CHANNEL_STATUS)
+            .setSmallIcon(R.drawable.ic_stat_download)
+            .setContentTitle(title)
+            .setContentText("取出聲音失敗：${message ?: "未知錯誤"}")
+            .setStyle(NotificationCompat.BigTextStyle().bigText("取出聲音失敗：${message ?: "未知錯誤"}"))
+            .setAutoCancel(true)
+        notify(context, id, builder.build())
+    }
+
     fun summary(context: Context, active: Int): Notification =
         NotificationCompat.Builder(context, CHANNEL_PROGRESS)
             .setSmallIcon(R.drawable.ic_stat_download)

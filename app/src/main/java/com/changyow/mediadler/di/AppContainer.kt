@@ -57,8 +57,8 @@ class AppContainer(application: Application) {
         fallback = YtDlpMediaExtractor(engine),
     )
 
-    private val mediaStoreStorage = MediaStoreStorage(application)
-    private val safStorage = SafStorage(application)
+    val mediaStoreStorage = MediaStoreStorage(application)
+    val safStorage = SafStorage(application)
 
     val downloader: Downloader = YtDlpDownloader(
         context = application,
