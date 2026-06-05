@@ -273,6 +273,33 @@ CMakeLists + `WhisperContext` Kotlin wrapper。模型不進 APK，首次使用�
   - **限制**：sherpa 引擎 id 靜態 `"sherpa-onnx"` → whisper↔sherpa 切換會重轉（正確），但 sherpa 模型間切換 mid-job 沿用 checkpoint（同 whisper base↔small 既有行為）。
   - 完整規劃見 `~/.claude/plans/`（M8 計畫檔）。
 
+## 模型總表（單一真相）
+> 整併散在 M1 / M8 / OpenRouter 契約 / 實測基準各段的 model 資料；**給 iOS 用的速查版另存
+> `media-dler-ios/plan/video2text-models.md`**（可直接丟給 iOS app）。下方為 Android 規格與真機數據。
+
+**裝置端 — whisper.cpp（ggml）**，下載自 `huggingface.co/ggerganov/whisper.cpp/resolve/main/<檔名>`：
+
+| 模型 | 檔名 | 大小 | 標點 | 速度（SD665 184s 片） | 中文相對 CER |
+|---|---|---|---|---|---|
+| `base`（預設） | `ggml-base.bin` | ~142MB | 有 | 141s（0.77× 快於即時） | ~30% |
+| `small` | `ggml-small.bin` | ~466MB | 有 | 358s（1.95× 慢） | ~26% |
+| `TURBO_Q5`（M8） | `ggml-large-v3-turbo-q5_0.bin` | 574MB | 有 | ~3.7× 即時（很慢） | ≈雲端 turbo |
+
+**裝置端 — sherpa-onnx（ONNX RT）**，下載 `github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/<name>.tar.bz2` 端上解壓；16kHz mono float 免轉換：
+
+| 模型 | name | tar.bz2 | 解壓後 | 標點 | 真機（SD665 184s） |
+|---|---|---|---|---|---|
+| **SenseVoice**（主推） | `sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17` | 163MB | ~228MB | 有 | ✅ 快於即時、正體、`language=zh` 自動回填、比 whisper-large 快 ~15× |
+| Paraformer-zh | `sherpa-onnx-paraformer-zh-int8-2025-10-07` | 228MB | ~227MB | 無 | ✅ ~3× 即時、準（CER ~1.95%）；固定回 `zh`，OpenCC 必套 |
+| Qwen3-ASR 0.6B（實驗/高階） | `sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25` | 879MB | ~600–900MB | 有 | ❌ OOM-killed（中階機不可行） |
+
+> Qwen3 解壓檔：`conv_frontend.onnx`+`encoder.int8.onnx`+`decoder.int8.onnx`+`tokenizer/`。
+
+**雲端 — OpenRouter** model（契約見下節）：`whisper-large-v3-turbo`（推薦預設、$0.04/hr、WAV+m4a）；
+`whisper-large-v3`（壞、400 不可用）；`qwen3-asr-flash-2026-02-10`（$0.126/hr、僅 WAV、同音字較準）。
+
+**選型建議**：要準/快 → 雲端 turbo；要離線且中文準 → sherpa SenseVoice；whisper base/small 為保底。
+
 ## OpenRouter STT API 契約（iOS 照此實作）
 - **端點**：`POST https://openrouter.ai/api/v1/audio/transcriptions`，`Content-Type: application/json`，`Authorization: Bearer <key>`。
 - **Body**：`{"model": "<id>", "language": "zh"(可省，省則自動偵測), "input_audio": {"format": "wav"|"m4a"|"mp3"|"flac"|"ogg", "data": "<raw base64，非 data URI>"}}`。
@@ -295,6 +322,8 @@ CMakeLists + `WhisperContext` Kotlin wrapper。模型不進 APK，首次使用�
 *相對 CER 以 turbo 當準參考(無 ground truth;絕對 WER 需參考稿)。結論:**cloud 準度/速度全面勝**;on-device 把難詞（「錘子」）聽成「垂澀/垂傘」,small 略優於 base 但慢、且會漏字。壓縮 vs WAV(turbo) CER 僅 1.5%。**on-device 只適合離線/隱私**。
 
 ## iOS 移植對照（Android → iOS；media-dler-ios）
+> **model 速查表**已整理成 `media-dler-ios/plan/video2text-models.md`（可直接丟給 iOS app）；下表為元件層對照。
+
 平台無關（直接照搬邏輯/契約）：`:core` 全部（WindowPlanner 分窗、SegmentMerge 接縫去重、TranscriptFormatter 斷句、LanguageDecision、SubtitleVtt）、OpenRouter API 契約與 model 取捨、轉錄狀態機（job/checkpoint/resume/cancel）、引擎切換防呆（engineId 不同丟 checkpoint）。
 
 | Android 元件 | iOS 對應 |
