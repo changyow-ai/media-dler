@@ -20,7 +20,9 @@
 - **輸入**：本機檔 / 連結 / YouTube CC 捷徑，三者共用 pipeline。
 - **分享路由（UX，與既有下載共存）**：
   - **分享網址** → 沿用既有 share 選單（picker/dialog），**多加一個「轉文字」動作**，與下載選項並列。
-  - **分享本機 video/voice 檔** → 跳選單，但**只有「轉文字」一個選項**（本機檔不需下載）。
+  - **分享本機檔** → 跳選單（見 M6，**已改**）：
+    - **影片** → 「轉成文字」**或「取出聲音」**（抽出原音軌存成 .m4a，不轉文字）。
+    - **聲音檔** → 只有「轉成文字」（抽自己無意義）。
   - 既有下載功能、首頁、清單**完全不動**。
 - **轉錄引擎**：`:core` 定義 `TranscriptionEngine` 介面、可抽換。
   - **第一個實作：on-device whisper.cpp**（離線、隱私、免金鑰）— 也是**預設引擎**。
@@ -69,6 +71,11 @@
 
 JNI 整合走 whisper.cpp 官方 `examples/whisper.android` 模式：whisper.cpp 以 git submodule 引入，
 CMakeLists + `WhisperContext` Kotlin wrapper。模型不進 APK，首次使用下載。
+
+> **現況實際檔案清單（上方為初版草圖，已演進）**：
+> `:core/transcribe/`：`TranscriptionEngine`、`Transcript`、`WindowPlanner`、`SegmentMerge`、`LanguageDecision`、`SubtitleVtt`、**`TranscriptFormatter`**（顯示斷句）。
+> `:app/transcribe/`：`StreamingEngine`（串流介面）、`WhisperCppEngine`、`WhisperNative`、`WhisperModelManager`、`CloudTranscriptionEngine`（OpenRouter）、`AudioToPcm`、**`AudioEncoder`**（PCM→m4a，壓縮上傳）、**`AudioTrackRemuxer`**（無損抽音軌）、`OpenCcConverter`、`LinkAudioResolver`、`TranscriptJob`、`TranscriptionManager`、`TranscriptStore`、`TranscriptionService`、**`AudioExtractionService`**。
+> `:app/ui/`：`transcribe/TranscribeScreen`+`TranscriptHistoryScreen`、`picker/ShareSheet`+**`LocalMediaSheet`**、`settings/SettingsScreen`（引擎/語言/模型/雲端三欄/壓縮開關+說明）。
 
 ## 既有程式碼的缺口（必補）
 
@@ -121,12 +128,13 @@ CMakeLists + `WhisperContext` Kotlin wrapper。模型不進 APK，首次使用�
 
 ## 進度日誌
 
-### 目前狀態總覽（2026-06-05）
-- **完成度 ~90%**：M0 / M1（含收尾）/ M2 / M2b / M2c / M3 / 資源管理稽核 — 程式皆完成；僅選配的 **M4（存成 .txt）未做**。
+### 目前狀態總覽（2026-06-05，已更新含 M5/M6/M7）
+- **完成度 ~95%**：M0 / M1 / M2 / M2b / M2c / M3→**被 M5 取代** / M5（OpenRouter+壓縮）/ M6（可讀斷句+轉譯方式）/ M7（本機選單+抽音）/ 資源稽核 — 程式皆完成；僅選配 **M4（存成 .txt）未做**。
 - **建置**：`:app:compileDebugKotlin`、`:core:test`、`:app:assembleDebug`（arm64-v8a + x86_64）皆綠。
-- **本批變更（feat/video2text-transcribe，14 檔，尚未 commit）**：長音訊串流解碼、模型 base/small 切換、M3 雲端引擎 + 引擎切換、資源清理修補。
-- **測試**：host build/test ✅；emulator 驗本批變更 ✅（見下方「emulator 驗」）。**待真機**：多窗 seek 全程轉錄、含金鑰雲端轉錄、M2 連結/CC、四種 ABI。
-- 已知問題彙整見文末「## 已知問題 / 限制」。
+- **真機已驗（CPH1941/SD665，2026-06-05）**：on-device base/small 端到端、**OpenRouter 雲端 turbo/qwen 端到端（WAV+m4a）**、影片抽音無損 m4a、本機分享選單兩路徑、轉譯方式顯示。實測基準見文末「## 實測基準」。
+- **尚未 commit**：本分支累積大量未 commit 變更（on-device 串流、M3→M5 雲端 OpenRouter 化、壓縮選項、轉譯方式、可讀斷句、本機選單+抽音）。建議分 commit：①cloud→OpenRouter+壓縮 ②顯示層(斷句+方式) ③本機選單+抽音。
+- **待真機**：多窗 seek 全程長音訊、M2 連結/CC、四種 ABI release build。
+- iOS 移植見文末「## iOS 移植對照」;已知問題見「## 已知問題 / 限制」。
 
 ### 環境（已驗證可用）
 - branch：`feat/video2text-transcribe`。
@@ -180,6 +188,7 @@ CMakeLists + `WhisperContext` Kotlin wrapper。模型不進 APK，首次使用�
 - **TEMP**：`abiFilters` 仍含 `arm64-v8a`+`x86_64`（emulator 測試用，release 前還原四種）。測試用的 `READ_MEDIA_*` 權限已移除。
 
 ### 里程碑 3 — 雲端引擎 + 引擎切換（程式完成 ✅，待實機驗）
+> ⚠️ **本節已被 M5 取代**：雲端從「OpenAI 相容 multipart」改為 **OpenRouter 專用 JSON+base64**，並加音訊壓縮選項。下方 M3 內容保留為歷史；**實際契約以 M5 為準**。
 > 註：plan 原命名 `OpenRouterEngine`，改用更精確的 `CloudTranscriptionEngine`（任何 OpenAI 相容 `/audio/transcriptions`：OpenAI/Groq/OpenRouter…）。
 - **`StreamingEngine` 介面**：抽出 `transcribeStreaming` + `StreamResult`，on-device 與雲端都實作；`TranscriptionService` 改依 `transcribeEngine` 設定選引擎，續跑/取消/通知邏輯兩者共用。
 - **`CloudTranscriptionEngine`**：讀 `cloud`（baseUrl/apiKey/model）設定；以 `WindowPlanner`（10min 窗，~19MB WAV < 25MB 上限）逐窗 `decodeRange`→寫 16k mono WAV→multipart POST（`HttpURLConnection`，`response_format=verbose_json`，鎖定語言時帶 `language`）→解析 text/language→`SegmentMerge`+OpenCC；每窗一個 checkpoint（可續跑），WAV 用完即刪、結束清 `cache/transcribe/cloud`。
@@ -200,7 +209,84 @@ CMakeLists + `WhisperContext` Kotlin wrapper。模型不進 APK，首次使用�
 - **缺口**：`TranscriptionManager.delete(id)`（history「移除」）只刪 job/store，未刪私有輸入複本 `cache/transcribe/input/<id>` → 殘留。
 - **修補**：`delete`/`cancel` 改呼叫 targeted `deleteInputCopy(id)`（不再用 `clearTempFiles` 整夾刪除，避免誤刪其他 job 的複本）；`hydrate` 加 `pruneOrphanInputs`（開機掃除非可續跑 job 的孤兒輸入複本，清掉 crash/舊版殘留）；`TranscriptionService` finally 改刪下載音訊的整個 scratch 子夾（原本只刪檔、留空目錄）。`clearTempFiles`/`clearAll`/設定「清除暫存檔」維持整夾清除語義。
 
+### 里程碑 5 — 雲端改 OpenRouter（JSON+base64）+ 音訊壓縮選項 ✅（實機驗，2026-06-05）
+> 起因：拿 OpenRouter 1-day key 實測時發現 M3 的「OpenAI 相容 multipart」打 OpenRouter 會失敗——OpenRouter 的 STT 端點是 **JSON + base64**，且不支援 `verbose_json`。
+
+- **`CloudTranscriptionEngine` 改寫**（`app/.../transcribe/CloudTranscriptionEngine.kt`）：
+  - multipart → **JSON body**：`{"model":…,"language":?,"input_audio":{"format":"wav|m4a","data":"<base64>"}}`，打 `{baseUrl}/audio/transcriptions`，`Authorization: Bearer <key>`。
+  - **base64 以 3-byte 對齊分塊串流寫出**（不把整個 ~25MB base64 一次進記憶體）。
+  - 回應只解析 `{text, usage}`；**OpenRouter 不回 `language`** → `detectedLanguage` 留 null。
+- **音訊壓縮選項 `cloud.compressAudio`**（`core/.../model/Settings.kt`，存 DataStore）：
+  - 關（預設）：上傳 WAV，**分窗縮短為 5 分鐘**（`WAV_WINDOW_MS`，避免 base64 膨脹 + 上游 ~60s timeout）。
+  - 開：每窗用 **`AudioEncoder.encodeM4a`（新檔，MediaCodec AAC-LC 16kHz mono 32kbps）** 壓成 m4a 再上傳，分窗 10 分鐘。
+  - 設定頁加開關 + **ⓘ 說明鍵**（AlertDialog 解釋 WAV/壓縮/分窗/費用取捨）。
+- **設定文案**改「僅支援 OpenRouter（…JSON+base64…）」，placeholder 改 `https://openrouter.ai/api/v1` 與 `openai/whisper-large-v3-turbo`。
+- **實機驗（CPH1941）**：DataStore 直寫設定（ColorOS 的 `adb input text` 掉字、`run-as sh -c` 不切 uid，改 `run-as cp` 寫 protobuf）→ 分享影片 → 端到端轉錄成功，turbo WAV/m4a 皆通；壓縮路徑（AudioEncoder）實機通過。
+- **正體 caveat（iOS 須注意）**：OpenRouter 不回 language，**AUTO 時中文輸出停在簡體不轉正體**（OpenCC 只在 language 已知時套）。解法：把「轉錄語言」設「中文」→ knownLanguage=zh → OpenCC 轉正體。
+
+### 里程碑 6 — 顯示層：可讀斷句 + 轉譯方式顯示 ✅
+- **`TranscriptFormatter`**（`core/.../transcribe/TranscriptFormatter.kt` + JUnit）：把 raw 逐字稿轉成斷行可讀形式（**僅供顯示/複製/分享**，raw 保持無換行）。兩段式：句末標點（。！？；…/ASCII .!?）硬斷、過長無標點段在子句分隔（，、；：）軟斷，不偽造句界（whisper 中文常無標點 → 只軟斷成可讀塊）。
+- **轉譯方式顯示**：`TranscriptJob.method`（新欄位）在 `TranscriptionService` 開跑時寫入，結果頁標題下顯示「轉譯方式：…」：
+  - 雲端 → `雲端 · <model>（WAV|m4a）`
+  - 裝置端 → `裝置端 · base|small`
+  - 字幕捷徑 → `內嵌字幕（未經辨識）`
+  - 記在 job 上（非當前設定），故歷史也正確。
+
+### 里程碑 7 — 本機分享選單 + 影片抽音存檔 ✅（實機驗，2026-06-05）
+> 補上原 plan 的「本機檔跳選單」並擴充：影片可選「取出聲音」存成音檔。
+
+- **`LocalMediaSheet`**（`ui/picker/`，仿 ShareSheet 的 Dialog+Surface）：影片→「轉成文字」/「取出聲音（存成音檔）」/取消；聲音檔→「轉成文字」/取消。
+- **`ShareReceiverActivity` 改**：本機檔不再直接轉錄，改顯示 `LocalMediaSheet`（`isVideo = intent.type.startsWith("video/")`）。「轉成文字」走既有 `transcribeLocalFile`；「取出聲音」→ `AudioExtractionService.start`。
+- **`AudioTrackRemuxer`**（新，`transcribe/`）：`MediaExtractor`(用 `openFileDescriptor` 餵 fd)＋`MediaMuxer`(MPEG_4) **無損搬第一條音軌** → .m4a，純搬壓縮樣本不解碼、記憶體只一個 buffer。
+- **`AudioExtractionService`**（新，foreground dataSync，獨立於下載佇列）：remux 到 cache → **重用 `MediaStoreStorage`/`SafStorage`** 依 `storageMode` 存到 Downloads/media-dler 或 SAF → 通知（`Notifications.extractSummary/extracted/extractFailed` 新增）。檔名 `FileNames.sanitize(來源去副檔名)+".m4a"`，mime `audio/mp4`。
+- **AppContainer**：`mediaStoreStorage`/`safStorage` 由 private 改 public 供服務取用。Manifest 註冊新 service。
+- **實機驗（CPH1941）**：影片分享→兩選項;「取出聲音」→ ffprobe 確認輸出 **aac/48kHz/立體聲/96kbps，與原音軌完全一致（無損）**、可播放、發完成通知;聲音檔分享→只有「轉成文字」。
+
+## OpenRouter STT API 契約（iOS 照此實作）
+- **端點**：`POST https://openrouter.ai/api/v1/audio/transcriptions`，`Content-Type: application/json`，`Authorization: Bearer <key>`。
+- **Body**：`{"model": "<id>", "language": "zh"(可省，省則自動偵測), "input_audio": {"format": "wav"|"m4a"|"mp3"|"flac"|"ogg", "data": "<raw base64，非 data URI>"}}`。
+- **回應**：`{"text": "...", "usage": {"seconds": 183.86, "cost": 0.00204}}`。**無 language 欄、無 segments/timestamps**（不支援 `verbose_json`）。
+- **計費**：按**音訊時長**（秒），與 bytes/格式無關 → 壓縮省頻寬不省錢；用 `usage.cost` 對帳。
+- **限制**：上游 ~**60s timeout** → 長音訊務必分窗（本專案 WAV 5min / m4a 10min）。base URL 須 https。
+- **model id 實測**（$1 key,2026-06）：
+  - ✅ `openai/whisper-large-v3-turbo` — WAV+m4a 皆可，最便宜 **$0.04/hr**，推薦預設。
+  - ❌ `openai/whisper-large-v3` — 反覆 `Provider returned 400`，此 provider 壞、不可用。
+  - ⚠️ `qwen/qwen3-asr-flash-2026-02-10` — **只收 WAV，m4a→400**;最貴 **$0.126/hr**;同音字較準、會自動加標點。（基本 id `qwen/qwen3-asr-flash` 不存在,要帶日期）
+
+## 實測基準：cloud vs local（184s 中文片，CPH1941 / SD665）
+| 引擎·模型 | 速度 | 即時倍率 | 成本/次 | 相對 CER* |
+|---|---|---|---|---|
+| 裝置端 base | 141s | 0.77× | $0(離線) | ~30% |
+| 裝置端 small | 358s | 1.95×(慢於即時) | $0(離線) | ~26% |
+| 雲端 turbo | ~35s | 0.19× | $0.00204 | 0(基準) |
+| 雲端 qwen | ~35s | 0.19× | $0.00644 | ~2% |
+
+*相對 CER 以 turbo 當準參考(無 ground truth;絕對 WER 需參考稿)。結論:**cloud 準度/速度全面勝**;on-device 把難詞（「錘子」）聽成「垂澀/垂傘」,small 略優於 base 但慢、且會漏字。壓縮 vs WAV(turbo) CER 僅 1.5%。**on-device 只適合離線/隱私**。
+
+## iOS 移植對照（Android → iOS；media-dler-ios）
+平台無關（直接照搬邏輯/契約）：`:core` 全部（WindowPlanner 分窗、SegmentMerge 接縫去重、TranscriptFormatter 斷句、LanguageDecision、SubtitleVtt）、OpenRouter API 契約與 model 取捨、轉錄狀態機（job/checkpoint/resume/cancel）、引擎切換防呆（engineId 不同丟 checkpoint）。
+
+| Android 元件 | iOS 對應 |
+|---|---|
+| whisper.cpp JNI（`WhisperNative`/`whisper_jni.cpp`） | 同一份 whisper.cpp，走 `whisper.swiftui` 範例的 Swift/ObjC 橋；ggml 模型相同 |
+| `AudioToPcm`（MediaCodec/MediaExtractor→16k mono float） | AVFoundation：`AVAssetReader` 或 `AVAudioFile`+`AVAudioConverter` → 16kHz mono Float32 |
+| `AudioEncoder`（PCM→AAC m4a，壓縮上傳用） | `AVAudioConverter`/`AVAssetWriter` 編 AAC（僅雲端壓縮選項需要） |
+| `AudioTrackRemuxer`（無損抽音軌→m4a） | `AVAssetExportSession`(presetPassthrough,只留 audio) 或 `AVAssetReader`+`AVAssetWriter` passthrough |
+| `CloudTranscriptionEngine`（JSON+base64 HTTP） | `URLSession`，契約完全相同 |
+| 設定 DataStore + 金鑰 | `UserDefaults`；**金鑰建議存 Keychain**（比 Android DataStore 明文更安全） |
+| `TranscriptionService`/`AudioExtractionService`（foreground service） | iOS 無前景服務：用 `BGProcessingTaskRequest`/背景 `URLSession`，或在前景跑並顯示進度。**最大結構差異**，需重新設計長任務存活 |
+| `MediaStoreStorage`/`SafStorage`（Downloads/SAF 存檔） | 存 app Documents + `UIDocumentPicker` 匯出，或 share sheet；無「Downloads/media-dler」概念 |
+| `ShareReceiverActivity` + intent-filter（video/*、audio/*、URL） | **Share Extension**（宣告 video/audio/URL UTType）；content uri grant → `NSItemProvider`/security-scoped URL（`startAccessingSecurityScopedResource`） |
+| `LocalMediaSheet`/`ShareSheet`（Compose Dialog） | SwiftUI sheet / `confirmationDialog` |
+| `Notifications`（前景/完成/失敗） | `UNUserNotificationCenter` |
+| `OpenCcConverter`（opencc4j s2t） | `SwiftyOpenCC` 或 OpenCC C++（用 s2twp 片語在地化更佳） |
+| yt-dlp（連結下載/字幕，youtubedl-android） | iOS 無對應；連結輸入在 iOS 較難，依 media-dler-ios 既有做法或先不做 |
+
 ## 技術決策（多方檢視後）
+- **雲端只支援 OpenRouter（JSON+base64），非通用 multipart**（2026-06 改，見 M5）。OpenRouter 的 `/audio/transcriptions` 不收 multipart、不支援 `verbose_json`；契約見「OpenRouter STT API 契約」。設定文案已標明「僅支援 OpenRouter」。
+- **雲端音訊壓縮為使用者選項、預設關閉**（見 M5）。WAV（原樣、品質最佳、短分窗）vs m4a/AAC（小、長分窗）。**費用不受格式影響**（OpenRouter 按音訊時長計費），壓縮只省上傳頻寬;裝置端 AAC 編碼慢（SD665 +~28s）、且部分 provider 不收 m4a（qwen），故預設 WAV。
+- **影片抽音用無損 remux（MediaExtractor+MediaMuxer），非重新編碼**（見 M6）。保留原音軌 codec/取樣率/聲道（如 48kHz 立體聲 AAC）；快、低記憶體。注意：讀 content uri 要用 `contentResolver.openFileDescriptor` 餵 `MediaExtractor`，`setDataSource(context,uri)` 對帶 grant 的 uri 會 `Failed to instantiate extractor`。
+- **顯示層可讀斷句（TranscriptFormatter）**：raw 文字保持無換行（resume/SegmentMerge 接縫去重靠精確 suffix==prefix）;**只在顯示/複製/分享時**做斷句（句末標點硬斷 + 過長無標點軟斷），不偽造句界。
 - **解碼器：MediaCodec/MediaExtractor**（已定）。原因：youtubedl-android 的 ffmpeg 不開放任意指令；MediaCodec 系統內建、零相依。
 - **whisper 模型**：預設 `ggml-base`（~142MB，快）；設定可換 `ggml-small`（~466MB，中文較準）。模型不進 APK，首次使用下載（建議 Wi-Fi gate）。
 - **opencc on Android**：先試 `opencc4j`（純 Java 字典、零 native）；不行再 bundled OpenCC dict。
@@ -211,7 +297,9 @@ CMakeLists + `WhisperContext` Kotlin wrapper。模型不進 APK，首次使用�
 ## 已知問題 / 限制
 - **FAILED 本機檔無法續跑**（既有、非本批引入）：`TranscriptionService` finally 不論成敗都刪 `inputCopy`，FAILED 的本機檔 job 私有複本被刪，重試會再失敗。修法：刪複本限縮在「成功／取消」時，FAILED 保留以利從 checkpoint 續跑。
 - **多窗 seek 全程未實機驗**：emulator 無 AVX（15min 才 5%）跑不完多窗；真機（~8x realtime）才測得完整 seek 接縫品質。window 0 的 partial-window 解碼已驗。
-- **雲端實際轉錄未驗**：wiring 與「未設定→FAIL」已驗，但含金鑰打通 API、size 切段、verbose_json 解析需使用者自備 key 在真機/emulator 驗。
+- **雲端實際轉錄已驗（M5）**：OpenRouter turbo/qwen 真機端到端通;`verbose_json` 解析已移除（OpenRouter 不支援）。
+- **OpenRouter provider 限制（實測）**：`whisper-large-v3` 反覆 400 不可用;`qwen3-asr-flash` 只收 WAV、m4a 必 400。選 model + 壓縮模式時要避開這些組合（turbo 最穩）。
+- **OpenRouter AUTO 中文停在簡體**：OpenRouter 不回 language，AUTO 時不會套 OpenCC 轉正體;需把「轉錄語言」設「中文」。iOS 同此設計。
 - **雲端 base URL 須 https**：http 受 Android cleartext 政策擋下。
 - **雲端上傳無行動數據 gate**（模型下載有 Wi-Fi 詢問；雲端逐窗上傳目前不擋）。
 - **連結轉文字僅「彈窗選擇」分享模式可用**：one-tap 模式不顯示 picker，未動既有 one-tap 行為（surgical）。
