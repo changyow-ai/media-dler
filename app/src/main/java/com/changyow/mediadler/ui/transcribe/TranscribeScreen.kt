@@ -9,9 +9,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -32,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.changyow.mediadler.core.transcribe.TranscriptFormatter
 import com.changyow.mediadler.transcribe.TranscriptJob
 import com.changyow.mediadler.transcribe.TranscriptStatus
 import kotlin.math.roundToInt
@@ -49,9 +53,14 @@ fun TranscribeScreen(
     val context = LocalContext.current
     val running = job?.status == TranscriptStatus.QUEUED || job?.status == TranscriptStatus.RUNNING
     val text = job?.text.orEmpty()
+    // job.text stays raw (the resume/merge seam dedup needs it newline-free); break it into readable
+    // lines only here for display, copy and share.
+    val displayText = TranscriptFormatter.format(text)
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        // Surface fills edge-to-edge (background under the bars); content stays inside the
+        // status/navigation bars. Without this the title overlaps the clock and the buttons the nav bar.
+        Column(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars).padding(16.dp)) {
             Text("轉文字", style = MaterialTheme.typography.titleLarge)
             Text(
                 job?.label ?: "找不到項目",
@@ -64,16 +73,38 @@ fun TranscribeScreen(
 
             if (running) {
                 val progress = job?.progress ?: 0f
+                // whisper decodes a window's audio in atomic 30 s chunks: nothing (no %, no text)
+                // moves until the first chunk finishes, which on a slow device is a long, frozen-
+                // looking wait. Until that first signal arrives, show an indeterminate bar so it
+                // reads as "working", not stuck; switch to the real % once progress/text appear.
+                val hasSignal = progress > 0.051f || text.isNotBlank()
+                val total = job?.totalWindows ?: 0
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    val label = if (job?.status == TranscriptStatus.QUEUED) "排隊中…" else "處理中…"
-                    Text("$label ${(progress * 100).roundToInt()}%", style = MaterialTheme.typography.bodyMedium)
-                    LinearProgressIndicator(
-                        progress = { progress.coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    when {
+                        job?.status == TranscriptStatus.QUEUED ->
+                            Text("排隊中…", style = MaterialTheme.typography.bodyMedium)
+                        !hasSignal ->
+                            Text("處理中…（首段辨識需要一點時間）", style = MaterialTheme.typography.bodyMedium)
+                        total > 1 -> Text(
+                            "處理中… ${(progress * 100).roundToInt()}%（第 ${(job?.completedWindows ?: 0) + 1}/$total 段）",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        else -> Text(
+                            "處理中… ${(progress * 100).roundToInt()}%",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                    if (hasSignal) {
+                        LinearProgressIndicator(
+                            progress = { progress.coerceIn(0f, 1f) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
                 }
             }
 
@@ -87,7 +118,7 @@ fun TranscribeScreen(
                     text.isNotBlank() -> SelectionContainer(
                         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                     ) {
-                        Text(text, style = MaterialTheme.typography.bodyLarge)
+                        Text(displayText, style = MaterialTheme.typography.bodyLarge)
                     }
                     job?.status == TranscriptStatus.COMPLETED -> Text(
                         "（沒有辨識到語音）",
@@ -104,11 +135,11 @@ fun TranscribeScreen(
                 if (running) {
                     OutlinedButton(onClick = onCancel) { Text("放棄") }
                 } else {
-                    OutlinedButton(onClick = { copyToClipboard(context, text) }, enabled = text.isNotBlank()) {
+                    OutlinedButton(onClick = { copyToClipboard(context, displayText) }, enabled = text.isNotBlank()) {
                         Icon(Icons.Filled.ContentCopy, contentDescription = null)
                         Text("複製")
                     }
-                    Button(onClick = { shareText(context, text) }, enabled = text.isNotBlank()) {
+                    Button(onClick = { shareText(context, displayText) }, enabled = text.isNotBlank()) {
                         Icon(Icons.Filled.Share, contentDescription = null)
                         Text("分享")
                     }

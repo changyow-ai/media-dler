@@ -97,6 +97,17 @@ Java_com_changyow_mediadler_transcribe_WhisperNative_nativeFullTranscribe(
     params.language = (lang.empty() || lang == "auto") ? "auto" : lang.c_str();
     params.detect_language = false;
 
+    // whisper's Chinese (base/small) emits almost no punctuation, leaving one unbroken block that's
+    // hard to read/segment. A short punctuated Chinese context biases it toward 。，？！ so the
+    // transcript can be split into sentences. Only when the language is explicitly locked to Chinese
+    // (not "auto") — never bias other languages or the auto-detect first window. Must outlive
+    // whisper_full, so keep the backing string in this scope.
+    std::string prompt;
+    if (lang == "zh") {
+        prompt = "以下是一段中文內容，包含標點符號。";
+        params.initial_prompt = prompt.c_str();
+    }
+
     // Wire live progress + per-segment text back to Kotlin (skipped when no callback given).
     CallbackBridge bridge{};
     if (callback != nullptr) {
