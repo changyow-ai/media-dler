@@ -42,12 +42,8 @@ jobs:
       - name: Run :core unit tests (red/green gate)
         run: ./gradlew :core:test --stacktrace
 
-      - name: Assemble debug APK
+      # Build-only gate: compile the debug APK to catch breakage, but do NOT
+      # upload it as an artifact (artifacts on a public repo are downloadable
+      # by anyone). No APK is published from this workflow.
+      - name: Assemble debug APK (build verification only)
         run: ./gradlew :app:assembleDebug --stacktrace
-
-      - name: Upload debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: media-dler-debug
-          path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: warn

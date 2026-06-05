@@ -9,7 +9,6 @@
 ![build](https://github.com/changyow-ai/media-dler/actions/workflows/build.yml/badge.svg)
 
 - **平台**：Android 10（API 29）以上
-- **散布**：sideload / F-Droid 取向，**不上 Google Play**
 
 ---
 
@@ -37,15 +36,6 @@
 ### 取出聲音
 
 - 分享**影片**時選「**取出聲音**」，會**無損**抽出原音軌存成 `.m4a`（保留原音質、不重新編碼），存到你的下載位置。
-
----
-
-## 安裝
-
-到 [Releases](https://github.com/changyow-ai/media-dler/releases) 下載 APK：
-
-- 多數現代手機選 **`arm64-v8a`**；不確定就用 **`universal`**（較大但通用）。
-- 安裝時需允許「安裝未知來源應用程式」。
 
 ---
 

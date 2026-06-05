@@ -1,10 +1,11 @@
 name: release
 
-# Publishes signed per-ABI (+ universal) APKs to the GitHub Releases page.
-# - push a tag vX.Y.Z  -> a normal release with that version
-# - push to the dev branch / run manually -> a rolling "dev" pre-release
-# The action creates the tag/release server-side via GITHUB_TOKEN, so no
-# local tag push is needed.
+# Builds signed per-ABI (+ universal) APKs and uploads them as an Actions
+# artifact ONLY -- they are NOT published to the public Releases page.
+# Project collaborators grab the APKs from the workflow run's "Artifacts"
+# section. (Note: on a public repo the artifact is still downloadable by
+# anyone; making it truly collaborator-only requires a private repo.)
+# - push a tag vX.Y.Z / push to the build branch / run manually -> build + artifact
 on:
   push:
     branches: ["claude/serene-dirac-jGhvp"]
@@ -12,7 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -50,25 +51,9 @@ jobs:
       - name: List built APKs
         run: ls -la app/build/outputs/apk/release/
 
-      - name: Determine release tag
-        id: ver
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-            echo "name=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=dev" >> "$GITHUB_OUTPUT"
-            echo "name=Development build" >> "$GITHUB_OUTPUT"
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Publish APKs to the Releases page
-        uses: softprops/action-gh-release@v2
+      - name: Upload signed release APKs (Actions artifact only)
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: ${{ steps.ver.outputs.tag }}
-          name: ${{ steps.ver.outputs.name }}
-          prerelease: ${{ steps.ver.outputs.prerelease }}
-          files: app/build/outputs/apk/release/*.apk
-          fail_on_unmatched_files: true
-          generate_release_notes: true
+          name: media-dler-release-${{ github.ref_name }}
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
