@@ -258,9 +258,17 @@ CMakeLists + `WhisperContext` Kotlin wrapper。模型不進 APK，首次使用�
 - **建置**：sherpa-onnx **無官方 Maven**（僅第三方非官方包，不用）→ 走官方做法 **vendored `kotlin-api/*.kt`（package `com.k2fsa.sherpa.onnx`）+ jniLibs 放 prebuilt `.so`**（`sherpa-onnx-v1.13.2-android.tar.bz2`，含四 ABI 的 `libsherpa-onnx-jni.so`+`libonnxruntime.so`）。Kotlin 編譯只需 `.kt`（`.so` 執行期載入）；`.so` 由 `scripts/` 下載腳本取得、放 jniLibs（不入 git，仿 whisper 由建置產出）。加 `org.apache.commons:commons-compress`（解 tar.bz2）。debug 仍 arm64-v8a+x86_64（onnxruntime 支援 x86_64 可在 emulator 測）；release 四 ABI、ABI splits 緩解體積（onnxruntime `.so` 每 ABI ~10–15MB）。
 - **風險**：①sherpa AAR/API 整合是最大未知（先打通「能 new OfflineRecognizer」再往下）；②Qwen3 確切檔案清單/URL/速度待實作確認；③sherpa AUTO 取不到語言時中文不轉正體（同雲端 caveat，建議設「中文」；Paraformer 已規避）。
 - **verify**：`:core:test`/`compileDebugKotlin`/`assembleDebug` 綠 → 各模型下載+轉同一中文片，比準度/速度 → resume 跨 sherpa 模型乾淨重轉 → 結果頁「轉譯方式」正確 → 補各模型體積/速度/CER 到「實測基準」表。
-- **真機驗（CPH1941/SD665，2026-06-05，行動數據）**：**SenseVoice 端到端通過 ✅** — tar.bz2(163MB) 下載 → Commons Compress 解壓(model.int8.onnx 228MB + tokens.txt + `.complete` marker + `.part` 清除) → `OfflineRecognizer` 載入(`.so` 無 UnsatisfiedLinkError) → 3 窗推理 → `language=zh` → OpenCC 正體輸出、**含標點**（與桌面 Qwen 基準內容一致）；job `engineId=sherpa-onnx`、`method=裝置端 · SenseVoice`、COMPLETED progress 1.0。推理明顯快於即時。**待驗**：Paraformer、Qwen3（檔名+速度）、whisper turbo-q5。
-  - ⚠️ **發現**：引擎 auto-download（`ensure`）**無行動數據 gate**，剛實測 163MB 走電信靜默下載；只有設定頁「下載模型」按鈕有 Wi-Fi 詢問。Qwen3 達 879MB → 建議補 gate 或引導先在設定頁/Wi-Fi 下載。
-- **狀態**：**程式完成 ✅，建置全綠（`:core:test`／`:app:compileDebugKotlin`／`:app:assembleDebug`），SenseVoice 真機已驗**。新增檔：`SherpaModel`/`SherpaModelManager`/`SherpaOnnxEngine`、vendored `com/k2fsa/sherpa/onnx/*.kt`（v1.13.2）、`scripts/fetch-sherpa-libs.sh`；改：`Settings.kt`(+`OnDeviceBackend`/4 新值)、`WhisperModelManager`(+TURBO_Q5)、`AppContainer`(backend dispatch)、`SettingsViewModel`/`SettingsScreen`(後端感知)、`TranscriptionService`(method)、build(commons-compress + jniLibs)。APK 已含 `libsherpa-onnx-jni.so`+`libonnxruntime.so`（arm64-v8a/x86_64）。
+- **真機驗（CPH1941/SD665，3.7GB RAM，2026-06-05，同一 184s 中文片）**：
+  | 模型 | 結果 | 速度 | 標點 | 備註 |
+  |---|---|---|---|---|
+  | **SenseVoice** | ✅ COMPLETED | **快於即時** | 有 | 正體、內容準、`language=zh` 自動回填 |
+  | **Paraformer** | ✅ COMPLETED | ~3× 即時(60s 窗~快) | **無** | 正體、準；CTC 無標點，可讀性靠軟斷 |
+  | **turbo-q5** | ✅ 跑通(取窗0樣本) | **~3.7× 即時**(60s 音訊≈220s) | 有 | 正體+標點、準（小誤：角磨機→腳模機）；**很慢** |
+  | **Qwen3-ASR** | ❌ **OOM-killed** | — | — | decoder 756MB+autoregressive 活化超出 3.7GB 機；第一窗前行程被系統殺(`has died: fore TOP`)。中階機不可行 |
+  - 全程驗證：tar.bz2 下載→Commons Compress 解壓(marker/.part 清理)→`OfflineRecognizer`(`.so` 無 UnsatisfiedLinkError)→backend dispatch→`engineId`/`method` 正確→OpenCC 正體。Qwen3 檔名確認：`conv_frontend.onnx`+`encoder.int8.onnx`+`decoder.int8.onnx`+`tokenizer/`。
+- **行動數據 gate（已補 ✅）**：兩個 on-device 引擎在 `ensure` 前若「模型缺 + metered」→ FAILED 並提示連 Wi-Fi/設定頁下載（實測 turbo-q5 觸發正確）。設定頁「下載模型」按鈕原本就有 Wi-Fi 詢問。
+- **設定 UI（已補 ✅）**：模型下拉標 SenseVoice「・建議」；各模型 hint 註明 whisper 系列較慢、Qwen3 中階機可能 OOM。
+- **狀態**：**程式完成 ✅、建置全綠、真機驗畢（SenseVoice/Paraformer/turbo-q5 通過；Qwen3 中階機 OOM，保留為實驗/高階機選項）**。建議預設/主推 **SenseVoice**。新增檔：`SherpaModel`/`SherpaModelManager`/`SherpaOnnxEngine`、vendored `com/k2fsa/sherpa/onnx/*.kt`（v1.13.2）、`scripts/fetch-sherpa-libs.sh`；改：`Settings.kt`(+`OnDeviceBackend`/4 新值)、`WhisperModelManager`(+TURBO_Q5)、`AppContainer`(backend dispatch)、`SettingsViewModel`/`SettingsScreen`(後端感知)、`TranscriptionService`(method)、build(commons-compress + jniLibs)。APK 已含 `libsherpa-onnx-jni.so`+`libonnxruntime.so`（arm64-v8a/x86_64）。
   - **待真機/runtime 驗**：①各 sherpa 模型實際下載+解壓+轉錄；②**Qwen3 解壓後確切檔名**（目前用 sherpa 原始碼 `getOfflineModelConfig` type=61 的 `conv_frontend.onnx`/`encoder.int8.onnx`/`decoder.int8.onnx`/`tokenizer/`，未 runtime 確認）；③SenseVoice `result.lang` 格式；④whisper turbo-q5 下載。
   - **限制**：sherpa 引擎 id 靜態 `"sherpa-onnx"` → whisper↔sherpa 切換會重轉（正確），但 sherpa 模型間切換 mid-job 沿用 checkpoint（同 whisper base↔small 既有行為）。
   - 完整規劃見 `~/.claude/plans/`（M8 計畫檔）。
