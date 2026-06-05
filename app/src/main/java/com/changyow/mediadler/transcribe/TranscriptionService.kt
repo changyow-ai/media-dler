@@ -188,7 +188,7 @@ class TranscriptionService : Service() {
             // A forced language (settings) wins over auto-detect; else keep the resumed/detected one.
             val snapshot = settings.settings.first()
             val forced = snapshot.transcribeLanguage.code
-            val engine = container.streamingEngine(snapshot.transcribeEngine)
+            val engine = container.streamingEngine(snapshot)
             manager.setMethod(id, transcriptionMethod(snapshot))
             // Bind to the engine; a switch since the last run discards an incompatible checkpoint.
             val current = manager.beginRun(id, engine.id) ?: manager.job(id) ?: job
@@ -245,7 +245,8 @@ class TranscriptionService : Service() {
             val fmt = if (s.cloud.compressAudio) "m4a" else "WAV"
             "雲端 · ${s.cloud.model.ifBlank { "未設定" }}（$fmt）"
         }
-        TranscribeEngine.ON_DEVICE -> "裝置端 · ${s.transcribeModel.name.lowercase()}"
+        // Strip the parenthetical qualifier from the label (e.g. "SenseVoice（中文快又準）" → "SenseVoice").
+        TranscribeEngine.ON_DEVICE -> "裝置端 · ${s.transcribeModel.label.substringBefore("（")}"
     }
 
     /** Copies a shared content:// file into private cache (idempotent), returning the local file. */

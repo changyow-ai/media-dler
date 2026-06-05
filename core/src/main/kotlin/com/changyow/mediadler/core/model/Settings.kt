@@ -82,6 +82,6 @@ data class AppSettings(
     val autoUpdateYtDlpOnStartup: Boolean = false,
     val transcribeLanguage: TranscribeLanguage = TranscribeLanguage.AUTO,
     val transcribeEngine: TranscribeEngine = TranscribeEngine.ON_DEVICE,
-    val transcribeModel: TranscribeModel = TranscribeModel.BASE,
+    val transcribeModel: TranscribeModel = TranscribeModel.SENSE_VOICE,
     val cloud: CloudTranscribeConfig = CloudTranscribeConfig(),
 )

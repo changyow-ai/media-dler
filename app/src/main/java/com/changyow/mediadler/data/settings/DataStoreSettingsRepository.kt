@@ -65,7 +65,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         autoUpdateYtDlpOnStartup = this[Keys.autoUpdateYtDlpOnStartup] ?: false,
         transcribeLanguage = enumOrDefault(this[Keys.transcribeLanguage], TranscribeLanguage.AUTO),
         transcribeEngine = enumOrDefault(this[Keys.transcribeEngine], TranscribeEngine.ON_DEVICE),
-        transcribeModel = enumOrDefault(this[Keys.transcribeModel], TranscribeModel.BASE),
+        transcribeModel = enumOrDefault(this[Keys.transcribeModel], TranscribeModel.SENSE_VOICE),
         cloud = CloudTranscribeConfig(
             baseUrl = this[Keys.cloudBaseUrl] ?: "",
             apiKey = this[Keys.cloudApiKey] ?: "",

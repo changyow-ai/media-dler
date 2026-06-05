@@ -3,9 +3,13 @@ package com.changyow.mediadler.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.changyow.mediadler.core.model.AppSettings
+import com.changyow.mediadler.core.model.OnDeviceBackend
+import com.changyow.mediadler.core.model.TranscribeModel
 import com.changyow.mediadler.core.repo.SettingsRepository
 import com.changyow.mediadler.data.ytdlp.EngineInitializer
 import com.changyow.mediadler.data.ytdlp.EngineState
+import com.changyow.mediadler.transcribe.SherpaModel
+import com.changyow.mediadler.transcribe.SherpaModelManager
 import com.changyow.mediadler.transcribe.TranscriptionManager
 import com.changyow.mediadler.transcribe.WhisperModel
 import com.changyow.mediadler.transcribe.WhisperModelManager
@@ -19,11 +23,12 @@ import kotlinx.coroutines.launch
 class SettingsViewModel(
     private val repository: SettingsRepository,
     private val engine: EngineInitializer,
-    private val models: WhisperModelManager,
+    private val whisperModels: WhisperModelManager,
+    private val sherpaModels: SherpaModelManager,
     private val transcriptionManager: TranscriptionManager,
 ) : ViewModel() {
 
-    /** UI state for the on-device whisper model the transcription engine uses. */
+    /** UI state for the on-device model the transcription engine uses (whisper.cpp or sherpa-onnx). */
     sealed interface ModelState {
         data class Absent(val approxBytes: Long) : ModelState
         data class Downloading(val progress: Float) : ModelState
@@ -40,9 +45,10 @@ class SettingsViewModel(
     private val _updating = MutableStateFlow(false)
     val updating: StateFlow<Boolean> = _updating.asStateFlow()
 
-    // The on-device model the download/delete controls act on, tracked from the model setting.
-    private var selectedModel: WhisperModel = WhisperModel.of(AppSettings().transcribeModel)
-    val selectedModelApproxBytes: Long get() = selectedModel.approxBytes
+    // The on-device model the download/delete controls act on, tracked from the model setting. This is
+    // the user-facing enum; the right backend manager is resolved per call from its .backend.
+    private var selectedModel: TranscribeModel = AppSettings().transcribeModel
+    val selectedModelApproxBytes: Long get() = approxBytesOf(selectedModel)
 
     private val _modelState = MutableStateFlow<ModelState>(modelStateOf(selectedModel))
     val modelState: StateFlow<ModelState> = _modelState.asStateFlow()
@@ -60,7 +66,7 @@ class SettingsViewModel(
         // new model's section showing the old model's "downloading" / size.
         viewModelScope.launch {
             repository.settings.collect { s ->
-                val model = WhisperModel.of(s.transcribeModel)
+                val model = s.transcribeModel
                 if (model != selectedModel) {
                     selectedModel = model
                     _modelState.value = modelStateOf(model)
@@ -69,9 +75,40 @@ class SettingsViewModel(
         }
     }
 
-    private fun modelStateOf(model: WhisperModel): ModelState =
-        if (models.isDownloaded(model)) ModelState.Present(models.sizeBytes(model))
-        else ModelState.Absent(model.approxBytes)
+    // --- backend-agnostic model ops: dispatch to whisper.cpp or sherpa-onnx by the model's backend ---
+
+    private fun isDownloaded(m: TranscribeModel): Boolean = when (m.backend) {
+        OnDeviceBackend.WHISPER_CPP -> whisperModels.isDownloaded(WhisperModel.of(m))
+        OnDeviceBackend.SHERPA -> sherpaModels.isDownloaded(SherpaModel.of(m))
+    }
+
+    private fun sizeBytesOf(m: TranscribeModel): Long = when (m.backend) {
+        OnDeviceBackend.WHISPER_CPP -> whisperModels.sizeBytes(WhisperModel.of(m))
+        OnDeviceBackend.SHERPA -> sherpaModels.sizeBytes(SherpaModel.of(m))
+    }
+
+    private fun approxBytesOf(m: TranscribeModel): Long = when (m.backend) {
+        OnDeviceBackend.WHISPER_CPP -> WhisperModel.of(m).approxBytes
+        OnDeviceBackend.SHERPA -> SherpaModel.of(m).approxBytes
+    }
+
+    private suspend fun ensure(m: TranscribeModel, onProgress: (Float) -> Unit) {
+        when (m.backend) {
+            OnDeviceBackend.WHISPER_CPP -> whisperModels.ensure(WhisperModel.of(m), onProgress)
+            OnDeviceBackend.SHERPA -> sherpaModels.ensure(SherpaModel.of(m), onProgress)
+        }
+    }
+
+    private fun deleteModelFiles(m: TranscribeModel) {
+        when (m.backend) {
+            OnDeviceBackend.WHISPER_CPP -> whisperModels.delete(WhisperModel.of(m))
+            OnDeviceBackend.SHERPA -> sherpaModels.delete(SherpaModel.of(m))
+        }
+    }
+
+    private fun modelStateOf(model: TranscribeModel): ModelState =
+        if (isDownloaded(model)) ModelState.Present(sizeBytesOf(model))
+        else ModelState.Absent(approxBytesOf(model))
 
     fun update(transform: (AppSettings) -> AppSettings) {
         viewModelScope.launch { repository.update(transform) }
@@ -98,12 +135,12 @@ class SettingsViewModel(
             // Only this download drives the UI while its model is still the selected one; if the user
             // switches models mid-download, the state belongs to the new model, not this result.
             runCatching {
-                models.ensure(model) { p ->
+                ensure(model) { p ->
                     if (selectedModel == model) _modelState.value = ModelState.Downloading(p)
                 }
             }.fold(
                 onSuccess = {
-                    if (selectedModel == model) _modelState.value = ModelState.Present(models.sizeBytes(model))
+                    if (selectedModel == model) _modelState.value = ModelState.Present(sizeBytesOf(model))
                 },
                 onFailure = {
                     if (selectedModel == model) _modelState.value = ModelState.Failed(it.message ?: "下載失敗")
@@ -115,8 +152,8 @@ class SettingsViewModel(
     fun deleteModel() {
         if (_modelState.value is ModelState.Downloading) return
         val model = selectedModel
-        models.delete(model)
-        _modelState.value = ModelState.Absent(model.approxBytes)
+        deleteModelFiles(model)
+        _modelState.value = ModelState.Absent(approxBytesOf(model))
     }
 
     /** Deletes transcription scratch files (downloaded audio, fetched subtitles, file copies). */

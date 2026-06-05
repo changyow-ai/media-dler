@@ -71,6 +71,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     container.settingsRepository,
                     container.engine,
                     container.whisperModelManager,
+                    container.sherpaModelManager,
                     container.transcriptionManager,
                 )
             }
@@ -224,11 +225,13 @@ fun SettingsScreen(onBack: () -> Unit) {
                         label = "模型",
                         options = TranscribeModel.entries,
                         selected = settings.transcribeModel,
-                        optionLabel = { it.label },
+                        optionLabel = { m ->
+                            if (m == TranscribeModel.SENSE_VOICE) "${m.label} ・建議" else m.label
+                        },
                         onSelect = { m -> viewModel.update { it.copy(transcribeModel = m) } },
                     )
                     Text(
-                        "ggml-${settings.transcribeModel.name.lowercase()}（離線轉錄；不附帶於 App，需下載）",
+                        transcribeModelHint(settings.transcribeModel),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -396,6 +399,20 @@ private fun formatBytes(bytes: Long): String {
 
 private fun qualityLabel(quality: VideoQuality): String =
     quality.maxHeight?.let { "${it}p" } ?: "最佳畫質"
+
+/**
+ * One-line description for an on-device model (離線轉錄；不附帶於 App，需下載). whisper models share
+ * one caveat — they are autoregressive and noticeably slower on phones than the sherpa models
+ * (SenseVoice/Paraformer), so that's called out per-model and recommended against for long audio.
+ */
+private fun transcribeModelHint(model: TranscribeModel): String = when (model) {
+    TranscribeModel.BASE -> "whisper base · 體積最小，但中文準度一般、速度慢（whisper 系列都較慢）"
+    TranscribeModel.SMALL -> "whisper small · 較準，但慢於即時（whisper 系列都較慢）"
+    TranscribeModel.TURBO_Q5 -> "whisper large-v3-turbo 量化 · 準、有標點，但中階機很慢（約 3–4× 即時）"
+    TranscribeModel.SENSE_VOICE -> "SenseVoice · 建議：中文又快又準、含標點（遠快於 whisper）"
+    TranscribeModel.PARAFORMER -> "Paraformer · 純中文準、速度快；但無標點"
+    TranscribeModel.QWEN3 -> "Qwen3-ASR · 實驗：品質高，但模型大（~900MB）、中階機記憶體可能不足而失敗"
+} + "（離線；不附帶於 App，需下載）"
 
 @Composable
 private fun SettingSection(title: String, content: @Composable ColumnScope.() -> Unit) {

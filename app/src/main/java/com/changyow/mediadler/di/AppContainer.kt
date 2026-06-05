@@ -15,10 +15,14 @@ import com.changyow.mediadler.data.threads.ThreadsExtractor
 import com.changyow.mediadler.data.ytdlp.YtDlpMediaExtractor
 import com.changyow.mediadler.download.DownloadQueue
 import com.changyow.mediadler.download.PreviewStore
+import com.changyow.mediadler.core.model.AppSettings
+import com.changyow.mediadler.core.model.OnDeviceBackend
 import com.changyow.mediadler.core.model.TranscribeEngine
 import com.changyow.mediadler.data.transcribe.TranscriptStore
 import com.changyow.mediadler.transcribe.CloudTranscriptionEngine
 import com.changyow.mediadler.transcribe.LinkAudioResolver
+import com.changyow.mediadler.transcribe.SherpaModelManager
+import com.changyow.mediadler.transcribe.SherpaOnnxEngine
 import com.changyow.mediadler.transcribe.StreamingEngine
 import com.changyow.mediadler.transcribe.TranscriptionManager
 import com.changyow.mediadler.transcribe.WhisperCppEngine
@@ -33,16 +37,22 @@ class AppContainer(application: Application) {
     val downloadQueue = DownloadQueue()
     val previewStore = PreviewStore(application)
 
-    // Transcription engines: on-device whisper.cpp (default, offline) and a cloud OpenAI-compatible
-    // backend (opt-in, user-supplied key). Both implement StreamingEngine; the service picks per the
-    // transcribeEngine setting.
+    // Transcription engines, all implementing StreamingEngine: on-device whisper.cpp (ggml) and
+    // sherpa-onnx (ONNX: SenseVoice/Paraformer/Qwen3), plus a cloud OpenRouter backend (opt-in,
+    // user-supplied key). The service picks per the transcribeEngine + (for on-device) model backend.
     val whisperModelManager = WhisperModelManager(application)
+    val sherpaModelManager = SherpaModelManager(application)
     val whisperCppEngine = WhisperCppEngine(application, whisperModelManager, settingsRepository)
+    val sherpaOnnxEngine = SherpaOnnxEngine(application, sherpaModelManager, settingsRepository)
     val cloudTranscriptionEngine = CloudTranscriptionEngine(application, settingsRepository)
 
-    fun streamingEngine(engine: TranscribeEngine): StreamingEngine = when (engine) {
-        TranscribeEngine.ON_DEVICE -> whisperCppEngine
+    /** On-device routes to whisper.cpp or sherpa-onnx by the chosen model's backend; cloud is cloud. */
+    fun streamingEngine(settings: AppSettings): StreamingEngine = when (settings.transcribeEngine) {
         TranscribeEngine.CLOUD -> cloudTranscriptionEngine
+        TranscribeEngine.ON_DEVICE -> when (settings.transcribeModel.backend) {
+            OnDeviceBackend.WHISPER_CPP -> whisperCppEngine
+            OnDeviceBackend.SHERPA -> sherpaOnnxEngine
+        }
     }
 
     // Resolves a shared link to captions (CC shortcut) or a downloaded audio file (milestone 2).
