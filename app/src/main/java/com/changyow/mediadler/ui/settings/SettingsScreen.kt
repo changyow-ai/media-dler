@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -80,6 +81,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     val updating by viewModel.updating.collectAsStateWithLifecycle()
     val modelState by viewModel.modelState.collectAsStateWithLifecycle()
     var confirmMeteredDownload by remember { mutableStateOf(false) }
+    var showCloudAudioHelp by remember { mutableStateOf(false) }
     // On Wi-Fi just download; on mobile data ask first (gate-as-prompt, not a hard block).
     val requestModelDownload = {
         if (NetworkStatus.isMetered(context)) confirmMeteredDownload = true else viewModel.downloadModel()
@@ -269,14 +271,15 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }
                 } else {
                     Text(
-                        "OpenAI 相容的 /audio/transcriptions（OpenAI、Groq、OpenRouter…）。金鑰只存在本機，不會內建於 App 或上傳。",
+                        "僅支援 OpenRouter（/audio/transcriptions，JSON + base64）。其他 OpenAI 相容服務" +
+                            "（OpenAI、Groq…）用 multipart，不適用。金鑰只存在本機，不會內建於 App 或上傳。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     TextFieldSetting(
                         label = "API 位址（base URL）",
                         value = settings.cloud.baseUrl,
-                        placeholder = "https://api.groq.com/openai/v1",
+                        placeholder = "https://openrouter.ai/api/v1",
                         onValueChange = { v ->
                             viewModel.update { it.copy(cloud = it.cloud.copy(baseUrl = v.trim())) }
                         },
@@ -284,7 +287,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     TextFieldSetting(
                         label = "模型名稱",
                         value = settings.cloud.model,
-                        placeholder = "whisper-large-v3",
+                        placeholder = "openai/whisper-large-v3-turbo",
                         onValueChange = { v ->
                             viewModel.update { it.copy(cloud = it.cloud.copy(model = v.trim())) }
                         },
@@ -297,6 +300,35 @@ fun SettingsScreen(onBack: () -> Unit) {
                         onValueChange = { v ->
                             viewModel.update { it.copy(cloud = it.cloud.copy(apiKey = v.trim())) }
                         },
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            "壓縮音訊上傳（省頻寬）",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        IconButton(onClick = { showCloudAudioHelp = true }) {
+                            Icon(Icons.Outlined.Info, contentDescription = "音訊上傳說明")
+                        }
+                        Switch(
+                            checked = settings.cloud.compressAudio,
+                            onCheckedChange = { v ->
+                                viewModel.update { it.copy(cloud = it.cloud.copy(compressAudio = v)) }
+                            },
+                        )
+                    }
+                    Text(
+                        if (settings.cloud.compressAudio) {
+                            "目前：m4a／AAC（體積小、上傳快，長音檔較穩；略影響準度）"
+                        } else {
+                            "目前：WAV（品質最佳、體積大，採短分窗避免逾時）"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     if (!settings.cloud.isConfigured) {
                         Text(
@@ -315,6 +347,26 @@ fun SettingsScreen(onBack: () -> Unit) {
                 OutlinedButton(onClick = { viewModel.clearTempFiles() }) { Text("清除暫存檔") }
             }
         }
+    }
+
+    if (showCloudAudioHelp) {
+        AlertDialog(
+            onDismissRequest = { showCloudAudioHelp = false },
+            title = { Text("音訊上傳格式") },
+            text = {
+                Text(
+                    "雲端轉錄會把音訊切段上傳到 OpenRouter。\n\n" +
+                        "• 關閉（預設）：上傳 WAV，品質最佳，但體積大。為避免上傳逾時，WAV 採較短的分窗" +
+                        "（每段約 5 分鐘）。\n\n" +
+                        "• 開啟：先把每段壓成 m4a／AAC，體積約只有 1/5，上傳更快、長音檔更穩定，分窗也可拉長" +
+                        "；代價是壓縮需要一點時間，且可能略微影響辨識準度。\n\n" +
+                        "費用不受影響：OpenRouter 依音訊「時長」計費，壓不壓縮同價。",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showCloudAudioHelp = false }) { Text("瞭解") }
+            },
+        )
     }
 
     if (confirmMeteredDownload) {

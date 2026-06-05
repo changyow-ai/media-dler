@@ -41,6 +41,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         val cloudBaseUrl = stringPreferencesKey("cloud_base_url")
         val cloudApiKey = stringPreferencesKey("cloud_api_key")
         val cloudModel = stringPreferencesKey("cloud_model")
+        val cloudCompress = booleanPreferencesKey("cloud_compress")
     }
 
     override val settings: Flow<AppSettings> = context.settingsDataStore.data.map { it.toAppSettings() }
@@ -69,6 +70,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
             baseUrl = this[Keys.cloudBaseUrl] ?: "",
             apiKey = this[Keys.cloudApiKey] ?: "",
             model = this[Keys.cloudModel] ?: "",
+            compressAudio = this[Keys.cloudCompress] ?: false,
         ),
     )
 
@@ -86,6 +88,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         this[Keys.cloudBaseUrl] = settings.cloud.baseUrl
         this[Keys.cloudApiKey] = settings.cloud.apiKey
         this[Keys.cloudModel] = settings.cloud.model
+        this[Keys.cloudCompress] = settings.cloud.compressAudio
         val saf = settings.safTreeUri
         if (saf != null) this[Keys.safTreeUri] = saf else remove(Keys.safTreeUri)
     }

@@ -36,14 +36,19 @@ enum class TranscribeEngine { ON_DEVICE, CLOUD }
 enum class TranscribeModel(val label: String) { BASE("base（快）"), SMALL("small（較準）") }
 
 /**
- * Cloud engine config for an OpenAI-compatible `/audio/transcriptions` endpoint (OpenAI, Groq,
- * OpenRouter…). The [apiKey] is entered by the user and only ever stored on-device — never bundled
+ * Cloud engine config for OpenRouter's `/audio/transcriptions` endpoint (JSON + base64 audio).
+ * Only OpenRouter is supported — other OpenAI-compatible providers use multipart, which this engine
+ * no longer sends. The [apiKey] is entered by the user and only ever stored on-device — never bundled
  * in source or the APK. Empty [baseUrl]/[apiKey] means the cloud engine isn't usable yet.
  */
 data class CloudTranscribeConfig(
     val baseUrl: String = "",
     val apiKey: String = "",
     val model: String = "",
+    // false ⇒ upload 16 kHz mono WAV (best quality, big payload ⇒ short windows). true ⇒ encode each
+    // window to m4a/AAC (~1/5 the bytes, faster/steadier upload on long audio, slight accuracy cost).
+    // Cost is unaffected either way — OpenRouter bills by audio duration, not bytes.
+    val compressAudio: Boolean = false,
 ) {
     val isConfigured: Boolean get() = baseUrl.isNotBlank() && apiKey.isNotBlank() && model.isNotBlank()
 }
