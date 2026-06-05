@@ -130,6 +130,7 @@ CMakeLists + `WhisperContext` Kotlin wrapper。模型不進 APK，首次使用�
 
 ### 目前狀態總覽（2026-06-05，已更新含 M5/M6/M7）
 - **完成度 ~95%**：M0 / M1 / M2 / M2b / M2c / M3→**被 M5 取代** / M5（OpenRouter+壓縮）/ M6（可讀斷句+轉譯方式）/ M7（本機選單+抽音）/ 資源稽核 — 程式皆完成；僅選配 **M4（存成 .txt）未做**。
+- **M8（裝置端 ASR 模型擴充）✅ 程式完成、建置全綠、待真機驗**：whisper 加 `large-v3-turbo-q5_0` 量化版 + 導入 sherpa-onnx（SenseVoice/Paraformer/Qwen3）為第二裝置端後端；詳見下方 M8 段。
 - **建置**：`:app:compileDebugKotlin`、`:core:test`、`:app:assembleDebug`（arm64-v8a + x86_64）皆綠。
 - **真機已驗（CPH1941/SD665，2026-06-05）**：on-device base/small 端到端、**OpenRouter 雲端 turbo/qwen 端到端（WAV+m4a）**、影片抽音無損 m4a、本機分享選單兩路徑、轉譯方式顯示。實測基準見文末「## 實測基準」。
 - **尚未 commit**：本分支累積大量未 commit 變更（on-device 串流、M3→M5 雲端 OpenRouter 化、壓縮選項、轉譯方式、可讀斷句、本機選單+抽音）。建議分 commit：①cloud→OpenRouter+壓縮 ②顯示層(斷句+方式) ③本機選單+抽音。
@@ -242,6 +243,28 @@ CMakeLists + `WhisperContext` Kotlin wrapper。模型不進 APK，首次使用�
 - **AppContainer**：`mediaStoreStorage`/`safStorage` 由 private 改 public 供服務取用。Manifest 註冊新 service。
 - **實機驗（CPH1941）**：影片分享→兩選項;「取出聲音」→ ffprobe 確認輸出 **aac/48kHz/立體聲/96kbps，與原音軌完全一致（無損）**、可播放、發完成通知;聲音檔分享→只有「轉成文字」。
 
+### 里程碑 8 — 裝置端 ASR 模型擴充（whisper 量化版 + sherpa-onnx）🚧 規劃中（2026-06-05）
+> 起因：裝置端只有 whisper `base`/`small`，中文 CER ~26–30%（見「實測基準」），是所有選項裡較弱的。2026-06 多方查找後決定**不綁死單一用法**，裝置端新增更準的選項。雲端不動（Qwen 品質需求走雲端 `qwen3-asr-flash` 更省事）。
+
+- **whisper.cpp 加量化模型**：`WhisperModel` 加 `TURBO_Q5`（`ggml-large-v3-turbo-q5_0.bin`，**574MB**，HF `ggerganov/whisper.cpp/resolve/main/`）。準度接近 turbo、體積與 small 同級，**零架構改動**（同一 JNI/ggml 載入）。
+- **導入 sherpa-onnx（ONNX Runtime）為第二個裝置端後端**，帶三個模型：
+  - **SenseVoice-Small** int8 **~228MB**（`sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17`，有標點版）：中/粵/英/日/韓，非自回歸、比 whisper-large 快 ~15×，中文準度遠勝 whisper。
+  - **Paraformer-zh** int8 **~227MB**（`sherpa-onnx-paraformer-zh-int8-2025-10-07`）：純中文最準（CER ~1.95%），非自回歸；引擎固定回 `language=zh`，OpenCC 必套正體。
+  - **Qwen3-ASR 0.6B** int8 **~600–900MB**（`sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25`）：多語、品質高；**自回歸、體積大、SD665 可能慢於即時** → UI 標「實驗／高階機」（使用者已知情仍要保留）。
+- **設計決策**：維持 `TranscribeEngine{ON_DEVICE,CLOUD}` 不變；`TranscribeModel` 加 `backend`（`OnDeviceBackend{WHISPER_CPP,SHERPA}`）與 4 個新值，on-device 下拉統一列 6 個模型，**後端由所選模型推導**，使用者不需感知。新 enum 值對 DataStore 向後相容（`enumOrDefault` fallback）。
+- **sherpa 模型走官方 `.tar.bz2` + 端上解壓**（下載 `github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/<name>.tar.bz2` → Apache Commons Compress 解到 `filesDir/models/sherpa/<modelId>/`）。**改動原因**：實作前驗證發現 SenseVoice 有標點版（2024-07-17）與 Qwen3 在 HF 無個別檔鏡像、且 Qwen3 含 `tokenizer/` 目錄，逐檔下載不可行 → 改 tar.bz2 統一處理（三模型皆有官方 release）。tar.bz2 大小：SenseVoice 163MB／Paraformer 228MB／**Qwen3 879MB**。音訊 `AudioToPcm`（16kHz mono float）與 sherpa **完全相容免轉換**。
+- **新元件**：`SherpaModel`（enum+檔案清單）、`SherpaModelManager`（仿 WhisperModelManager，多檔 ensure/sizeBytes 加總/delete 刪子夾）、`SherpaOnnxEngine`（實作 `StreamingEngine`，`id="sherpa-${model.id}"` 使切模型即乾淨重轉；沿用 `WindowPlanner` 60s+3s、`SegmentMerge`、`OpenCcConverter`；進度為窗級）。
+- **改動點**：`AppContainer.streamingEngine` 改依「引擎+所選模型 backend」dispatch；`SettingsViewModel` 的 download/delete/state 依 backend 走對應 manager；`SettingsScreen` 模型說明補各模型一句（Qwen3 標大/慢）；`transcriptionMethod()` ON_DEVICE 改用 `model.label`。
+- **建置**：sherpa-onnx **無官方 Maven**（僅第三方非官方包，不用）→ 走官方做法 **vendored `kotlin-api/*.kt`（package `com.k2fsa.sherpa.onnx`）+ jniLibs 放 prebuilt `.so`**（`sherpa-onnx-v1.13.2-android.tar.bz2`，含四 ABI 的 `libsherpa-onnx-jni.so`+`libonnxruntime.so`）。Kotlin 編譯只需 `.kt`（`.so` 執行期載入）；`.so` 由 `scripts/` 下載腳本取得、放 jniLibs（不入 git，仿 whisper 由建置產出）。加 `org.apache.commons:commons-compress`（解 tar.bz2）。debug 仍 arm64-v8a+x86_64（onnxruntime 支援 x86_64 可在 emulator 測）；release 四 ABI、ABI splits 緩解體積（onnxruntime `.so` 每 ABI ~10–15MB）。
+- **風險**：①sherpa AAR/API 整合是最大未知（先打通「能 new OfflineRecognizer」再往下）；②Qwen3 確切檔案清單/URL/速度待實作確認；③sherpa AUTO 取不到語言時中文不轉正體（同雲端 caveat，建議設「中文」；Paraformer 已規避）。
+- **verify**：`:core:test`/`compileDebugKotlin`/`assembleDebug` 綠 → 各模型下載+轉同一中文片，比準度/速度 → resume 跨 sherpa 模型乾淨重轉 → 結果頁「轉譯方式」正確 → 補各模型體積/速度/CER 到「實測基準」表。
+- **真機驗（CPH1941/SD665，2026-06-05，行動數據）**：**SenseVoice 端到端通過 ✅** — tar.bz2(163MB) 下載 → Commons Compress 解壓(model.int8.onnx 228MB + tokens.txt + `.complete` marker + `.part` 清除) → `OfflineRecognizer` 載入(`.so` 無 UnsatisfiedLinkError) → 3 窗推理 → `language=zh` → OpenCC 正體輸出、**含標點**（與桌面 Qwen 基準內容一致）；job `engineId=sherpa-onnx`、`method=裝置端 · SenseVoice`、COMPLETED progress 1.0。推理明顯快於即時。**待驗**：Paraformer、Qwen3（檔名+速度）、whisper turbo-q5。
+  - ⚠️ **發現**：引擎 auto-download（`ensure`）**無行動數據 gate**，剛實測 163MB 走電信靜默下載；只有設定頁「下載模型」按鈕有 Wi-Fi 詢問。Qwen3 達 879MB → 建議補 gate 或引導先在設定頁/Wi-Fi 下載。
+- **狀態**：**程式完成 ✅，建置全綠（`:core:test`／`:app:compileDebugKotlin`／`:app:assembleDebug`），SenseVoice 真機已驗**。新增檔：`SherpaModel`/`SherpaModelManager`/`SherpaOnnxEngine`、vendored `com/k2fsa/sherpa/onnx/*.kt`（v1.13.2）、`scripts/fetch-sherpa-libs.sh`；改：`Settings.kt`(+`OnDeviceBackend`/4 新值)、`WhisperModelManager`(+TURBO_Q5)、`AppContainer`(backend dispatch)、`SettingsViewModel`/`SettingsScreen`(後端感知)、`TranscriptionService`(method)、build(commons-compress + jniLibs)。APK 已含 `libsherpa-onnx-jni.so`+`libonnxruntime.so`（arm64-v8a/x86_64）。
+  - **待真機/runtime 驗**：①各 sherpa 模型實際下載+解壓+轉錄；②**Qwen3 解壓後確切檔名**（目前用 sherpa 原始碼 `getOfflineModelConfig` type=61 的 `conv_frontend.onnx`/`encoder.int8.onnx`/`decoder.int8.onnx`/`tokenizer/`，未 runtime 確認）；③SenseVoice `result.lang` 格式；④whisper turbo-q5 下載。
+  - **限制**：sherpa 引擎 id 靜態 `"sherpa-onnx"` → whisper↔sherpa 切換會重轉（正確），但 sherpa 模型間切換 mid-job 沿用 checkpoint（同 whisper base↔small 既有行為）。
+  - 完整規劃見 `~/.claude/plans/`（M8 計畫檔）。
+
 ## OpenRouter STT API 契約（iOS 照此實作）
 - **端點**：`POST https://openrouter.ai/api/v1/audio/transcriptions`，`Content-Type: application/json`，`Authorization: Bearer <key>`。
 - **Body**：`{"model": "<id>", "language": "zh"(可省，省則自動偵測), "input_audio": {"format": "wav"|"m4a"|"mp3"|"flac"|"ogg", "data": "<raw base64，非 data URI>"}}`。
@@ -283,6 +306,7 @@ CMakeLists + `WhisperContext` Kotlin wrapper。模型不進 APK，首次使用�
 | yt-dlp（連結下載/字幕，youtubedl-android） | iOS 無對應；連結輸入在 iOS 較難，依 media-dler-ios 既有做法或先不做 |
 
 ## 技術決策（多方檢視後）
+- **裝置端雙後端（whisper.cpp + sherpa-onnx），後端由所選模型推導**（M8 規劃）。不在 UI 暴露「後端」概念：`TranscribeEngine` 維持 `ON_DEVICE/CLOUD`，`TranscribeModel` 加 `backend` 屬性，on-device 下拉統一列全部模型。sherpa 模型走 HF 逐檔下載（免 tar/bzip2），音訊格式與 sherpa 完全相容。選 sherpa 是因 SenseVoice/Paraformer 為非自回歸、中文準度與速度均勝 whisper；Qwen3 0.6B 大且自回歸，列實驗選項。
 - **雲端只支援 OpenRouter（JSON+base64），非通用 multipart**（2026-06 改，見 M5）。OpenRouter 的 `/audio/transcriptions` 不收 multipart、不支援 `verbose_json`；契約見「OpenRouter STT API 契約」。設定文案已標明「僅支援 OpenRouter」。
 - **雲端音訊壓縮為使用者選項、預設關閉**（見 M5）。WAV（原樣、品質最佳、短分窗）vs m4a/AAC（小、長分窗）。**費用不受格式影響**（OpenRouter 按音訊時長計費），壓縮只省上傳頻寬;裝置端 AAC 編碼慢（SD665 +~28s）、且部分 provider 不收 m4a（qwen），故預設 WAV。
 - **影片抽音用無損 remux（MediaExtractor+MediaMuxer），非重新編碼**（見 M6）。保留原音軌 codec/取樣率/聲道（如 48kHz 立體聲 AAC）；快、低記憶體。注意：讀 content uri 要用 `contentResolver.openFileDescriptor` 餵 `MediaExtractor`，`setDataSource(context,uri)` 對帶 grant 的 uri 會 `Failed to instantiate extractor`。
