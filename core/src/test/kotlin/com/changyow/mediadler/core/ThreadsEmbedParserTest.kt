@@ -49,4 +49,40 @@ class ThreadsEmbedParserTest {
     @Test fun textOnlyReturnsEmpty() {
         assertEquals(0, ThreadsEmbedParser.parse("<div>hello world</div>", post).size)
     }
+
+    /**
+     * A reply embed renders the parent post as context above the shared reply (marked
+     * `OuterContainerFull`). Only the reply's media — including its fbcdn-hosted video — must be
+     * returned; the parent's media must be ignored. Regression for sharing a comment grabbing the
+     * main post's video.
+     */
+    @Test fun replyEmbedExtractsOnlySharedPostMediaIncludingFbcdnVideo() {
+        val reply = "https://www.threads.com/@yatesvacuum/post/DZP1VHoD3rm"
+        val html = """
+            <div class="LinkContainer"><a href="https://www.threads.com/@yatesvacuum/post/DZP1VHoD3rm?xmt=AQ">open</a></div>
+            <div class="EmbedContainer">
+              <div class="OuterContainer">
+                <div class="AvatarContainer"><img src="https://scontent.cdninstagram.com/v/t51.82787-19/AV_PARENT.jpg?x=1"/></div>
+                <div class="HeaderContainer"><a href="https://www.threads.com/@liveistalking?xmt=AQ">liveistalking</a></div>
+                <div class="MediaScrollImageContainer"><video><source src="https://instagram.fxx-1.fna.fbcdn.net/o1/v/t16/PARENT_VID.mp4?nc=1&amp;oe=9"></video></div>
+                <div class="MediaScrollImageContainer"><img src="https://scontent.cdninstagram.com/v/t51.82787-15/PARENT_IMG.jpg?y=2"/></div>
+              </div>
+              <div class="OuterContainer OuterContainerFull">
+                <div class="AvatarContainer"><img src="https://scontent.cdninstagram.com/v/t51.82787-19/AV_REPLY.jpg?x=3"/></div>
+                <div class="HeaderContainer"><a href="https://www.threads.com/@yatesvacuum?xmt=AQ">yatesvacuum</a></div>
+                <div class="MediaScrollImageContainer"><video><source src="https://instagram.fxx-1.fna.fbcdn.net/o1/v/t16/REPLY_VID.mp4?nc=2&amp;oe=8"></video></div>
+                <div class="MediaScrollImageContainer"><img src="https://scontent.cdninstagram.com/v/t51.82787-15/REPLY_IMG.jpg?y=4"/></div>
+              </div>
+            </div>
+        """.trimIndent()
+        val items = ThreadsEmbedParser.parse(html, reply)
+        assertEquals(2, items.size)
+        assertFalse(items[0].isImage)
+        assertTrue(items[0].sourceUrl.contains("REPLY_VID.mp4"))
+        assertTrue(items[0].sourceUrl.contains("fbcdn.net"))
+        assertEquals("ThreadsVideo_DZP1VHoD3rm", items[0].title)
+        assertTrue(items[1].isImage)
+        assertTrue(items[1].sourceUrl.contains("REPLY_IMG.jpg"))
+        assertTrue(items.none { it.sourceUrl.contains("PARENT_") })
+    }
 }

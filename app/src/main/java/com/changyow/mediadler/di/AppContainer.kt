@@ -55,17 +55,18 @@ class AppContainer(application: Application) {
         }
     }
 
-    // Resolves a shared link to captions (CC shortcut) or a downloaded audio file (milestone 2).
-    val linkAudioResolver = LinkAudioResolver(application, engine)
-
-    // Background transcription: persisted jobs, live state, queue, resume + cancel (milestone 2b).
-    val transcriptStore = TranscriptStore(application)
-    val transcriptionManager = TranscriptionManager(application, transcriptStore)
-
     val mediaExtractor: MediaExtractor = RoutingMediaExtractor(
         threads = ThreadsExtractor(),
         fallback = YtDlpMediaExtractor(engine),
     )
+
+    // Resolves a shared link to captions (CC shortcut) or a downloaded audio file (milestone 2).
+    // Threads links are routed through mediaExtractor first (yt-dlp can't extract Threads).
+    val linkAudioResolver = LinkAudioResolver(application, engine, mediaExtractor)
+
+    // Background transcription: persisted jobs, live state, queue, resume + cancel (milestone 2b).
+    val transcriptStore = TranscriptStore(application)
+    val transcriptionManager = TranscriptionManager(application, transcriptStore)
 
     val mediaStoreStorage = MediaStoreStorage(application)
     val safStorage = SafStorage(application)

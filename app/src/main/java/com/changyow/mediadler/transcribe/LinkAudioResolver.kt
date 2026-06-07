@@ -1,6 +1,8 @@
 package com.changyow.mediadler.transcribe
 
 import android.content.Context
+import com.changyow.mediadler.core.extract.ThreadsUrl
+import com.changyow.mediadler.core.repo.MediaExtractor
 import com.changyow.mediadler.core.transcribe.SubtitleVtt
 import com.changyow.mediadler.data.ytdlp.EngineInitializer
 import com.changyow.mediadler.data.ytdlp.EngineState
@@ -21,6 +23,7 @@ import java.io.File
 class LinkAudioResolver(
     private val context: Context,
     private val engine: EngineInitializer,
+    private val mediaExtractor: MediaExtractor,
 ) {
     sealed interface Resolved {
         /** Captions found — already plain text, plus the subtitle's language code (for opencc). */
@@ -36,8 +39,28 @@ class LinkAudioResolver(
     suspend fun resolve(url: String, onDownloadProgress: (Float) -> Unit): Resolved =
         withContext(Dispatchers.IO) {
             (engine.ensureInit() as? EngineState.Failed)?.let { error(it.message) }
-            tryCaptions(url) ?: Resolved.Audio(downloadAudio(url, onDownloadProgress))
+            // Threads has no yt-dlp extractor, so feeding the post URL straight to yt-dlp fails.
+            // Resolve it through the media extractor first (which scrapes the shared post's direct
+            // CDN video), then transcribe that concrete media URL. Other links keep the captions
+            // shortcut + best-audio path, which works directly off the original URL.
+            if (ThreadsUrl.embedUrlOrNull(url) != null) {
+                Resolved.Audio(downloadAudio(resolveThreadsVideoUrl(url), onDownloadProgress))
+            } else {
+                tryCaptions(url) ?: Resolved.Audio(downloadAudio(url, onDownloadProgress))
+            }
         }
+
+    /**
+     * Resolves a Threads post link to a direct video URL via the media extractor (the same path the
+     * downloader uses, scoped to the shared post). Picks the first video; images/text can't be
+     * transcribed. Throws a user-facing message when the post has no video.
+     */
+    private suspend fun resolveThreadsVideoUrl(url: String): String {
+        val items = mediaExtractor.extract(url).getOrElse { throw it }
+        val video = items.firstOrNull { !it.isImage }
+            ?: error("這則 Threads 貼文沒有可轉文字的影片（可能只有圖片或純文字）")
+        return video.sourceUrl
+    }
 
     /** Best-effort subtitle fetch without downloading the video. Returns null when there are none. */
     private suspend fun tryCaptions(url: String): Resolved.Captions? {

@@ -16,4 +16,12 @@ object ThreadsUrl {
     /** The post short-code (e.g. "DY3m2JQjXHZ") from a Threads URL, or null. */
     fun postCode(url: String): String? =
         POST.find(url)?.groupValues?.get(1)?.substringAfterLast('/')
+
+    /**
+     * The author handle (without "@") from a Threads post URL, e.g. "yatesvacuum".
+     * On a reply link this is the reply's author, which the embed page uses to mark
+     * which rendered post the share points at. Null if it isn't a Threads post URL.
+     */
+    fun handle(url: String): String? =
+        POST.find(url)?.groupValues?.get(1)?.substringBefore("/post/")?.removePrefix("@")
 }
