@@ -85,4 +85,86 @@ class ThreadsEmbedParserTest {
         assertTrue(items[1].sourceUrl.contains("REPLY_IMG.jpg"))
         assertTrue(items.none { it.sourceUrl.contains("PARENT_") })
     }
+
+    /** Two post blocks for a tiny helper that wraps media in `OuterContainer` blocks. */
+    private fun block(classes: String, handleHref: String, code: String?, mediaTag: String) = """
+        <div class="$classes">
+          <div class="HeaderContainer"><a href="$handleHref">name</a></div>
+          ${code?.let { """<a href="https://www.threads.com/@x/post/$it?xmt=AQ">link</a>""" } ?: ""}
+          <div class="MediaScrollImageContainer">$mediaTag</div>
+        </div>
+    """.trimIndent()
+
+    private fun vid(name: String) =
+        """<video><source src="https://instagram.fxx-1.fna.fbcdn.net/o1/v/t16/$name.mp4?nc=1"></video>"""
+
+    /**
+     * Multiple post blocks, NONE marked OuterContainerFull and none matching the shared post's
+     * code or handle: the parser must refuse to guess and return nothing, NOT the parent's media.
+     * Regression for the whole-page fallback re-introducing the over-capture bug.
+     */
+    @Test fun multiBlockWithNoIdentifiableSharedPostReturnsEmpty() {
+        val shared = "https://www.threads.com/@nobodyhere/post/MISSING1"
+        val html = "<div class=\"EmbedContainer\">" +
+            block("OuterContainer", "https://www.threads.com/@liveistalking?x=1", code = null, mediaTag = vid("PARENT_VID")) +
+            block("OuterContainer", "https://www.threads.com/@another?x=2", code = null, mediaTag = vid("OTHER_VID")) +
+            "</div>"
+        val items = ThreadsEmbedParser.parse(html, shared)
+        assertEquals(0, items.size)
+    }
+
+    /** No OuterContainerFull, but exactly one block carries the shared post's /post/<code>: pick it. */
+    @Test fun multiBlockSelectsByPostCodeWhenNoFullMarker() {
+        val shared = "https://www.threads.com/@yatesvacuum/post/DZP1VHoD3rm"
+        val html = "<div class=\"EmbedContainer\">" +
+            block("OuterContainer", "https://www.threads.com/@liveistalking?x=1", code = null, mediaTag = vid("PARENT_VID")) +
+            block("OuterContainer", "https://www.threads.com/@yatesvacuum?x=2", code = "DZP1VHoD3rm", mediaTag = vid("REPLY_VID")) +
+            "</div>"
+        val items = ThreadsEmbedParser.parse(html, shared)
+        assertEquals(1, items.size)
+        assertTrue(items[0].sourceUrl.contains("REPLY_VID.mp4"))
+        assertTrue(items.none { it.sourceUrl.contains("PARENT_") })
+    }
+
+    /** No Full marker and no in-block code: the entity-encoded (&#064;) author handle disambiguates. */
+    @Test fun multiBlockSelectsByEntityEncodedHandle() {
+        val shared = "https://www.threads.com/@yatesvacuum/post/CODE9"
+        val html = "<div class=\"EmbedContainer\">" +
+            block("OuterContainer", "https://www.threads.com/&#064;liveistalking?x=1", code = null, mediaTag = vid("PARENT_VID")) +
+            block("OuterContainer", "https://www.threads.com/&#064;yatesvacuum?x=2", code = null, mediaTag = vid("REPLY_VID")) +
+            "</div>"
+        val items = ThreadsEmbedParser.parse(html, shared)
+        assertEquals(1, items.size)
+        assertTrue(items[0].sourceUrl.contains("REPLY_VID.mp4"))
+        assertTrue(items.none { it.sourceUrl.contains("PARENT_") })
+    }
+
+    /** Same author on two blocks (self-thread) with no Full marker is ambiguous → return nothing. */
+    @Test fun multiBlockAmbiguousHandleReturnsEmpty() {
+        val shared = "https://www.threads.com/@yatesvacuum/post/CODE9"
+        val html = "<div class=\"EmbedContainer\">" +
+            block("OuterContainer", "https://www.threads.com/@yatesvacuum?x=1", code = null, mediaTag = vid("PARENT_VID")) +
+            block("OuterContainer", "https://www.threads.com/@yatesvacuum?x=2", code = null, mediaTag = vid("REPLY_VID")) +
+            "</div>"
+        val items = ThreadsEmbedParser.parse(html, shared)
+        assertEquals(0, items.size)
+    }
+
+    /** fbcdn is now matched for videos, but static.*.fbcdn.net sprites/emoji must NOT become images. */
+    @Test fun fbcdnStaticSpritesAreNotExtractedAsImages() {
+        val shared = "https://www.threads.com/@u/post/ABC"
+        val html = block(
+            "OuterContainer OuterContainerFull",
+            "https://www.threads.com/@u?x=1",
+            code = "ABC",
+            mediaTag = vid("REAL_VID") +
+                """<img src="https://static.xz.fbcdn.net/rsrc.php/v3/sprite.png?ccb=1"/>""" +
+                """<img src="https://scontent.cdninstagram.com/v/t51.82787-15/REAL_IMG.jpg?y=2"/>""",
+        )
+        val items = ThreadsEmbedParser.parse(html, shared)
+        assertEquals(2, items.size)
+        assertTrue(items.any { it.sourceUrl.contains("REAL_VID.mp4") })
+        assertTrue(items.any { it.sourceUrl.contains("REAL_IMG.jpg") })
+        assertTrue(items.none { it.sourceUrl.contains("sprite.png") })
+    }
 }

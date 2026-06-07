@@ -11,8 +11,11 @@ import com.changyow.mediadler.core.model.MediaItem
  * context above, then the shared post itself. We must extract media from only the
  * shared post — otherwise sharing a reply yields the main post's media. The embed
  * marks the shared post's block with the `OuterContainerFull` class, so we scope
- * extraction to that block (see [scopeToSharedPost]). Videos live on `*.fbcdn.net`
- * (not cdninstagram), so the URL matcher covers both hosts.
+ * extraction to that block (see [scopeToSharedPost]). When the page has several
+ * post blocks but none can be identified as the shared one, we return NO media
+ * rather than guess — a clear "no media" failure beats silently extracting the
+ * wrong post's video. Videos live on `*.fbcdn.net` (not cdninstagram), so the URL
+ * matcher covers both hosts.
  */
 object ThreadsEmbedParser {
     private val IMAGE_EXTS = setOf("jpg", "jpeg", "png", "webp", "heic")
@@ -23,7 +26,11 @@ object ThreadsEmbedParser {
     private val POST_BLOCK = Regex("""<div[^>]*class="[^"]*OuterContainer[^"]*"""", RegexOption.IGNORE_CASE)
 
     fun parse(embedHtml: String, postUrl: String): List<MediaItem> {
-        val html = embedHtml.replace("\\u0026", "&").replace("&amp;", "&").replace("\\/", "/")
+        // Decode the entities/escapes the embed JSON uses, including `&#064;`/`&#64;` → `@` so
+        // author handles in hrefs (`/&#064;user?…`) are matchable by scopeToSharedPost.
+        val html = embedHtml
+            .replace("\\u0026", "&").replace("&amp;", "&").replace("\\/", "/")
+            .replace("&#064;", "@").replace("&#64;", "@")
         val code = ThreadsUrl.postCode(postUrl) ?: "threads"
         val scope = scopeToSharedPost(html, postUrl)
 
@@ -32,7 +39,7 @@ object ThreadsEmbedParser {
         val images = ArrayList<String>()
         for (match in MEDIA_URL.findAll(scope)) {
             val url = match.value
-            if (url.contains("static.cdninstagram.com")) continue
+            if (isStaticAsset(url)) continue
             val path = url.substringBefore('?')
             val ext = path.substringAfterLast('.', "").lowercase()
             if (ext != "mp4" && ext !in IMAGE_EXTS) continue
@@ -55,10 +62,13 @@ object ThreadsEmbedParser {
      * parent/context posts' media. Splits the page into per-post blocks (each opens
      * with an `OuterContainer` div) and picks, in order of confidence:
      *  1. the block marked `OuterContainerFull` (the post the embed points at),
-     *  2. the block referencing the URL's author handle,
-     *  3. the only block, if there's just one.
-     * Falls back to the whole page when no blocks are present (older/simple embeds
-     * and unit fixtures), preserving the original whole-page behaviour.
+     *  2. the block whose permalink carries the shared post's short-code (unique only),
+     *  3. the block referencing the URL's author handle (unique only; `@` is decoded),
+     *  4. the only block, if there's just one.
+     * When no blocks are present at all (older/simple embeds and unit fixtures) the
+     * whole page is returned, preserving the original behaviour. But when there ARE
+     * several blocks and none can be identified, we return "" — refusing to guess —
+     * so the caller surfaces a "no media" error instead of the wrong post's media.
      */
     private fun scopeToSharedPost(html: String, postUrl: String): String {
         val starts = POST_BLOCK.findAll(html).map { it.range.first }.toList()
@@ -66,11 +76,27 @@ object ThreadsEmbedParser {
         val bounds = starts + html.length
         val blocks = starts.indices.map { html.substring(bounds[it], bounds[it + 1]) }
 
-        blocks.firstOrNull { it.take(220).contains("OuterContainerFull") }?.let { return it }
-        ThreadsUrl.handle(postUrl)?.let { handle ->
-            blocks.firstOrNull { it.contains("/$handle?") || it.contains("/$handle\"") }?.let { return it }
+        blocks.firstOrNull { it.contains("OuterContainerFull") }?.let { return it }
+        ThreadsUrl.postCode(postUrl)?.let { code ->
+            blocks.singleOrNull { it.contains("/post/$code") }?.let { return it }
         }
-        return blocks.singleOrNull() ?: html
+        ThreadsUrl.handle(postUrl)?.let { handle ->
+            blocks.singleOrNull {
+                it.contains("/@$handle?") || it.contains("/@$handle\"") || it.contains("/@$handle/")
+            }?.let { return it }
+        }
+        blocks.singleOrNull()?.let { return it }
+        return ""
+    }
+
+    /**
+     * Static UI assets (sprites, emoji, JS/CSS) live on `static.*` CDN hosts or under
+     * `/rsrc.php` — they are not post media. Excludes both `static.cdninstagram.com`
+     * and `static.*.fbcdn.net`, which the broadened [MEDIA_URL] now also matches.
+     */
+    private fun isStaticAsset(url: String): Boolean {
+        val host = url.substringAfter("://", "").substringBefore('/').lowercase()
+        return host.startsWith("static.") || url.contains("/rsrc.php")
     }
 
     private fun build(url: String, name: String, isImage: Boolean): MediaItem {
