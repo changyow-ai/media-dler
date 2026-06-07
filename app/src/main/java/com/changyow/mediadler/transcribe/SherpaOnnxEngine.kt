@@ -2,6 +2,7 @@ package com.changyow.mediadler.transcribe
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import com.changyow.mediadler.core.model.OnDeviceBackend
 import com.changyow.mediadler.core.model.TranscribeModel
 import com.changyow.mediadler.core.repo.SettingsRepository
@@ -84,20 +85,38 @@ class SherpaOnnxEngine(
             var detected: String? = knownLanguage ?: defaultLang(model)
             var lastCompleted = startWindow
 
+            // On-device decode telemetry: when a window that should hold real audio (≥ EMPTY_DIAG_MIN_MS
+            // of expected content) decodes to an empty slice, record a one-line dump. Surfaced in the
+            // failure message below so the bug is debuggable where logcat isn't (e.g. locked-down S23U).
+            val emptyDiag = StringBuilder()
+            var maxSliceSamples = 0
+
             var index = startWindow
             while (planned == null || index < planned.size) {
                 if (isCancelled()) {
                     return@withContext result(parts, detected, lastCompleted, total, cancelled = true)
                 }
                 val window = planned?.get(index) ?: WindowPlanner.openWindow(index, WINDOW_MS, OVERLAP_MS)
-                val slice = AudioToPcm.decodeRange(context, uri, window.startMs, window.endMs)
+                val stats = AudioToPcm.DecodeStats()
+                val slice = AudioToPcm.decodeRange(context, uri, window.startMs, window.endMs, stats)
                 if (slice.isEmpty()) {
+                    // A window that should contain audio but decoded empty is the symptom of a
+                    // device-specific decode failure; capture details (benign tail slivers < the
+                    // threshold are skipped quietly as before).
+                    val expectedMs = minOf(window.endMs, durationMs ?: window.endMs) - window.startMs
+                    if (expectedMs >= EMPTY_DIAG_MIN_MS) {
+                        emptyDiag.append(
+                            "• win=$index [${window.startMs}–${window.endMs}ms] 預期≈${expectedMs / 1000}s 卻空 → " +
+                                "${stats.summary()}\n",
+                        )
+                    }
                     if (planned == null) break // unknown duration: empty slice = past end-of-stream
                     lastCompleted = index + 1
                     onCheckpoint(lastCompleted, total, render(parts, detected), detected)
                     index++
                     continue
                 }
+                maxSliceSamples = maxOf(maxSliceSamples, slice.size)
 
                 // One-shot decode; reflect progress at window boundaries (no within-window callback).
                 onProgress(0.05f + 0.93f * windowFraction(index, 0f, total))
@@ -113,6 +132,13 @@ class SherpaOnnxEngine(
                 } finally {
                     stream.release()
                 }
+                // TEMP DEBUG: raw sherpa output before merge/OpenCC. Remove before release.
+                Log.d(
+                    "SherpaDbg",
+                    "model=$model win=$index slice=${slice.size} samples (${slice.size / AudioToPcm.TARGET_SAMPLE_RATE}s) " +
+                        "svLang='${senseVoiceLang(knownLanguage)}' knownLang=$knownLanguage " +
+                        "=> rawText='${text}' rawLang='${lang}' textLen=${text.length}",
+                )
 
                 if (isCancelled()) {
                     return@withContext result(parts, detected, lastCompleted, total, cancelled = true)
@@ -127,9 +153,26 @@ class SherpaOnnxEngine(
                 index++
             }
             onProgress(1f)
+            // Empty final transcript: surface an actionable diagnostic instead of silently saving a
+            // blank "success", so the decode-empty vs model-empty split is visible on-device.
+            if (render(parts, detected).isBlank()) {
+                error(emptyResultMessage(emptyDiag, maxSliceSamples))
+            }
             result(parts, detected, lastCompleted, maxOf(total, lastCompleted), cancelled = false)
         } finally {
             recognizer.release()
+        }
+    }
+
+    /** Builds the on-device failure message for an empty transcript (decode-empty vs model-empty). */
+    private fun emptyResultMessage(emptyDiag: StringBuilder, maxSliceSamples: Int): String = buildString {
+        append("轉錄結果為空。")
+        if (emptyDiag.isNotEmpty()) {
+            append("偵測到應有聲音卻解碼為空的視窗（疑似裝置解碼層）：\n")
+            append(emptyDiag)
+        } else {
+            val secs = maxSliceSamples / AudioToPcm.TARGET_SAMPLE_RATE
+            append("音訊已解碼（最長視窗 $maxSliceSamples samples ≈ ${secs}s）但模型輸出為空（疑似模型／ONNX 層）。")
         }
     }
 
@@ -224,5 +267,6 @@ class SherpaOnnxEngine(
     private companion object {
         const val WINDOW_MS = 60_000L  // checkpoint/resume granularity
         const val OVERLAP_MS = 3_000L  // de-duplicated by SegmentMerge
+        const val EMPTY_DIAG_MIN_MS = 3_000L // below this, an empty slice is a benign tail sliver
     }
 }

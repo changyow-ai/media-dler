@@ -55,6 +55,7 @@ object AudioToPcm {
         uri: Uri,
         startMs: Long,
         endMs: Long,
+        stats: DecodeStats? = null,
     ): FloatArray = withContext(Dispatchers.IO) {
         val extractor = MediaExtractor()
         try {
@@ -67,11 +68,19 @@ object AudioToPcm {
             val mime = inputFormat.getString(MediaFormat.KEY_MIME)!!
             val startUs = if (startMs > 0) startMs * 1000 else 0L
             val endUs = if (endMs == Long.MAX_VALUE) Long.MAX_VALUE else endMs * 1000
+            stats?.apply {
+                this.startUs = startUs
+                this.endUs = endUs
+                inputMime = mime
+                inputSampleRate = inputFormat.getIntegerOrDefault(MediaFormat.KEY_SAMPLE_RATE, 0)
+                inputChannels = inputFormat.getIntegerOrDefault(MediaFormat.KEY_CHANNEL_COUNT, 0)
+            }
             val codec = MediaCodec.createDecoderByType(mime)
             codec.configure(inputFormat, null, null, 0)
             codec.start()
+            stats?.codecName = runCatching { codec.name }.getOrDefault("?")
             try {
-                val decoded = drainToMonoFloat(extractor, codec, inputFormat, startUs, endUs)
+                val decoded = drainToMonoFloat(extractor, codec, inputFormat, startUs, endUs, stats)
                 resampleTo16k(decoded.samples, decoded.sampleRate)
             } finally {
                 runCatching { codec.stop() }
@@ -90,6 +99,42 @@ object AudioToPcm {
     private class Decoded(val samples: FloatArray, val sampleRate: Int)
 
     /**
+     * Optional decode telemetry for on-device debugging — logcat is unavailable on locked-down
+     * devices (e.g. the S23U short-clip empty-transcript bug). Pass a non-null instance to
+     * [decodeRange] and it is filled during the decode; [summary] renders a one-line dump that can
+     * be surfaced in an on-screen error message. A telling pattern for "fed input but got no PCM" is
+     * `fed>0 / rawBytes=0 / eosBeforeData=true` (decoder flushed the span without draining it).
+     */
+    class DecodeStats {
+        var codecName: String = "?"
+        var inputMime: String = "?"
+        var inputSampleRate: Int = 0
+        var inputChannels: Int = 0
+        var outputSampleRate: Int = 0
+        var outputChannels: Int = 0
+        var pcmEncoding: Int = 0
+        var formatChanged: Boolean = false
+        var inputBuffersFed: Int = 0
+        var inputBytesFed: Long = 0
+        var outputBuffers: Int = 0
+        var rawBytes: Int = 0
+        var firstOutPtsUs: Long = -1
+        var lastOutPtsUs: Long = -1
+        var startUs: Long = 0
+        var endUs: Long = 0
+        var sawInputEos: Boolean = false
+        var sawOutputEos: Boolean = false
+        var eosOutputBeforeData: Boolean = false
+
+        fun summary(): String =
+            "codec=$codecName mime=$inputMime in=${inputSampleRate}Hz/${inputChannels}ch " +
+                "out=${outputSampleRate}Hz/${outputChannels}ch/enc$pcmEncoding fmtChg=$formatChanged " +
+                "fed=${inputBuffersFed}buf/${inputBytesFed}B outBuf=$outputBuffers rawBytes=$rawBytes " +
+                "outPts=$firstOutPtsUs..${lastOutPtsUs}us inEos=$sawInputEos outEos=$sawOutputEos " +
+                "eosBeforeData=$eosOutputBeforeData"
+    }
+
+    /**
      * Runs the decode loop until end-of-stream or the first decoded buffer at/after [endUs],
      * returning mono float samples still at the source sample rate. Leading frames before [startUs]
      * are trimmed: SEEK_TO_CLOSEST_SYNC can land seconds before the requested window start, and
@@ -101,6 +146,7 @@ object AudioToPcm {
         inputFormat: MediaFormat,
         startUs: Long,
         endUs: Long,
+        stats: DecodeStats? = null,
     ): Decoded {
         val raw = ByteArrayOutputStream()
         val info = MediaCodec.BufferInfo()
@@ -120,14 +166,17 @@ object AudioToPcm {
                     if (sampleTime < 0 || (endUs != Long.MAX_VALUE && sampleTime >= endUs)) {
                         codec.queueInputBuffer(inIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
                         sawInputEos = true
+                        stats?.sawInputEos = true
                     } else {
                         val inBuf = codec.getInputBuffer(inIndex)!!
                         val size = extractor.readSampleData(inBuf, 0)
                         if (size < 0) {
                             codec.queueInputBuffer(inIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
                             sawInputEos = true
+                            stats?.sawInputEos = true
                         } else {
                             codec.queueInputBuffer(inIndex, 0, size, sampleTime, 0)
+                            stats?.let { it.inputBuffersFed++; it.inputBytesFed += size }
                             extractor.advance()
                         }
                     }
@@ -141,6 +190,7 @@ object AudioToPcm {
                     sampleRate = f.getIntegerOrDefault(MediaFormat.KEY_SAMPLE_RATE, sampleRate)
                     channels = f.getIntegerOrDefault(MediaFormat.KEY_CHANNEL_COUNT, channels)
                     pcmEncoding = f.getIntegerOrDefault(MediaFormat.KEY_PCM_ENCODING, pcmEncoding)
+                    stats?.formatChanged = true
                 }
                 outIndex >= 0 -> {
                     val outBuf = codec.getOutputBuffer(outIndex)!!
@@ -159,17 +209,35 @@ object AudioToPcm {
                             outBuf.position(info.offset + skip)
                             outBuf.get(chunk, 0, len)
                             raw.write(chunk)
+                            stats?.let {
+                                it.outputBuffers++
+                                if (it.firstOutPtsUs < 0) it.firstOutPtsUs = info.presentationTimeUs
+                                it.lastOutPtsUs = info.presentationTimeUs
+                            }
                         }
                     }
                     val pastEnd = endUs != Long.MAX_VALUE && info.presentationTimeUs >= endUs
+                    val isEos = info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
+                    if (isEos) stats?.let {
+                        it.sawOutputEos = true
+                        // EOS arriving with no data collected yet pinpoints a decoder that flushed the
+                        // span without draining it — the prime suspect for the S23U empty-window bug.
+                        if (raw.size() == 0) it.eosOutputBeforeData = true
+                    }
                     codec.releaseOutputBuffer(outIndex, false)
-                    if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0 || pastEnd) {
+                    if (isEos || pastEnd) {
                         sawOutputEos = true
                     }
                 }
             }
         }
 
+        stats?.let {
+            it.outputSampleRate = sampleRate
+            it.outputChannels = channels
+            it.pcmEncoding = pcmEncoding
+            it.rawBytes = raw.size()
+        }
         val mono = toMonoFloat(raw.toByteArray(), channels, pcmEncoding)
         return Decoded(mono, sampleRate)
     }
