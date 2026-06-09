@@ -81,8 +81,14 @@ class CloudTranscriptionEngine(
                 val pcm = AudioToPcm.decodeRange(context, uri, window.startMs, decodeEndMs)
                 if (pcm.isEmpty()) {
                     if (planned == null) break // unknown duration: empty slice = past end-of-stream
-                    lastCompleted = index + 1
-                    onCheckpoint(lastCompleted, total, render(parts, detected), detected)
+                    // Don't advance the resume checkpoint past a window that should have held audio but
+                    // decoded empty (likely a decode failure) — persisting it makes a retry skip the
+                    // window forever (poisoned-checkpoint bug). Benign tail slivers still advance.
+                    val expectedMs = minOf(window.endMs, durationMs ?: window.endMs) - window.startMs
+                    if (expectedMs < EMPTY_WINDOW_SKIP_MS) {
+                        lastCompleted = index + 1
+                        onCheckpoint(lastCompleted, total, render(parts, detected), detected)
+                    }
                     index++
                     continue
                 }
@@ -241,6 +247,7 @@ class CloudTranscriptionEngine(
         // WAV: 5 min @ 16 kHz mono 16-bit ≈ 9.5 MB → ~12.5 MB once base64'd, safely under limits and
         // the upstream ~60 s timeout. Compressed (m4a) windows are ~1/5 the size, so they can run the
         // full default length without bloating the request body.
+        const val EMPTY_WINDOW_SKIP_MS = 3_000L // empties shorter than this are benign tail slivers
         const val WAV_WINDOW_MS = 5 * 60_000L
         const val COMPRESSED_WINDOW_MS = WindowPlanner.DEFAULT_WINDOW_MS
         const val OVERLAP_MS = WindowPlanner.DEFAULT_OVERLAP_MS

@@ -107,15 +107,23 @@ class SherpaOnnxEngine(
                     // device-specific decode failure; capture details (benign tail slivers < the
                     // threshold are skipped quietly as before).
                     val expectedMs = minOf(window.endMs, durationMs ?: window.endMs) - window.startMs
-                    if (expectedMs >= EMPTY_DIAG_MIN_MS) {
+                    val suspicious = expectedMs >= EMPTY_DIAG_MIN_MS
+                    if (suspicious) {
                         emptyDiag.append(
                             "• win=$index [${window.startMs}–${window.endMs}ms] 預期≈${expectedMs / 1000}s 卻空 → " +
                                 "${stats.summary()}\n",
                         )
                     }
                     if (planned == null) break // unknown duration: empty slice = past end-of-stream
-                    lastCompleted = index + 1
-                    onCheckpoint(lastCompleted, total, render(parts, detected), detected)
+                    // Don't advance the resume checkpoint past a window that should have held audio but
+                    // decoded empty (a likely decode failure): persisting it makes a retry skip the
+                    // window and never recover — the poisoned-checkpoint bug that silently masked every
+                    // earlier decode fix. Benign tail slivers (< threshold) still advance so a silent
+                    // end doesn't re-decode on every resume.
+                    if (!suspicious) {
+                        lastCompleted = index + 1
+                        onCheckpoint(lastCompleted, total, render(parts, detected), detected)
+                    }
                     index++
                     continue
                 }

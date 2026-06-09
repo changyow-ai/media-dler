@@ -79,6 +79,29 @@ window 才回退到 size=0 EOS buffer。
 `if (planned != null && index == planned.lastIndex) Long.MAX_VALUE else window.endMs`。
 unknown duration（`planned == null`）維持原 bounded window，不可解到 EOF。
 
+## ⚠️ 關鍵發現：poisoned checkpoint 一直遮蔽所有修法
+第二次測試訊息變成「音訊已解碼（最長視窗 **0 samples**）但模型輸出為空」，且 `emptyDiag` 為空。
+對 56s 單一 window 而言這自相矛盾——唯一可能是**迴圈跑了零次**，即從 `startWindow=1` resume，
+跳過了唯一的 window 0。
+
+機制：
+- `TranscriptionService.kt:197` `startWindow = current.completedWindows`；
+  `TranscriptionManager.kt:93`「FAILED 從 checkpoint resume；CANCELLED 重新開始」；job id 由來源穩定
+  推導 → **重分享同一檔 = resume，不是重跑**。
+- 第一次失敗時，空 window 分支執行了 `lastCompleted = index+1` (=1) + `onCheckpoint`，把「window 0
+  已完成」寫進去。之後每次重裝重測都從 1 resume、跳過 window 0。
+- **結論：A/B/G 從未在這個檔上實際執行過**——每次都被 poisoned checkpoint 短路。
+
+### 修法 H（已實作）：解碼失敗的空 window 不推進 checkpoint
+`SherpaOnnxEngine` / `WhisperCppEngine` / `CloudTranscriptionEngine` 的空 window 分支：只有
+`expectedMs < 3000ms`（benign 尾端碎片）才推進 `lastCompleted` + `onCheckpoint`；可疑空 window
+（預期有聲卻空）**不推進**，讓 retry 能重試該 window 而非永久跳過。
+
+### 使用者端動作（重要）
+現有那個失敗 job 的 checkpoint 已被毒化（completedWindows=1），H 只防未來、救不了它。
+**請先在 app 取消／刪除該失敗轉錄，再重新分享該檔**（CANCELLED → 重新開始 → startWindow=0），
+這樣 G 才會真正執行、telemetry 才會印出 `seek=`／`tracks=` 等新欄位。
+
 ## 若 G 在 S23U 仍失敗
 S23 不開 adb，無法在故障機自驗，故以厚 telemetry 換取「一次測試定案」。依上方 G 判讀表
 決定下一步（多半是 E：把 elst 去掉重 mux，或 F：ffmpeg）。每次保留完整 `DecodeStats` 字串。
