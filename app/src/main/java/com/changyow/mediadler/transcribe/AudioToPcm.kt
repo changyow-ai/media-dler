@@ -60,9 +60,13 @@ object AudioToPcm {
         val extractor = MediaExtractor()
         try {
             extractor.setDataSource(context, uri, null)
+            stats?.trackCount = extractor.trackCount
+            stats?.trackMimes = (0 until extractor.trackCount).joinToString(",") {
+                extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME) ?: "?"
+            }
             val track = audioTrack(extractor) ?: error("no audio track in $uri")
             extractor.selectTrack(track)
-            if (startMs > 0) extractor.seekTo(startMs * 1000, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+            stats?.selectedTrack = track
 
             val inputFormat = extractor.getTrackFormat(track)
             val mime = inputFormat.getString(MediaFormat.KEY_MIME)!!
@@ -74,7 +78,19 @@ object AudioToPcm {
                 inputMime = mime
                 inputSampleRate = inputFormat.getIntegerOrDefault(MediaFormat.KEY_SAMPLE_RATE, 0)
                 inputChannels = inputFormat.getIntegerOrDefault(MediaFormat.KEY_CHANNEL_COUNT, 0)
+                trackDurationUs = if (inputFormat.containsKey(MediaFormat.KEY_DURATION)) {
+                    inputFormat.getLong(MediaFormat.KEY_DURATION)
+                } else {
+                    -1
+                }
+                hasCsd0 = inputFormat.containsKey("csd-0")
             }
+            // Position the read cursor robustly. Some devices' MediaExtractor mishandle an AAC-priming
+            // edit list (elst media_time>0, written by every yt-dlp/ffmpeg m4a) and report NO samples at
+            // the unseeked initial position — the S23U fed=0 / sampleTime=-1 empty-decode case. Try the
+            // default cursor first, then explicit seeks, and record which one actually yields a sample.
+            positionExtractor(extractor, startMs, startUs, stats)
+
             val codec = MediaCodec.createDecoderByType(mime)
             codec.configure(inputFormat, null, null, 0)
             codec.start()
@@ -95,6 +111,48 @@ object AudioToPcm {
         (0 until extractor.trackCount).firstOrNull {
             extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
         }
+
+    /**
+     * Positions [extractor]'s read cursor at [startUs] so the decode loop can read samples. Tries the
+     * unseeked cursor first (keeps the working path unchanged for normal files), then explicit seeks
+     * with each sync mode, stopping at the first that exposes a real sample. The chosen strategy and
+     * the resulting [MediaExtractor.getSampleTime] are recorded so a single on-device failure makes
+     * the edit-list positioning bug fully diagnosable without logcat.
+     */
+    private fun positionExtractor(extractor: MediaExtractor, startMs: Long, startUs: Long, stats: DecodeStats?) {
+        // Unseeked cursor — only valid as a strategy at the very start (no seek was requested).
+        if (startMs == 0L && extractor.sampleTime >= 0) {
+            stats?.let { it.seekStrategy = "none"; it.firstSampleTimeUs = extractor.sampleTime }
+            return
+        }
+        val modes = listOf(
+            "closest" to MediaExtractor.SEEK_TO_CLOSEST_SYNC,
+            "prev" to MediaExtractor.SEEK_TO_PREVIOUS_SYNC,
+            "next" to MediaExtractor.SEEK_TO_NEXT_SYNC,
+        )
+        for ((name, mode) in modes) {
+            extractor.seekTo(startUs, mode)
+            val t = extractor.sampleTime
+            if (t >= 0) {
+                stats?.let { it.seekStrategy = name; it.firstSampleTimeUs = t }
+                return
+            }
+        }
+        // Last resort at the file head: if the edit list makes time 0 unreachable, seek just past the
+        // priming region. Costs ~50 ms of leading audio (inaudible for transcription) but recovers a
+        // file that would otherwise decode to nothing.
+        if (startMs == 0L) {
+            extractor.seekTo(50_000L, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+            val t = extractor.sampleTime
+            if (t >= 0) {
+                stats?.let { it.seekStrategy = "skip50ms"; it.firstSampleTimeUs = t }
+                return
+            }
+        }
+        // Nothing exposed a sample; leave the cursor where the last seek left it and let the loop
+        // report the empty decode. firstSampleTimeUs stays at the sentinel so the dump shows "no sample".
+        stats?.seekStrategy = "none-worked"
+    }
 
     private class Decoded(val samples: FloatArray, val sampleRate: Int)
 
@@ -125,10 +183,21 @@ object AudioToPcm {
         var sawInputEos: Boolean = false
         var sawOutputEos: Boolean = false
         var eosOutputBeforeData: Boolean = false
+        // Container / positioning telemetry — added to pin down the edit-list "no samples" case where
+        // the decoder is never fed (fed=0). seekStrategy says which cursor position exposed a sample.
+        var trackCount: Int = 0
+        var selectedTrack: Int = -1
+        var trackMimes: String = "?"
+        var trackDurationUs: Long = -1
+        var hasCsd0: Boolean = false
+        var seekStrategy: String = "?"
+        var firstSampleTimeUs: Long = Long.MIN_VALUE
 
         fun summary(): String =
             "codec=$codecName mime=$inputMime in=${inputSampleRate}Hz/${inputChannels}ch " +
                 "out=${outputSampleRate}Hz/${outputChannels}ch/enc$pcmEncoding fmtChg=$formatChanged " +
+                "tracks=$trackCount/sel=$selectedTrack[$trackMimes] durUs=$trackDurationUs csd0=$hasCsd0 " +
+                "seek=$seekStrategy firstSample=${firstSampleTimeUs}us " +
                 "fed=${inputBuffersFed}buf/${inputBytesFed}B outBuf=$outputBuffers rawBytes=$rawBytes " +
                 "outPts=$firstOutPtsUs..${lastOutPtsUs}us inEos=$sawInputEos outEos=$sawOutputEos " +
                 "eosBeforeData=$eosOutputBeforeData"

@@ -5,26 +5,40 @@
 - 短於 60 秒的影片轉錄結果為空；純音檔同樣失敗。
 - 使用者最初懷疑是「轉 WAV」的步驟出錯。
 
-## 根因研判
-轉 WAV 本身沒問題——`CloudTranscriptionEngine.writeWav` / 各 engine 拿到的 PCM 來自
-`AudioToPcm.decodeRange()`。若 PCM 為空，WAV 自然空、轉錄自然空。問題在
-`AudioToPcm.drainToMonoFloat` 的 `MediaCodec` 解碼收尾方式：
+## 根因（已由實機 telemetry + 檔案結構證實）
+轉 WAV 本身沒問題——PCM 來自 `AudioToPcm.decodeRange()`，PCM 空則 WAV 空、轉錄空。
 
-- 原本以「另送一個 size=0、帶 `BUFFER_FLAG_END_OF_STREAM` 的空 buffer」來收尾。
-- 權威事實：MediaCodec 解碼器吐出任何 output 前通常需先 queue 進數個 input buffer；AAC 需 CSD。
-  （[Android MediaCodec](https://developer.android.com/reference/android/media/MediaCodec)、
-  [bigflake](https://bigflake.com/mediacodec/)）
-- 部分 Samsung 解碼器收到「零長度 EOS buffer」時不會 flush 仍 pending 的 output
-  （期待 EOS flag 掛在最後一個有資料的 buffer 上）。Samsung 機型專屬 codec 怪癖有案可查：
-  [androidx/media #2189](https://github.com/androidx/media/issues/2189)。
-- **為何只有短片段全空**：長片段餵了數十秒、output 早已持續吐出，EOS 沒 flush 只損失尾端幾個
-  frame，文字照樣有；短片段整段內容可能都還卡在「尚未 flush 的 pending buffer」，EOS 一來沒
-  flush → `rawBytes=0` → 空轉錄。對應 `AudioToPcm` 註解與 telemetry 旗標
-  `fed>0 / rawBytes=0 / eosBeforeData=true`（commit 77ae94b 已埋）。
+### 決定性證據（S23U 實機）
+`win=0 [0-56006ms] 預期≈56s 卻空 → codec=c2.android.aac.decoder mime=audio/mp4a-latm`
+`in=22050Hz/2ch ... fed=0buf/0B outBuf=0 rawBytes=0 outPts=-1..-1us inEos=true`
+`outEos=true eosBeforeData=true`
+
+- **`fed=0buf/0B`** = 解碼器一個 byte 都沒被餵到。用的是 `c2.android.aac.decoder`（Google **軟解**，
+  非 Samsung 硬解）。
+- 餵入迴圈第一次拿到 input buffer 時 `extractor.sampleTime` 已是 **-1** → 立刻送 EOS。
+  即 **MediaExtractor 對這個 m4a `selectTrack` 後從頭就讀不到任何 sample**。
+- `eosBeforeData=true` 在此只是 `fed=0 → rawBytes=0` 的連帶症狀，**red herring**，非 flush 問題。
+
+### 檔案結構（/sdcard/Download/cn_15s.m4a、cn_33s.m4a，ffprobe + box dump）
+- ffmpeg 產生（`encoder=Lavf61.7.100`，yt-dlp `-x --audio-format m4a` 走 ffmpeg）。
+- 帶 **edit list**：`elst ver=0 count=1 entries=[(dur, media_time=1024, 65536)]`，
+  `media_time=1024` 是 AAC priming（gapless）補償；第一個 packet 是負 PTS + `skip_samples=1024`。
+- `MediaExtractor` 對 edit list 的處理在部分裝置會出包，導致未 seek 的初始游標定位錯誤、回報
+  無 sample。ExoPlayer 之所以自行重寫 edit-list 邏輯就是因為平台 extractor 會這樣。
+
+### 為何「<60s」相關但非真因
+所有失敗檔都是 **yt-dlp/ffmpeg 產生、帶 priming edit list 的 m4a**（含 Threads 解析出的音檔）。
+使用者的短測試片剛好都是這類；長片可能來自不同來源（無此 edit list）所以看似正常。60s 是巧合。
+
+## A/B 結論：對此 case 無效（但保留）
+A（EOS 掛最後 buffer）/ B（最後 window 解到 EOF）針對「解碼器收到資料卻不吐」。此 case 是
+「extractor 根本沒交資料」，故 A/B 救不到——但兩者本身是正確的健壯化改進，保留。
 
 ## 網路搜尋結論
-查無 Galaxy S 系列「短於 60 秒轉錄失敗」的公開案例（屬本 app 特有症狀）。但上述
-MediaCodec 解碼器緩衝行為、AAC CSD、Samsung codec 怪癖皆有官方／社群佐證。
+查無 Galaxy S「短於 60 秒轉錄失敗」公開案例（本 app 特有）。但 MediaExtractor edit-list 處理
+缺陷、AAC priming、Samsung codec 怪癖均有佐證
+（[androidx/media #2189](https://github.com/androidx/media/issues/2189)、
+[Android MediaCodec](https://developer.android.com/reference/android/media/MediaCodec)）。
 
 ## 診斷指引
 S23U 上重現後，`SherpaOnnxEngine` 失敗訊息會帶 `DecodeStats.summary()`：
@@ -35,12 +49,24 @@ S23U 上重現後，`SherpaOnnxEngine` 失敗訊息會帶 `DecodeStats.summary()
 
 | 方案 | 做法 | 狀態 |
 |---|---|---|
-| **A** | EOS 旗標掛最後一個資料 buffer，不再另送 size=0 EOS buffer（Samsung 標準解法） | ✅ 已實作 |
-| **B** | 最後/唯一 window 以 `endMs=Long.MAX_VALUE` 解到自然 EOF，避免 floored-to-ms 的 endUs 截斷競爭 | ✅ 已實作 |
-| **C** | 顯式送 CSD priming：configure 後、餵資料前先以 `BUFFER_FLAG_CODEC_CONFIG` 餵一次 `csd-0` | ⬜ 待試（A/B 失敗時） |
-| **D** | MediaCodec 改 async 模式（`setCallback`），避開同步 interleave 時序問題 | ⬜ 待試 |
-| **E** | 原始音檔（WAV/PCM）直接 parse header 取樣，跳過 MediaCodec | ⬜ 待試（針對純音檔失敗） |
-| **F** | 內建 FFmpeg（ffmpeg-kit）做 decode→16k mono WAV，完全繞過平台 codec（APK 體積大，最後手段） | ⬜ 待試 |
+| **G** | **真因對症**：`positionExtractor` 在同一次解碼裡依序試 none→closest→prev→next→skip50ms 定位游標，取第一個能吐出 sample 的策略；繞過 MediaExtractor edit-list 初始定位 bug | ✅ 已實作（主修） |
+| **A** | EOS 旗標掛最後一個資料 buffer，不再另送 size=0 EOS buffer | ✅ 已實作（健壯化，對此 case 無效） |
+| **B** | 最後/唯一 window 以 `endMs=Long.MAX_VALUE` 解到自然 EOF | ✅ 已實作（健壯化，對此 case 無效） |
+| **C** | 顯式送 CSD priming：configure 後先以 `BUFFER_FLAG_CODEC_CONFIG` 餵 `csd-0` | ⬜ 待試 |
+| **D** | MediaCodec 改 async 模式（`setCallback`） | ⬜ 待試 |
+| **E** | 純音檔直接 parse header 取樣，跳過 MediaCodec | ⬜ 待試 |
+| **F** | 內建 FFmpeg（ffmpeg-kit）decode→16k mono WAV，繞過平台 codec（APK 大，最後手段） | ⬜ 待試 |
+
+### G 實作位置與判讀（厚 telemetry）
+`AudioToPcm.decodeRange` → `positionExtractor()`。`DecodeStats.summary()` 新增欄位：
+`tracks=N/sel=i[mime,...] durUs=… csd0=… seek=<策略> firstSample=<us>`。
+
+下一次測試後依 `seek=` 與 `fed=` 判讀（**一次定案**）：
+- `seek=closest|prev|next|skip50ms` 且 `fed>0 / rawBytes>0` → **G 修好了**（哪招有效就記下）。
+- `seek=none-worked / firstSample=-9223…`（sentinel）→ 連 seek 都拿不到 sample，MediaExtractor
+  對此檔徹底無法讀 → 跳 **E/F**（strip elst 重 mux，或 ffmpeg）。
+- `fed>0 / rawBytes=0` → 變回「餵了卻不吐」的解碼層問題 → 走 **A 已涵蓋**，再看 `eosBeforeData`。
+- `tracks=0` 或 `sel=-1` → 連音軌都認不得 → 容器／URI 權限問題，另查。
 
 ### A 實作位置
 `app/src/main/java/com/changyow/mediadler/transcribe/AudioToPcm.kt` — `drainToMonoFloat`
@@ -53,6 +79,6 @@ window 才回退到 size=0 EOS buffer。
 `if (planned != null && index == planned.lastIndex) Long.MAX_VALUE else window.endMs`。
 unknown duration（`planned == null`）維持原 bounded window，不可解到 EOF。
 
-## 若 A+B 在 S23U 仍失敗
-依 telemetry 走向逐一嘗試 C → D → E → F；每次保留 `DecodeStats` 訊息以便比對
-`rawBytes` / `eosBeforeData` 是否改變。
+## 若 G 在 S23U 仍失敗
+S23 不開 adb，無法在故障機自驗，故以厚 telemetry 換取「一次測試定案」。依上方 G 判讀表
+決定下一步（多半是 E：把 elst 去掉重 mux，或 F：ffmpeg）。每次保留完整 `DecodeStats` 字串。
