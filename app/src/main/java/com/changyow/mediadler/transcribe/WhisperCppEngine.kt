@@ -78,7 +78,10 @@ class WhisperCppEngine(
                 }
                 val window = planned?.get(index) ?: WindowPlanner.openWindow(index, WINDOW_MS, OVERLAP_MS)
                 // Decode just this window's PCM, then drop it before the next window is decoded.
-                val slice = AudioToPcm.decodeRange(context, uri, window.startMs, window.endMs)
+                // The final (or only) planned window decodes to natural EOF: the floored-to-ms endUs
+                // cutoff can race the last frames on short clips.
+                val decodeEndMs = if (planned != null && index == planned.lastIndex) Long.MAX_VALUE else window.endMs
+                val slice = AudioToPcm.decodeRange(context, uri, window.startMs, decodeEndMs)
                 if (slice.isEmpty()) {
                     if (planned == null) break // unknown duration: empty slice = past end-of-stream
                     lastCompleted = index + 1

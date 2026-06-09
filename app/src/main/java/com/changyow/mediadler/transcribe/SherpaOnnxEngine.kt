@@ -98,7 +98,10 @@ class SherpaOnnxEngine(
                 }
                 val window = planned?.get(index) ?: WindowPlanner.openWindow(index, WINDOW_MS, OVERLAP_MS)
                 val stats = AudioToPcm.DecodeStats()
-                val slice = AudioToPcm.decodeRange(context, uri, window.startMs, window.endMs, stats)
+                // For the final (or only) planned window, decode to natural EOF instead of the exact
+                // window end: the floored-to-ms endUs cutoff can race the last frames on short clips.
+                val decodeEndMs = if (planned != null && index == planned.lastIndex) Long.MAX_VALUE else window.endMs
+                val slice = AudioToPcm.decodeRange(context, uri, window.startMs, decodeEndMs, stats)
                 if (slice.isEmpty()) {
                     // A window that should contain audio but decoded empty is the symptom of a
                     // device-specific decode failure; capture details (benign tail slivers < the

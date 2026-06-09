@@ -164,6 +164,7 @@ object AudioToPcm {
                     val sampleTime = extractor.sampleTime
                     // Stop feeding once we've passed the requested span; flush with EOS.
                     if (sampleTime < 0 || (endUs != Long.MAX_VALUE && sampleTime >= endUs)) {
+                        // No data was queued for this span (empty window); send a bare EOS to drain.
                         codec.queueInputBuffer(inIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
                         sawInputEos = true
                         stats?.sawInputEos = true
@@ -175,9 +176,21 @@ object AudioToPcm {
                             sawInputEos = true
                             stats?.sawInputEos = true
                         } else {
-                            codec.queueInputBuffer(inIndex, 0, size, sampleTime, 0)
-                            stats?.let { it.inputBuffersFed++; it.inputBytesFed += size }
                             extractor.advance()
+                            // Look ahead: if the next sample is past the span (or EOF), THIS is the last
+                            // data buffer, so carry the EOS flag on it instead of queuing a separate
+                            // zero-size EOS buffer. Some decoders (notably Samsung) don't flush pending
+                            // output on a bare EOS buffer, which strands the whole transcript for short
+                            // clips where every frame is still buffered when EOS arrives.
+                            val nextTime = extractor.sampleTime
+                            val isLast = nextTime < 0 || (endUs != Long.MAX_VALUE && nextTime >= endUs)
+                            val flags = if (isLast) MediaCodec.BUFFER_FLAG_END_OF_STREAM else 0
+                            codec.queueInputBuffer(inIndex, 0, size, sampleTime, flags)
+                            stats?.let { it.inputBuffersFed++; it.inputBytesFed += size }
+                            if (isLast) {
+                                sawInputEos = true
+                                stats?.sawInputEos = true
+                            }
                         }
                     }
                 }

@@ -75,7 +75,10 @@ class CloudTranscriptionEngine(
                 }
                 onProgress(fractionAt(index, total))
                 val window = planned?.get(index) ?: WindowPlanner.openWindow(index, windowMs, OVERLAP_MS)
-                val pcm = AudioToPcm.decodeRange(context, uri, window.startMs, window.endMs)
+                // The final (or only) planned window decodes to natural EOF: the floored-to-ms endUs
+                // cutoff can race the last frames on short clips.
+                val decodeEndMs = if (planned != null && index == planned.lastIndex) Long.MAX_VALUE else window.endMs
+                val pcm = AudioToPcm.decodeRange(context, uri, window.startMs, decodeEndMs)
                 if (pcm.isEmpty()) {
                     if (planned == null) break // unknown duration: empty slice = past end-of-stream
                     lastCompleted = index + 1
