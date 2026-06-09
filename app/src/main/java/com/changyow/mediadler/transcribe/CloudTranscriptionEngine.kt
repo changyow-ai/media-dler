@@ -60,15 +60,17 @@ class CloudTranscriptionEngine(
         val durationMs = AudioToPcm.durationMs(context, uri)
         val planned = durationMs?.let { WindowPlanner.plan(it, windowMs, OVERLAP_MS) }
         val total = planned?.size ?: 0 // 0 ⇒ unknown duration (open-ended)
+        // Self-heal a poisoned checkpoint that points past the last window (see SherpaOnnxEngine).
+        val effectiveStart = if (planned != null && startWindow >= planned.size && priorText.isBlank()) 0 else startWindow
 
         val parts = ArrayList<String>()
         if (priorText.isNotBlank()) parts.add(priorText)
         var detected: String? = knownLanguage
-        var lastCompleted = startWindow
+        var lastCompleted = effectiveStart
 
         val scratch = File(context.cacheDir, "transcribe/cloud").apply { mkdirs() }
         try {
-            var index = startWindow
+            var index = effectiveStart
             while (planned == null || index < planned.size) {
                 if (isCancelled()) {
                     return@withContext result(parts, detected, lastCompleted, total, cancelled = true)

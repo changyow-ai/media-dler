@@ -73,6 +73,11 @@ class SherpaOnnxEngine(
         val durationMs = AudioToPcm.durationMs(context, uri)
         val planned = durationMs?.let { WindowPlanner.plan(it, WINDOW_MS, OVERLAP_MS) }
         val total = planned?.size ?: 0
+        // Self-heal a poisoned checkpoint: an earlier failure may have advanced completedWindows to/past
+        // the window count (e.g. an empty-decode window wrongly checkpointed), so a resume would begin
+        // beyond the last window and process nothing — a baffling "0 samples" empty. With no prior text
+        // to preserve, restart from 0 rather than skipping the whole clip.
+        val effectiveStart = if (planned != null && startWindow >= planned.size && priorText.isBlank()) 0 else startWindow
 
         val recognizer = OfflineRecognizer(
             assetManager = null,
@@ -83,7 +88,7 @@ class SherpaOnnxEngine(
             if (priorText.isNotBlank()) parts.add(priorText)
             // Paraformer is Chinese-only, so seed zh up front; SenseVoice fills from result.lang.
             var detected: String? = knownLanguage ?: defaultLang(model)
-            var lastCompleted = startWindow
+            var lastCompleted = effectiveStart
 
             // On-device decode telemetry: when a window that should hold real audio (≥ EMPTY_DIAG_MIN_MS
             // of expected content) decodes to an empty slice, record a one-line dump. Surfaced in the
@@ -91,7 +96,7 @@ class SherpaOnnxEngine(
             val emptyDiag = StringBuilder()
             var maxSliceSamples = 0
 
-            var index = startWindow
+            var index = effectiveStart
             while (planned == null || index < planned.size) {
                 if (isCancelled()) {
                     return@withContext result(parts, detected, lastCompleted, total, cancelled = true)
@@ -167,7 +172,10 @@ class SherpaOnnxEngine(
             // Empty final transcript: surface an actionable diagnostic instead of silently saving a
             // blank "success", so the decode-empty vs model-empty split is visible on-device.
             if (render(parts, detected).isBlank()) {
-                error(emptyResultMessage(emptyDiag, maxSliceSamples))
+                error(
+                    emptyResultMessage(emptyDiag, maxSliceSamples) +
+                        "\n[start=$startWindow→$effectiveStart planned=${planned?.size ?: -1} dur=${durationMs}ms]",
+                )
             }
             result(parts, detected, lastCompleted, maxOf(total, lastCompleted), cancelled = false)
         } finally {

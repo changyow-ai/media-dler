@@ -97,10 +97,17 @@ unknown duration（`planned == null`）維持原 bounded window，不可解到 E
 `expectedMs < 3000ms`（benign 尾端碎片）才推進 `lastCompleted` + `onCheckpoint`；可疑空 window
 （預期有聲卻空）**不推進**，讓 retry 能重試該 window 而非永久跳過。
 
-### 使用者端動作（重要）
-現有那個失敗 job 的 checkpoint 已被毒化（completedWindows=1），H 只防未來、救不了它。
-**請先在 app 取消／刪除該失敗轉錄，再重新分享該檔**（CANCELLED → 重新開始 → startWindow=0），
-這樣 G 才會真正執行、telemetry 才會印出 `seek=`／`tracks=` 等新欄位。
+### 修法 I（已實作）：自癒毒化的 checkpoint + 去歧義 telemetry
+使用者回報「已是最新版且重頭開始」仍出現 `0 samples`，代表 H 防得了新 job、但**舊 job 的
+checkpoint=1 仍會讓 resume 跳過唯一 window**（job id 由來源穩定推導，重分享 = resume）。
+
+- **自癒**：三個 engine 在迴圈前計算 `effectiveStart`——若 `planned != null && startWindow >=
+  planned.size && priorText 空`，就從 0 重跑（毒化 job 無既有文字，重跑安全、不會重複）。
+- **去歧義**：Sherpa 失敗訊息附 `[start=A→B planned=N dur=…ms]`，一眼可辨是否 resume 跳過。
+
+判讀下一次：
+- `start=1→0`（或任何 `A→0`）→ 自癒生效，已從頭重跑，看後續 `seek=`／`rawBytes` 判 G。
+- `start=0→0 planned=1` 仍 `0 samples` → 真的是 window 0 沒被處理的更深問題，另查。
 
 ## 若 G 在 S23U 仍失敗
 S23 不開 adb，無法在故障機自驗，故以厚 telemetry 換取「一次測試定案」。依上方 G 判讀表
