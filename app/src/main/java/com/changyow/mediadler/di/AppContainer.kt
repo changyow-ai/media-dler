@@ -29,7 +29,7 @@ import com.changyow.mediadler.transcribe.WhisperCppEngine
 import com.changyow.mediadler.transcribe.WhisperModelManager
 
 /** Lightweight manual dependency container — wiring is explicit, no annotation processing. */
-class AppContainer(application: Application) {
+class AppContainer(application: Application, isAppForeground: () -> Boolean = { false }) {
 
     val engine = EngineInitializer(application)
     val settingsRepository: SettingsRepository = DataStoreSettingsRepository(application)
@@ -66,7 +66,7 @@ class AppContainer(application: Application) {
 
     // Background transcription: persisted jobs, live state, queue, resume + cancel (milestone 2b).
     val transcriptStore = TranscriptStore(application)
-    val transcriptionManager = TranscriptionManager(application, transcriptStore)
+    val transcriptionManager = TranscriptionManager(application, transcriptStore, isAppForeground)
 
     val mediaStoreStorage = MediaStoreStorage(application)
     val safStorage = SafStorage(application)

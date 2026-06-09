@@ -26,6 +26,10 @@ import java.util.Collections
 class TranscriptionManager(
     private val context: Context,
     private val store: TranscriptStore,
+    // True when the app is in the foreground. A job that finishes while the user is still in the app
+    // is marked seen on completion (they were watching it stream), so it won't auto-open on next
+    // launch; one that finishes after they left stays unseen and surfaces next launch as a reminder.
+    private val isAppForeground: () -> Boolean = { false },
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -163,9 +167,13 @@ class TranscriptionManager(
     }
 
     fun complete(id: String, text: String, language: String?) {
+        // Finished in the foreground ⇒ the user was watching it stream, so treat it as already seen
+        // and don't auto-open it next launch. Finished in the background ⇒ leave it unseen so launch
+        // surfaces it as a reminder.
+        val seen = isAppForeground()
         val job = mutate(id) {
             it.copy(status = TranscriptStatus.COMPLETED, progress = 1f, text = text,
-                language = language, seen = false, error = null)
+                language = language, seen = seen, error = null)
         } ?: return
         persistUpsert(job)
     }
