@@ -150,6 +150,33 @@ class ThreadsEmbedParserTest {
         assertEquals(0, items.size)
     }
 
+    /**
+     * A post whose only visual is a link-attachment preview card (e.g. sharing an Instagram
+     * link): `LinkAttachmentOuterContainer` merely *contains* "OuterContainer" and must NOT be
+     * treated as a new post block, otherwise the preview image is cut out of the shared post's
+     * scope and a visibly-media-bearing post reports "no media". Regression for
+     * @xavier51090123/post/DakxbbCgeFW.
+     */
+    @Test fun linkAttachmentPreviewStaysInsideSharedPostBlock() {
+        val shared = "https://www.threads.com/@xavier51090123/post/DakxbbCgeFW"
+        val html = """
+            <div class="OuterContainer OuterContainerFull">
+              <div class="AvatarContainer"><img src="https://scontent.cdninstagram.com/v/t51.82787-19/AV.jpg?x=1"/></div>
+              <div class="HeaderContainer"><a href="https://www.threads.com/@xavier51090123?xmt=AQ">xavier</a></div>
+              <div class="LinkAttachmentOuterContainer LinkAttachmentOuterContainerWithImage" id="u_0_2_x0">
+                <div class="LinkAttachmentInnerContainer">
+                  <div class="LinkAttachmentImage" style="background-image: url(https://scontent.cdninstagram.com/v/t51.82787-15/PREVIEW.jpg?stp=dst-jpg_e35&amp;oh=9)"></div>
+                </div>
+              </div>
+            </div>
+        """.trimIndent()
+        val items = ThreadsEmbedParser.parse(html, shared)
+        assertEquals(1, items.size)
+        assertTrue(items[0].isImage)
+        assertTrue(items[0].sourceUrl.contains("PREVIEW.jpg"))
+        assertTrue(items[0].sourceUrl.contains("oh=9"))
+    }
+
     /** fbcdn is now matched for videos, but static.*.fbcdn.net sprites/emoji must NOT become images. */
     @Test fun fbcdnStaticSpritesAreNotExtractedAsImages() {
         val shared = "https://www.threads.com/@u/post/ABC"

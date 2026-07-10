@@ -23,7 +23,10 @@ object ThreadsEmbedParser {
         Regex("""https://[a-z0-9_.-]*(?:cdninstagram\.com|fbcdn\.net)/[^"'\\ )<>]+""", RegexOption.IGNORE_CASE)
     private val PROFILE_PIC = Regex("""/t51\.\d+-19/""")
     // Each rendered post in the embed opens with a div carrying the OuterContainer class.
-    private val POST_BLOCK = Regex("""<div[^>]*class="[^"]*OuterContainer[^"]*"""", RegexOption.IGNORE_CASE)
+    // The class token must START with "OuterContainer": link-preview cards inside a post use
+    // "LinkAttachmentOuterContainer", and treating them as post boundaries cuts the preview
+    // image out of the shared post's scope.
+    private val POST_BLOCK = Regex("""<div[^>]*class="(?:[^"]*\s)?OuterContainer[^"]*"""", RegexOption.IGNORE_CASE)
 
     fun parse(embedHtml: String, postUrl: String): List<MediaItem> {
         // Decode the entities/escapes the embed JSON uses, including `&#064;`/`&#64;` → `@` so

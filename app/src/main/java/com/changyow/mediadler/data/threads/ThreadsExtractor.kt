@@ -36,6 +36,7 @@ class ThreadsExtractor : MediaExtractor {
                         append("頁面 ").append(body.length).append(" bytes")
                         append("，含 cdninstagram=").append(body.contains("cdninstagram"))
                         append("，含 <video>=").append(body.contains("<video"))
+                        append("，含 OuterContainer=").append(body.contains("OuterContainer"))
                     }
                 }
                 items
