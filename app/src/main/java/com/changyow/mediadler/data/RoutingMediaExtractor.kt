@@ -19,7 +19,7 @@ class RoutingMediaExtractor(
     private val fallback: MediaExtractor,
 ) : MediaExtractor {
     override suspend fun extract(url: String): Result<List<MediaItem>> =
-        if (ThreadsUrl.embedUrlOrNull(url) != null) {
+        if (ThreadsUrl.isSupported(url)) {
             threads.extract(url)
         } else {
             fallback.extract(url)

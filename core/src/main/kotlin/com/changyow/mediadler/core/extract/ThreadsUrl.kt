@@ -2,6 +2,14 @@ package com.changyow.mediadler.core.extract
 
 object ThreadsUrl {
     private val POST = Regex("""https?://(?:www\.)?threads\.(?:net|com)/(@[^/?#]+/post/[^/?#]+)""")
+    private val SHARE = Regex("""^https?://(?:www\.)?threads\.(?:net|com)/share/[^/?#]+""")
+
+    /** True for a permalink or the opaque `/share/<token>` URL emitted by Threads. */
+    fun isSupported(url: String): Boolean =
+        POST.containsMatchIn(url) || SHARE.containsMatchIn(url)
+
+    /** True when [url] must first be redirected to its canonical post permalink. */
+    fun isShare(url: String): Boolean = SHARE.containsMatchIn(url)
 
     /**
      * yt-dlp has no Threads extractor, but a post's `/embed` page exposes the

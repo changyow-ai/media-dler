@@ -3,7 +3,9 @@ package com.changyow.mediadler.core
 import com.changyow.mediadler.core.extract.ThreadsUrl
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ThreadsUrlTest {
     @Test fun rewritesThreadsComPostToEmbedAndDropsQuery() {
@@ -28,5 +30,25 @@ class ThreadsUrlTest {
     @Test fun extractsPostCode() {
         assertEquals("DY3m2JQjXHZ", ThreadsUrl.postCode("https://www.threads.com/@rico_y9527/post/DY3m2JQjXHZ?x=1"))
         assertNull(ThreadsUrl.postCode("https://youtube.com/watch?v=x"))
+    }
+
+    @Test fun recognizesOpaqueShareUrlWithoutTreatingItAsPostYet() {
+        val share = "https://www.threads.com/share/_hqU7fBcZ/"
+        assertTrue(ThreadsUrl.isSupported(share))
+        assertTrue(ThreadsUrl.isShare(share))
+        assertNull(ThreadsUrl.embedUrlOrNull(share))
+        assertNull(ThreadsUrl.postCode(share))
+    }
+
+    @Test fun permalinkIsSupportedButDoesNotNeedShareResolution() {
+        val post = "https://www.threads.com/@rico_y9527/post/DY3m2JQjXHZ"
+        assertTrue(ThreadsUrl.isSupported(post))
+        assertFalse(ThreadsUrl.isShare(post))
+    }
+
+    @Test fun rejectsLookalikeShareUrls() {
+        assertFalse(ThreadsUrl.isSupported("https://threads.example/share/_hqU7fBcZ/"))
+        assertFalse(ThreadsUrl.isSupported("https://www.threads.com/shares/_hqU7fBcZ/"))
+        assertFalse(ThreadsUrl.isSupported("https://www.youtube.com/watch?v=abc"))
     }
 }
