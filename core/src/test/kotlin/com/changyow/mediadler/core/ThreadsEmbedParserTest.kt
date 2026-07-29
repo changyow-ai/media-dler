@@ -177,6 +177,36 @@ class ThreadsEmbedParserTest {
         assertTrue(items[0].sourceUrl.contains("oh=9"))
     }
 
+    /**
+     * Threads renders an attached Instagram Reel as a link card whose only CDN media is the
+     * preview image. The Reel URL, not that preview, must be returned as the downloadable video.
+     * Regression for the opaque share link BAVuGHGtpT → @shellton_design/post/DbV4RKnGKKV.
+     */
+    @Test fun instagramReelLinkAttachmentReturnsVideoWithPreviewAsThumbnail() {
+        val shared = "https://www.threads.com/@shellton_design/post/DbV4RKnGKKV"
+        val html = """
+            <div class="OuterContainer OuterContainerFull">
+              <div class="AvatarContainer">
+                <img src="https://scontent.cdninstagram.com/v/t51.2885-19/AVATAR.jpg?x=1"/>
+              </div>
+              <div class="LinkAttachmentOuterContainer LinkAttachmentOuterContainerWithImage">
+                <a target="_blank" href="https://l.facebook.com/l.php?u=https%3A%2F%2Fwww.instagram.com%2Freel%2FDbV0B5SNN5V%2F&amp;h=tracking">
+                  <div class="LinkAttachmentImage" style="background-image: url(https://scontent.cdninstagram.com/v/t51.71878-15/REEL_PREVIEW.jpg?oh=9&amp;dl=1)"></div>
+                  <span class="LinkAttachmentDomain">instagram.com</span>
+                </a>
+              </div>
+            </div>
+        """.trimIndent()
+
+        val items = ThreadsEmbedParser.parse(html, shared)
+
+        assertEquals(1, items.size)
+        assertFalse(items.single().isImage)
+        assertEquals("https://www.instagram.com/reel/DbV0B5SNN5V/", items.single().sourceUrl)
+        assertTrue(items.single().thumbnailUrl?.contains("REEL_PREVIEW.jpg") == true)
+        assertEquals("ThreadsVideo_DbV4RKnGKKV", items.single().title)
+    }
+
     /** fbcdn is now matched for videos, but static.*.fbcdn.net sprites/emoji must NOT become images. */
     @Test fun fbcdnStaticSpritesAreNotExtractedAsImages() {
         val shared = "https://www.threads.com/@u/post/ABC"
