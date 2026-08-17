@@ -49,6 +49,28 @@ class ThreadsUrlTest {
     @Test fun rejectsLookalikeShareUrls() {
         assertFalse(ThreadsUrl.isSupported("https://threads.example/share/_hqU7fBcZ/"))
         assertFalse(ThreadsUrl.isSupported("https://www.threads.com/shares/_hqU7fBcZ/"))
+        assertFalse(ThreadsUrl.isSupported("https://www.threads.com/share/_hqU7fBcZ/extra"))
         assertFalse(ThreadsUrl.isSupported("https://www.youtube.com/watch?v=abc"))
+    }
+
+    @Test fun rejectsExtraPostPathAndPermalinkEmbeddedInAnotherUrl() {
+        assertFalse(ThreadsUrl.isSupported("https://www.threads.com/@u/post/ABC123/extra"))
+        assertFalse(ThreadsUrl.isSupported("https://www.threads.com/@u/POST/ABC123"))
+        assertFalse(
+            ThreadsUrl.isSupported(
+                "https://example.com/?next=https://www.threads.com/@u/post/ABC123",
+            ),
+        )
+        assertNull(ThreadsUrl.embedUrlOrNull("https://www.threads.com/@u/post/ABC123/extra"))
+    }
+
+    @Test fun acceptsTrailingSlashTrackingAndCaseInsensitiveHost() {
+        assertEquals(
+            "https://www.threads.net/@u/post/ABC123/embed",
+            ThreadsUrl.embedUrlOrNull(
+                "https://WWW.THREADS.COM/@u/post/ABC123/?xmt=tracking#fragment",
+            ),
+        )
+        assertTrue(ThreadsUrl.isShare("https://THREADS.NET/share/_hqU7fBcZ/?xmt=tracking"))
     }
 }
