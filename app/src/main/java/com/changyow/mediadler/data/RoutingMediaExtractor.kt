@@ -1,12 +1,13 @@
 package com.changyow.mediadler.data
 
 import com.changyow.mediadler.core.extract.ThreadsUrl
+import com.changyow.mediadler.core.extract.ShopeeUrl
 import com.changyow.mediadler.core.model.MediaItem
 import com.changyow.mediadler.core.repo.MediaExtractor
 
 /**
- * Sends Threads URLs to the dedicated [threads] extractor; everything else goes to
- * [fallback] (yt-dlp).
+ * Sends Threads and Taiwan Shopee URLs to their dedicated extractors; other URLs
+ * go to [fallback] (yt-dlp).
  *
  * A failed Threads extraction deliberately gets NO yt-dlp fallback: yt-dlp's
  * html5-on-embed scrapes the whole page unscoped and may return a parent post's
@@ -17,8 +18,10 @@ import com.changyow.mediadler.core.repo.MediaExtractor
 class RoutingMediaExtractor(
     private val threads: MediaExtractor,
     private val fallback: MediaExtractor,
+    private val shopee: MediaExtractor,
 ) : MediaExtractor {
     override suspend fun extract(url: String): Result<List<MediaItem>> {
+        if (ShopeeUrl.isSupported(url)) return shopee.extract(url)
         if (!ThreadsUrl.isSupported(url)) return fallback.extract(url)
 
         return threads.extract(url).fold(

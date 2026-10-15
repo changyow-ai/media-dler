@@ -4,9 +4,10 @@ import com.changyow.mediadler.core.extract.ThreadsUrl
 import com.changyow.mediadler.core.extract.YtDlpInfoParser
 import com.changyow.mediadler.core.model.MediaItem
 import com.changyow.mediadler.core.repo.MediaExtractor
-import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 
 class YtDlpMediaExtractor(
@@ -21,15 +22,19 @@ class YtDlpMediaExtractor(
             }
             runCatching { doExtract(url) }
                 .recoverCatching {
+                    if (it is CancellationException) throw it
                     // Self-heal: a stale bundled yt-dlp commonly fails (esp. YouTube).
                     // Refresh the engine once and retry before giving up.
                     engine.update()
                     doExtract(url)
                 }
-                .recoverCatching { throw IllegalStateException("${it.message}\n\n來源：$url", it) }
+                .recoverCatching {
+                    if (it is CancellationException) throw it
+                    throw IllegalStateException("${it.message}\n\n來源：$url", it)
+                }
         }
 
-    private fun doExtract(url: String): List<MediaItem> {
+    private suspend fun doExtract(url: String): List<MediaItem> {
         // Threads has no extractor; its /embed page is scrapeable by yt-dlp's html5 extractor.
         val target = ThreadsUrl.embedUrlOrNull(url) ?: url
         val request = YoutubeDLRequest(target).apply {
@@ -42,7 +47,7 @@ class YtDlpMediaExtractor(
                 addOption("--ignore-no-formats-error")
             }
         }
-        val response = YoutubeDL.getInstance().execute(request)
+        val response = runInterruptible { engine.execute(request) }
         val items = YtDlpInfoParser.parse(response.out, target)
         check(items.isNotEmpty()) { "找不到可下載的媒體（可能不支援此網站或需要登入）" }
         // yt-dlp's html5 extractor names Threads media generically ("Threads (1)");

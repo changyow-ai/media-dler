@@ -1,6 +1,27 @@
 package com.changyow.mediadler.util
 
+import java.io.File
+import java.net.URLConnection
+
 object MimeTypes {
+    /** Direct CDN image URLs may have no extension, yielding yt-dlp's `unknown_video`. */
+    fun imageExtensionFromContent(file: File): String? = file.inputStream().buffered().use { input ->
+        input.mark(32)
+        val header = ByteArray(12)
+        val count = input.read(header)
+        input.reset()
+        if (count == 12 && String(header, 0, 4, Charsets.US_ASCII) == "RIFF" &&
+            String(header, 8, 4, Charsets.US_ASCII) == "WEBP"
+        ) return@use "webp"
+        when (URLConnection.guessContentTypeFromStream(input)) {
+            "image/jpeg" -> "jpg"
+            "image/png" -> "png"
+            "image/gif" -> "gif"
+            "image/bmp", "image/x-bmp" -> "bmp"
+            else -> null
+        }
+    }
+
     fun fromExtension(ext: String): String = when (ext.lowercase()) {
         "mp4", "m4v" -> "video/mp4"
         "webm" -> "video/webm"

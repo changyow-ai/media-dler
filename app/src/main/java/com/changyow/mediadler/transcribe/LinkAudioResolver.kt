@@ -6,7 +6,6 @@ import com.changyow.mediadler.core.repo.MediaExtractor
 import com.changyow.mediadler.core.transcribe.SubtitleVtt
 import com.changyow.mediadler.data.ytdlp.EngineInitializer
 import com.changyow.mediadler.data.ytdlp.EngineState
-import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -77,7 +76,7 @@ class LinkAudioResolver(
                 addOption("-o", File(dir, "cc.%(ext)s").absolutePath)
             }
             try {
-                runInterruptible { YoutubeDL.getInstance().execute(request) }
+                runInterruptible { engine.execute(request) }
             } catch (c: CancellationException) {
                 throw c // honour cancellation instead of treating it as "no captions"
             } catch (t: Throwable) {
@@ -112,12 +111,11 @@ class LinkAudioResolver(
         }
         try {
             runInterruptible {
-                YoutubeDL.getInstance().execute(request, processId) { progress, _, _ ->
+                engine.execute(request, processId) { progress, _, _ ->
                     if (progress >= 0f) onProgress((progress / 100f).coerceIn(0f, 1f))
                 }
             }
         } catch (t: Throwable) {
-            runCatching { YoutubeDL.getInstance().destroyProcessById(processId) }
             dir.deleteRecursively()
             throw t
         }

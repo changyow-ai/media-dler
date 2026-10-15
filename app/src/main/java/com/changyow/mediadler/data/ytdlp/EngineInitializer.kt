@@ -3,7 +3,13 @@ package com.changyow.mediadler.data.ytdlp
 import android.app.Application
 import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
+import com.yausername.youtubedl_android.YoutubeDLRequest
+import com.yausername.youtubedl_android.YoutubeDLResponse
+import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +30,7 @@ class EngineInitializer(private val application: Application) {
     val state: StateFlow<EngineState> = _state.asStateFlow()
 
     private val mutex = Mutex()
+    private val runtime = EngineRuntimeAccess()
 
     suspend fun ensureInit(): EngineState = mutex.withLock {
         if (_state.value is EngineState.Ready) return EngineState.Ready
@@ -42,6 +49,22 @@ class EngineInitializer(private val application: Application) {
     /** Current bundled yt-dlp version (null if not yet initialized). */
     fun version(): String? = runCatching { YoutubeDL.getInstance().version(application) }.getOrNull()
 
+    /** Blocking call; callers use runInterruptible so waiting/running work can be cancelled. */
+    fun execute(
+        request: YoutubeDLRequest,
+        processId: String = UUID.randomUUID().toString(),
+        callback: (Float, Long, String) -> Unit = { _, _, _ -> },
+    ): YoutubeDLResponse = runtime.execute {
+        try {
+            YoutubeDL.getInstance().execute(request, processId, callback)
+        } catch (error: Throwable) {
+            // Clean up before releasing access to the archive. The SDK also destroys
+            // its native process when execute is interrupted.
+            runCatching { YoutubeDL.getInstance().destroyProcessById(processId) }
+            throw error
+        }
+    }
+
     /**
      * Updates the bundled yt-dlp. The shipped copy goes stale quickly (YouTube in
      * particular breaks yt-dlp often), so refreshing it is what keeps downloads working.
@@ -53,12 +76,20 @@ class EngineInitializer(private val application: Application) {
         if (state is EngineState.Failed) {
             return@withContext Result.failure(IllegalStateException("引擎初始化失敗：${state.message}"))
         }
-        runCatching {
-            when (YoutubeDL.getInstance().updateYoutubeDL(application, channel)) {
-                YoutubeDL.UpdateStatus.DONE -> "已更新 yt-dlp 至 ${version() ?: "最新版"}"
-                YoutubeDL.UpdateStatus.ALREADY_UP_TO_DATE -> "已是最新（yt-dlp ${version() ?: "?"}）"
-                else -> "yt-dlp ${version() ?: ""}"
-            }
+        val context = currentCoroutineContext()
+        try {
+            Result.success(runtime.update {
+                context.ensureActive()
+                when (YoutubeDL.getInstance().updateYoutubeDL(application, channel)) {
+                    YoutubeDL.UpdateStatus.DONE -> "已更新 yt-dlp 至 ${version() ?: "最新版"}"
+                    YoutubeDL.UpdateStatus.ALREADY_UP_TO_DATE -> "已是最新（yt-dlp ${version() ?: "?"}）"
+                    else -> "yt-dlp ${version() ?: ""}"
+                }
+            })
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Result.failure(error)
         }
     }
 }

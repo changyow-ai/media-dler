@@ -12,7 +12,6 @@ import com.changyow.mediadler.data.storage.MediaStoreStorage
 import com.changyow.mediadler.data.storage.SafStorage
 import com.changyow.mediadler.util.FileNames
 import com.changyow.mediadler.util.MimeTypes
-import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -56,7 +55,7 @@ class YtDlpDownloader(
 
             // runInterruptible so coroutine cancellation interrupts the blocking call.
             runInterruptible {
-                YoutubeDL.getInstance().execute(ytRequest, processId) { progress, _, line ->
+                engine.execute(ytRequest, processId) { progress, _, line ->
                     if (progress >= 0f) onProgress(progress / 100f, line)
                 }
             }
@@ -64,7 +63,12 @@ class YtDlpDownloader(
             val produced = selectOutput(workDir, request.selection)
                 ?: return@withContext Result.failure(IllegalStateException("下載完成但找不到輸出檔"))
 
-            val ext = produced.extension.ifBlank { "bin" }
+            val ext = if (request.selection == FormatSelection.ImageOriginal &&
+                produced.extension.lowercase() !in IMAGE_EXTS
+            ) {
+                MimeTypes.imageExtensionFromContent(produced)
+                    ?: error("下載的內容不是支援的圖片")
+            } else produced.extension.ifBlank { "bin" }
             val baseName = FileNames.sanitize(item.title).ifBlank { item.id.ifBlank { "media" } }
             val displayName = "$baseName.$ext"
             val mime = MimeTypes.fromExtension(ext)
@@ -76,8 +80,6 @@ class YtDlpDownloader(
             }
             Result.success(DownloadOutput(uri.toString(), displayName, mime))
         } catch (t: Throwable) {
-            // Kill the native yt-dlp process so it isn't orphaned on cancel/error.
-            runCatching { YoutubeDL.getInstance().destroyProcessById(processId) }
             if (t is CancellationException) throw t
             Result.failure(t)
         } finally {
