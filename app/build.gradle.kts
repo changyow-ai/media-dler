@@ -29,8 +29,8 @@ android {
         applicationId = "com.changyow.mediadler"
         minSdk = 29
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.1.3"
+        versionCode = 5
+        versionName = "0.1.4"
 
         // yt-dlp / ffmpeg ship native libraries for these ABIs.
         // TEMP (Phase 1): arm64-v8a (devices) + x86_64 (emulator testing) only, to keep the
