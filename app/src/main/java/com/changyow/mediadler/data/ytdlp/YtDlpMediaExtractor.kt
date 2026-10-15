@@ -36,6 +36,11 @@ class YtDlpMediaExtractor(
             addOption("-J")
             addOption("--no-warnings")
             addOption("--playlist-items", "1:50")
+            // Instagram exposes photos as thumbnails with no video formats. Keep those
+            // entries (including photos in mixed carousels) for YtDlpInfoParser.
+            if (INSTAGRAM_URL.containsMatchIn(target)) {
+                addOption("--ignore-no-formats-error")
+            }
         }
         val response = YoutubeDL.getInstance().execute(request)
         val items = YtDlpInfoParser.parse(response.out, target)
@@ -47,5 +52,9 @@ class YtDlpMediaExtractor(
             val suffix = if (items.size > 1) "_${index + 1}" else ""
             item.copy(title = "ThreadsVideo_$code$suffix")
         }
+    }
+
+    private companion object {
+        val INSTAGRAM_URL = Regex("""^https?://(?:www\.)?instagram\.com/""", RegexOption.IGNORE_CASE)
     }
 }

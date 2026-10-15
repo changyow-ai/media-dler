@@ -18,19 +18,25 @@ object YtDlpInfoParser {
     fun parse(infoJson: String, requestUrl: String): List<MediaItem> {
         val root = json.decodeFromString<RawInfo>(infoJson)
         val entries = root.entries
+        val isInstagram = root.extractorKey == "Instagram"
         val items = if (!entries.isNullOrEmpty()) {
-            entries.mapIndexedNotNull { i, e -> e?.toMediaItem(requestUrl, i + 1) }
+            entries.mapIndexedNotNull { i, e -> e?.toMediaItem(requestUrl, i + 1, isInstagram) }
         } else {
-            listOf(root.toMediaItem(root.webpageUrl ?: requestUrl, null))
+            listOf(root.toMediaItem(root.webpageUrl ?: requestUrl, null, isInstagram))
         }
         // Drop items with nothing downloadable (e.g. nested-playlist containers).
         return items.filter { it.formats.isNotEmpty() }
     }
 
-    private fun RawInfo.toMediaItem(sourceUrl: String, playlistIndex: Int?): MediaItem {
+    private fun RawInfo.toMediaItem(
+        sourceUrl: String,
+        playlistIndex: Int?,
+        isInstagram: Boolean,
+    ): MediaItem {
         val parsed = (formats ?: emptyList()).mapNotNull { it.toMediaFormat() }
         val media = parsed.filter { it.hasVideo || it.hasAudio }
         val images = parsed.filter { it.isImage }
+        val imageUrl = instagramImageUrl(isInstagram || extractorKey == "Instagram")
 
         val (isImage, chosen) = when {
             media.isNotEmpty() -> false to media
@@ -41,11 +47,12 @@ object YtDlpInfoParser {
                 val img = e.lowercase() in IMAGE_EXTS
                 img to listOf(syntheticFormat(e, img))
             }
+            imageUrl != null -> true to listOf(syntheticFormat(extension(imageUrl), true))
             else -> false to emptyList()
         }
         return MediaItem(
-            sourceUrl = sourceUrl,
-            playlistIndex = playlistIndex,
+            sourceUrl = imageUrl ?: sourceUrl,
+            playlistIndex = if (imageUrl != null) null else playlistIndex,
             id = id ?: "",
             title = title ?: id ?: "media",
             thumbnailUrl = thumbnail,
@@ -54,6 +61,21 @@ object YtDlpInfoParser {
             formats = chosen,
         )
     }
+
+    private fun RawInfo.instagramImageUrl(isInstagram: Boolean): String? {
+        // With --ignore-no-formats-error, Instagram photos have no URL/formats/duration;
+        // yt-dlp's preferred thumbnail is the best available version of the photo itself.
+        // Never substitute a preview for an item carrying video metadata.
+        if (!isInstagram || !formats.isNullOrEmpty() || url != null || duration != null ||
+            (ext != null && ext.lowercase() !in IMAGE_EXTS)
+        ) return null
+        return thumbnail?.takeIf {
+            (it.startsWith("https://") || it.startsWith("http://")) && extension(it) in IMAGE_EXTS
+        }
+    }
+
+    private fun extension(url: String): String =
+        url.substringBefore('?').substringBefore('#').substringAfterLast('/').substringAfterLast('.', "").lowercase()
 
     private fun syntheticFormat(ext: String, isImage: Boolean) = MediaFormat(
         formatId = "best",
@@ -108,6 +130,7 @@ object YtDlpInfoParser {
         val thumbnail: String? = null,
         val duration: Double? = null,
         @SerialName("webpage_url") val webpageUrl: String? = null,
+        @SerialName("extractor_key") val extractorKey: String? = null,
         val url: String? = null,
         val formats: List<RawFormat>? = null,
         val entries: List<RawInfo?>? = null,
