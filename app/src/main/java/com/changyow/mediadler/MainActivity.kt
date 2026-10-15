@@ -5,9 +5,25 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.automirrored.filled.Subject
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.changyow.mediadler.transcribe.TranscriptionService
 import kotlinx.coroutines.launch
@@ -41,18 +57,41 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun AppNavHost() {
     val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = "home") {
-        composable("home") {
-            HomeScreen(
-                onOpenSettings = { navController.navigate("settings") },
-                onOpenHistory = { navController.navigate("transcripts") },
-            )
-        }
-        composable("settings") {
-            SettingsScreen(onBack = { navController.popBackStack() })
-        }
-        composable("transcripts") {
-            TranscriptHistoryScreen(onBack = { navController.popBackStack() })
+    val entry by navController.currentBackStackEntryAsState()
+    val destinations = listOf(
+        Triple("home", "下載", Icons.Filled.Download),
+        Triple("transcripts", "轉錄記錄", Icons.AutoMirrored.Filled.Subject),
+        Triple("settings", "設定", Icons.Filled.Settings),
+    )
+    Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        bottomBar = {
+            NavigationBar {
+                destinations.forEach { (route, label, icon) ->
+                    NavigationBarItem(
+                        selected = entry?.destination?.route == route,
+                        onClick = {
+                            navController.navigate(route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = { Icon(icon, contentDescription = null) },
+                        label = { Text(label) },
+                    )
+                }
+            }
+        },
+    ) { padding ->
+        NavHost(
+            navController = navController,
+            startDestination = "home",
+            modifier = Modifier.padding(padding).consumeWindowInsets(padding),
+        ) {
+            composable("home") { HomeScreen() }
+            composable("settings") { SettingsScreen() }
+            composable("transcripts") { TranscriptHistoryScreen() }
         }
     }
 }
