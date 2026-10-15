@@ -2,6 +2,8 @@ package com.changyow.mediadler.core
 
 import com.changyow.mediadler.core.extract.ShopeeMediaParser
 import com.changyow.mediadler.core.extract.ShopeeUrl
+import com.changyow.mediadler.core.model.DownloadTarget
+import com.changyow.mediadler.core.model.SourceContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -50,6 +52,8 @@ class ShopeeMediaParserTest {
         assertTrue(items.drop(1).all { it.isImage && it.formats.single().ext == "jpg" && !it.formats.single().hasAudio && !it.formats.single().hasVideo })
         assertTrue(items.all { it.playlistIndex == null && it.formats.single().formatId == "best" })
         assertEquals(3, items.map { it.id }.distinct().size)
+        assertTrue(items.all { it.source == SourceContext(product.canonicalUrl, product.canonicalUrl) })
+        assertTrue(items.all { it.downloadTarget == DownloadTarget.DIRECT && it.formats.single().resource?.url == it.sourceUrl })
         assertEquals(items.map { it.title }, ShopeeMediaParser.parse(fixture, product).map { it.title })
     }
 

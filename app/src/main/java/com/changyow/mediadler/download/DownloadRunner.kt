@@ -1,0 +1,284 @@
+package com.changyow.mediadler.download
+
+import com.changyow.mediadler.core.download.DownloadFailurePolicy
+import com.changyow.mediadler.core.model.*
+import com.changyow.mediadler.core.repo.DownloadOutput
+import com.changyow.mediadler.core.repo.Downloader
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import java.util.concurrent.ConcurrentHashMap
+
+/** Application-owned coordinator: a service lifecycle never owns the native attempt's lifetime. */
+class DownloadRunner(
+    private val queue: DownloadQueue,
+    private val resolver: QueuedRequestResolver,
+    private val downloader: Downloader,
+    private val scope: CoroutineScope,
+    private val listener: Listener = NoOp,
+) {
+    enum class Phase { IDLE, RUNNING, STOPPING, PAUSED }
+    data class State(val phase: Phase, val owner: String? = null, val startId: Int = 0, val pause: QueuePause? = null)
+
+    interface Listener {
+        fun onChanged(task: DownloadTask) {}
+        suspend fun onCompleted(task: DownloadTask, output: DownloadOutput) {}
+        suspend fun onFailed(task: DownloadTask, error: Throwable) {}
+        fun onStopped(taskId: String, task: DownloadTask?) {}
+        fun onPaused(reason: QueuePause) {}
+    }
+    object NoOp : Listener
+
+    private val commands = Channel<Command>(Channel.UNLIMITED)
+    private val pendingStops = ConcurrentHashMap.newKeySet<String>()
+    private val _state = MutableStateFlow(State(
+        if (queue.pauseReason() == null) Phase.IDLE else Phase.PAUSED, pause = queue.pauseReason(),
+    ))
+    val state: StateFlow<State> = _state.asStateFlow()
+
+    init { scope.launch { coordinate() } }
+
+    fun wake(owner: String, startId: Int, userInitiated: Boolean = false, resumeAll: Boolean = false) {
+        commands.trySend(Command.Wake(owner, startId, userInitiated, resumeAll))
+    }
+
+    fun stop(owner: String, reason: QueuePause = QueuePause(QueuePauseKind.SYSTEM, "下載已暫停，開啟 App 後可繼續排程")) {
+        // A timeout must close the claim gate immediately, even if Finished is already queued.
+        pendingStops.add(owner)
+        commands.trySend(Command.Stop(owner, reason))
+    }
+
+    private suspend fun coordinate() {
+        var owner: String? = null
+        var startId = 0
+        var running: Attempt? = null
+        var pendingAck: DownloadClaim? = null
+        var pause = queue.pauseReason()
+        var persistenceBlocked = false
+
+        fun publish() {
+            _state.value = State(
+                when {
+                    running?.stopping == true -> Phase.STOPPING
+                    running != null -> Phase.RUNNING
+                    pause != null || queue.pauseReason() != null -> Phase.PAUSED
+                    else -> Phase.IDLE
+                }, owner, startId, pause ?: queue.pauseReason(),
+            )
+        }
+
+        fun park(reason: QueuePause, taskId: String? = null) {
+            pause = reason
+            try { pause = persisted { queue.pause(reason, taskId) } ?: reason }
+            catch (_: PersistenceFailure) { persistenceBlocked = true }
+            pause?.let { effective -> notify { listener.onPaused(effective) } }
+        }
+
+        fun pump() {
+            val currentOwner = owner ?: return
+            if (currentOwner in pendingStops || running != null || pendingAck != null || pause != null || queue.pauseReason() != null) return
+            val claim = try { persisted { queue.claimNext() } } catch (error: PersistenceFailure) {
+                persistenceBlocked = true
+                park(persistencePause(error))
+                return
+            } ?: return
+            val attempt = Attempt(claim)
+            running = attempt
+            attempt.job = scope.launch(start = CoroutineStart.LAZY) { execute(attempt) }
+            attempt.job.invokeOnCompletion { commands.trySend(Command.Finished(attempt)) }
+            attempt.job.start()
+        }
+
+        for (command in commands) {
+            when (command) {
+                is Command.Wake -> {
+                    startId = if (owner == command.owner) maxOf(startId, command.startId) else command.startId
+                    owner = command.owner
+                    // Explicit retry/removal may have cleared the durable pause. Failed writes
+                    // retain their separate safety gate; an obsolete local anchor cannot trap new work.
+                    if (!persistenceBlocked && pause?.kind == QueuePauseKind.STORAGE && queue.pauseReason() == null) pause = null
+                    if (command.userInitiated || command.resumeAll) {
+                        try {
+                            pendingAck?.let { claim ->
+                                persisted { queue.acknowledgeStop(claim, interrupted = true) }
+                                notify { listener.onStopped(claim.id, queue.get(claim.id)) }
+                                pendingAck = null
+                            }
+                            persisted { queue.resume(systemOnly = !command.resumeAll) }
+                            persistenceBlocked = false
+                            if (command.resumeAll || pause?.kind == QueuePauseKind.SYSTEM) pause = null
+                        } catch (error: PersistenceFailure) {
+                            persistenceBlocked = true
+                            park(persistencePause(error), pendingAck?.id)
+                            running?.let { it.stopping = true; it.interrupted = true; it.job.cancel() }
+                        }
+                    }
+                    pump()
+                }
+                is Command.Stop -> {
+                    pendingStops.remove(command.owner)
+                    if (command.owner != owner) continue
+                    // A lifecycle stop must not turn an explicit storage pause into auto-resume.
+                    park(command.reason, running?.claim?.id)
+                    running?.let { it.stopping = true; it.interrupted = true; it.job.cancel() }
+                }
+                is Command.Finished -> {
+                    val attempt = command.attempt
+                    if (running !== attempt) continue
+                    running = null
+                    // A lazy coroutine canceled before its first instruction never enters finally.
+                    if (!attempt.entered) {
+                        try {
+                            persisted { queue.acknowledgeStop(attempt.claim, interrupted = true) }
+                            notify { listener.onStopped(attempt.claim.id, queue.get(attempt.claim.id)) }
+                        } catch (error: PersistenceFailure) {
+                            attempt.ackPending = true
+                            attempt.persistenceFailed = true
+                            attempt.pause = persistencePause(error)
+                        }
+                    }
+                    if (attempt.ackPending) pendingAck = attempt.claim
+                    if (attempt.persistenceFailed) persistenceBlocked = true
+                    if (attempt.persistenceFailed) {
+                        attempt.pause?.let { park(it, attempt.claim.id) }
+                    } else if (attempt.pause != null && !persistenceBlocked) {
+                        // pause()/fail() already persisted it. A quick retry may have cleared it
+                        // while onFailed was suspending; never re-apply that obsolete pause.
+                        val pausedTask = queue.tasks.value.firstOrNull { it.queuePause != null }
+                        pause = pausedTask?.queuePause
+                        pause?.let { reason -> notify { listener.onPaused(reason) } }
+                    }
+                    pump()
+                }
+            }
+            publish()
+        }
+    }
+
+    private suspend fun execute(attempt: Attempt) {
+        attempt.entered = true
+        val claim = attempt.claim
+        var stopped = false
+        try {
+            coroutineScope {
+                val attemptContext = currentCoroutineContext()
+                val cancellation = launch {
+                    queue.tasks.first { tasks -> tasks.any { it.id == claim.id && it.cancelRequested } }
+                    attemptContext.cancel(CancellationException("Download canceled by user"))
+                }
+                try {
+                    changed(claim.id)
+                    val output = download(claim)
+                    currentCoroutineContext().ensureActive()
+                    if (persisted { queue.complete(claim, output.uri, output.mimeType) }) {
+                        queue.get(claim.id)?.let { task -> notifySuspending { listener.onCompleted(task, output) } }
+                    }
+                } finally {
+                    cancellation.cancel()
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            stopped = true
+            throw cancelled
+        } catch (error: PersistenceFailure) {
+            attempt.persistenceFailed = true
+            attempt.pause = persistencePause(error)
+        } catch (error: Exception) {
+            try {
+                DownloadFailurePolicy.pauseFor(error)?.let {
+                    attempt.pause = it
+                    persisted { queue.pause(it, claim.id) }
+                }
+                persisted { queue.fail(claim, DownloadFailurePolicy.message(error)) }
+                queue.get(claim.id)?.takeIf { it.status == DownloadStatus.FAILED }
+                    ?.let { task -> notifySuspending { listener.onFailed(task, error) } }
+            } catch (failure: PersistenceFailure) {
+                attempt.persistenceFailed = true
+                attempt.pause = persistencePause(failure)
+            }
+        } finally {
+            withContext(NonCancellable) {
+                stopped = stopped || attempt.interrupted || queue.get(claim.id)?.cancelRequested == true
+                try {
+                    persisted { queue.acknowledgeStop(claim, interrupted = attempt.interrupted || attempt.pause != null) }
+                    if (stopped) notify { listener.onStopped(claim.id, queue.get(claim.id)) }
+                } catch (error: PersistenceFailure) {
+                    attempt.persistenceFailed = true
+                    attempt.ackPending = true
+                    attempt.pause = persistencePause(error)
+                }
+            }
+        }
+    }
+
+    private suspend fun download(claim: DownloadClaim): DownloadOutput {
+        ensureAttemptActive(claim)
+        downloader.recover(claim.id) { progress ->
+            persisted { queue.setProgress(claim, progress) }
+            changed(claim.id)
+        }.getOrThrow()?.let { return it }
+        repeat(2) { refresh ->
+            ensureAttemptActive(claim)
+            if (claim.spec is QueuedSpec.Page) {
+                persisted { queue.extracting(claim, if (refresh == 0) null else "串流連結已失效，正在重新解析同一集") }
+                changed(claim.id)
+            }
+            val request = resolver.resolve(claim.spec)
+            ensureAttemptActive(claim)
+            persisted { queue.resolved(claim, request) }
+            changed(claim.id)
+            try {
+                return downloader.download(request, claim.id) { progress ->
+                    persisted { queue.setProgress(claim, progress) }
+                    changed(claim.id)
+                }.getOrThrow()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                if (error is PersistenceFailure || refresh != 0 || claim.spec !is QueuedSpec.Page || !DownloadFailurePolicy.shouldRefresh(error)) throw error
+            }
+        }
+        error("影片連結重新解析失敗")
+    }
+
+    private fun changed(id: String) { queue.get(id)?.let { task -> notify { listener.onChanged(task) } } }
+
+    private suspend fun ensureAttemptActive(claim: DownloadClaim) {
+        currentCoroutineContext().ensureActive()
+        if (queue.get(claim.id)?.cancelRequested == true) throw CancellationException("Download canceled by user")
+    }
+
+    private inline fun notify(block: () -> Unit) {
+        try { block() } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { /* Notification/metadata failures do not change download state. */ }
+    }
+
+    private suspend fun notifySuspending(block: suspend () -> Unit) {
+        try { block() } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { /* Output has already committed. */ }
+    }
+
+    private inline fun <T> persisted(block: () -> T): T = try { block() }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (error: Exception) { throw PersistenceFailure(error) }
+
+    private fun persistencePause(error: PersistenceFailure): QueuePause = DownloadFailurePolicy.pauseFor(error)
+        ?: QueuePause(QueuePauseKind.SYSTEM, "排程資料暫時無法儲存，請重新開啟 App 後繼續")
+
+    private class PersistenceFailure(cause: Throwable) : Exception(cause)
+    private class Attempt(val claim: DownloadClaim) {
+        lateinit var job: Job
+        var stopping = false
+        @Volatile var entered = false
+        @Volatile var interrupted = false
+        var pause: QueuePause? = null
+        var ackPending = false
+        var persistenceFailed = false
+    }
+    private sealed interface Command {
+        data class Wake(val owner: String, val startId: Int, val userInitiated: Boolean, val resumeAll: Boolean) : Command
+        data class Stop(val owner: String, val reason: QueuePause) : Command
+        data class Finished(val attempt: Attempt) : Command
+    }
+}

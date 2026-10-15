@@ -1,12 +1,14 @@
 package com.changyow.mediadler.data
 
 import com.changyow.mediadler.core.extract.ThreadsUrl
+import com.changyow.mediadler.core.extract.EightMapleUrl
+import com.changyow.mediadler.core.extract.GimyUrl
 import com.changyow.mediadler.core.extract.ShopeeUrl
 import com.changyow.mediadler.core.model.MediaItem
 import com.changyow.mediadler.core.repo.MediaExtractor
 
 /**
- * Sends Threads and Taiwan Shopee URLs to their dedicated extractors; other URLs
+ * Sends Threads, Taiwan Shopee, Gimy and 8maple URLs to their dedicated extractors; other URLs
  * go to [fallback] (yt-dlp).
  *
  * A failed Threads extraction deliberately gets NO yt-dlp fallback: yt-dlp's
@@ -19,15 +21,23 @@ class RoutingMediaExtractor(
     private val threads: MediaExtractor,
     private val fallback: MediaExtractor,
     private val shopee: MediaExtractor,
+    private val eightMaple: MediaExtractor = fallback,
+    private val gimy: MediaExtractor = fallback,
 ) : MediaExtractor {
     override suspend fun extract(url: String): Result<List<MediaItem>> {
-        if (ShopeeUrl.isSupported(url)) return shopee.extract(url)
-        if (!ThreadsUrl.isSupported(url)) return fallback.extract(url)
-
-        return threads.extract(url).fold(
-            onSuccess = { resolveLinkedReels(it) },
-            onFailure = { Result.failure(it) },
-        )
+        val result = when {
+            GimyUrl.isSupported(url) -> gimy.extract(url)
+            EightMapleUrl.isSupported(url) -> eightMaple.extract(url)
+            ShopeeUrl.isSupported(url) -> shopee.extract(url)
+            ThreadsUrl.isSupported(url) -> threads.extract(url).fold(
+                onSuccess = { resolveLinkedReels(it) },
+                onFailure = { Result.failure(it) },
+            )
+            else -> fallback.extract(url)
+        }
+        return result.map { items ->
+            items.map { item -> item.copy(source = item.source.copy(originalUrl = url)) }
+        }
     }
 
     private suspend fun resolveLinkedReels(items: List<MediaItem>): Result<List<MediaItem>> {

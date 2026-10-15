@@ -1,6 +1,8 @@
 package com.changyow.mediadler.core
 
 import com.changyow.mediadler.core.extract.ThreadsEmbedParser
+import com.changyow.mediadler.core.model.DownloadTarget
+import com.changyow.mediadler.core.model.SourceContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -20,6 +22,9 @@ class ThreadsEmbedParserTest {
         assertTrue(items[0].sourceUrl.contains("AQ.mp4"))
         assertTrue(items[0].sourceUrl.contains("oe=2"))
         assertEquals("ThreadsVideo_ABC123", items[0].title)
+        assertEquals(SourceContext(post, post), items[0].source)
+        assertEquals(DownloadTarget.DIRECT, items[0].downloadTarget)
+        assertEquals(items[0].sourceUrl, items[0].formats.single().resource?.url)
     }
 
     @Test fun imageCoverExtractedAvatarAndStaticSkipped() {

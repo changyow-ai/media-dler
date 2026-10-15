@@ -48,7 +48,7 @@ class YtDlpMediaExtractor(
             }
         }
         val response = runInterruptible { engine.execute(request) }
-        val items = YtDlpInfoParser.parse(response.out, target)
+        val items = YtDlpInfoParser.parse(response.out, target, originalUrl = url)
         check(items.isNotEmpty()) { "找不到可下載的媒體（可能不支援此網站或需要登入）" }
         // yt-dlp's html5 extractor names Threads media generically ("Threads (1)");
         // give it a recognizable, post-specific name instead.

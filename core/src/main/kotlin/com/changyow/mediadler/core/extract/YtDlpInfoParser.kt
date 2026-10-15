@@ -2,6 +2,10 @@ package com.changyow.mediadler.core.extract
 
 import com.changyow.mediadler.core.model.MediaFormat
 import com.changyow.mediadler.core.model.MediaItem
+import com.changyow.mediadler.core.model.DownloadTarget
+import com.changyow.mediadler.core.model.MediaResource
+import com.changyow.mediadler.core.model.SourceContext
+import com.changyow.mediadler.core.model.mergeHttpHeaders
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -15,14 +19,17 @@ object YtDlpInfoParser {
     private val IMAGE_EXTS = setOf("jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "bmp")
 
     /** Parse the JSON produced by `yt-dlp -J <url>` into a flat list of [MediaItem]. */
-    fun parse(infoJson: String, requestUrl: String): List<MediaItem> {
+    fun parse(infoJson: String, requestUrl: String, originalUrl: String = requestUrl): List<MediaItem> {
         val root = json.decodeFromString<RawInfo>(infoJson)
         val entries = root.entries
         val isInstagram = root.extractorKey == "Instagram"
+        val source = SourceContext(originalUrl, root.webpageUrl ?: requestUrl)
         val items = if (!entries.isNullOrEmpty()) {
-            entries.mapIndexedNotNull { i, e -> e?.toMediaItem(requestUrl, i + 1, isInstagram) }
+            entries.mapIndexedNotNull { i, e ->
+                e?.toMediaItem(requestUrl, i + 1, isInstagram, source, root.httpHeaders.orEmpty())
+            }
         } else {
-            listOf(root.toMediaItem(root.webpageUrl ?: requestUrl, null, isInstagram))
+            listOf(root.toMediaItem(root.webpageUrl ?: requestUrl, null, isInstagram, source))
         }
         // Drop items with nothing downloadable (e.g. nested-playlist containers).
         return items.filter { it.formats.isNotEmpty() }
@@ -32,8 +39,11 @@ object YtDlpInfoParser {
         sourceUrl: String,
         playlistIndex: Int?,
         isInstagram: Boolean,
+        source: SourceContext,
+        inheritedHeaders: Map<String, String> = emptyMap(),
     ): MediaItem {
-        val parsed = (formats ?: emptyList()).mapNotNull { it.toMediaFormat() }
+        val headers = mergeHttpHeaders(inheritedHeaders, httpHeaders.orEmpty())
+        val parsed = (formats ?: emptyList()).mapNotNull { it.toMediaFormat(headers) }
         val media = parsed.filter { it.hasVideo || it.hasAudio }
         val images = parsed.filter { it.isImage }
         val imageUrl = instagramImageUrl(isInstagram || extractorKey == "Instagram")
@@ -45,9 +55,11 @@ object YtDlpInfoParser {
                 val path = url.substringBefore('?').substringBefore('#')
                 val e = ext ?: path.substringAfterLast('/').substringAfterLast('.', "")
                 val img = e.lowercase() in IMAGE_EXTS
-                img to listOf(syntheticFormat(e, img))
+                img to listOf(syntheticFormat(e, img, MediaResource(url, headers)))
             }
-            imageUrl != null -> true to listOf(syntheticFormat(extension(imageUrl), true))
+            imageUrl != null -> true to listOf(
+                syntheticFormat(extension(imageUrl), true, MediaResource(imageUrl, headers)),
+            )
             else -> false to emptyList()
         }
         return MediaItem(
@@ -59,6 +71,13 @@ object YtDlpInfoParser {
             durationSeconds = duration?.toLong(),
             isImage = isImage,
             formats = chosen,
+            source = source.copy(pageUrl = webpageUrl ?: source.pageUrl),
+            downloadTarget = if (imageUrl != null) DownloadTarget.DIRECT else DownloadTarget.PAGE,
+            httpHeaders = headers,
+            originalTitle = title,
+            seriesTitle = series,
+            seasonNumber = seasonNumber,
+            episodeNumber = episodeNumber,
         )
     }
 
@@ -77,7 +96,7 @@ object YtDlpInfoParser {
     private fun extension(url: String): String =
         url.substringBefore('?').substringBefore('#').substringAfterLast('/').substringAfterLast('.', "").lowercase()
 
-    private fun syntheticFormat(ext: String, isImage: Boolean) = MediaFormat(
+    private fun syntheticFormat(ext: String, isImage: Boolean, resource: MediaResource) = MediaFormat(
         formatId = "best",
         ext = ext.ifBlank { if (isImage) "jpg" else "mp4" },
         label = if (isImage) "Image" else "Video",
@@ -86,9 +105,10 @@ object YtDlpInfoParser {
         hasAudio = !isImage,
         isImage = isImage,
         filesizeBytes = null,
+        resource = resource,
     )
 
-    private fun RawFormat.toMediaFormat(): MediaFormat? {
+    private fun RawFormat.toMediaFormat(inheritedHeaders: Map<String, String>): MediaFormat? {
         val e = (ext ?: "").lowercase()
         val isImage = e in IMAGE_EXTS
         val hasVideo = vcodec != null && vcodec != "none"
@@ -105,6 +125,7 @@ object YtDlpInfoParser {
             hasAudio = hasAudio,
             isImage = isImage,
             filesizeBytes = filesize ?: filesizeApprox,
+            resource = url?.let { MediaResource(it, mergeHttpHeaders(inheritedHeaders, httpHeaders.orEmpty())) },
         )
     }
 
@@ -132,6 +153,10 @@ object YtDlpInfoParser {
         @SerialName("webpage_url") val webpageUrl: String? = null,
         @SerialName("extractor_key") val extractorKey: String? = null,
         val url: String? = null,
+        @SerialName("http_headers") val httpHeaders: Map<String, String>? = null,
+        val series: String? = null,
+        @SerialName("season_number") val seasonNumber: Int? = null,
+        @SerialName("episode_number") val episodeNumber: Int? = null,
         val formats: List<RawFormat>? = null,
         val entries: List<RawInfo?>? = null,
     )
@@ -148,5 +173,6 @@ object YtDlpInfoParser {
         val filesize: Long? = null,
         @SerialName("filesize_approx") val filesizeApprox: Long? = null,
         val url: String? = null,
+        @SerialName("http_headers") val httpHeaders: Map<String, String>? = null,
     )
 }

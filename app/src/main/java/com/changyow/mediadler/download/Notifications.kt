@@ -10,6 +10,9 @@ import android.net.Uri
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import com.changyow.mediadler.R
+import com.changyow.mediadler.MainActivity
+import com.changyow.mediadler.core.model.DownloadStatus
+import com.changyow.mediadler.core.model.DownloadTask
 
 object Notifications {
     const val CHANNEL_PROGRESS = "downloads_progress"
@@ -17,6 +20,7 @@ object Notifications {
     const val CHANNEL_TX_PROGRESS = "transcribe_progress"
     const val CHANNEL_TX_STATUS = "transcribe_status"
     const val SUMMARY_ID = 1
+    private const val PAUSED_ID = -10
     // Far above the download per-job counter (which starts at SUMMARY_ID+1 and climbs) so the two
     // services' notification IDs can never collide within a session.
     const val TX_SUMMARY_ID = 100_000
@@ -119,9 +123,59 @@ object Notifications {
             .setSmallIcon(R.drawable.ic_stat_download)
             .setContentTitle("media-dler")
             .setContentText(if (active > 0) "下載中（$active）" else "等待中")
+            .setContentIntent(downloadsIntent(context))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .build()
+
+    fun downloadProgress(context: Context, task: DownloadTask) {
+        cancel(context, PAUSED_ID)
+        val phase = when (task.status) {
+            DownloadStatus.EXTRACTING -> "解析影片中"
+            DownloadStatus.PROCESSING -> "處理中"
+            else -> "下載中"
+        }
+        val known = task.status == DownloadStatus.DOWNLOADING && task.progress in 0f..1f
+        val text = task.progressDetail ?: if (known) "$phase ${(task.progress * 100).toInt()}%" else phase
+        val cancel = PendingIntent.getBroadcast(context, 0,
+            Intent(context, DownloadActionReceiver::class.java).apply {
+                action = DownloadActionReceiver.ACTION_CANCEL
+                data = Uri.parse("media-dler://download/cancel/${task.id}")
+                putExtra(DownloadActionReceiver.EXTRA_TASK, task.id)
+            }, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        notify(context, SUMMARY_ID, NotificationCompat.Builder(context, CHANNEL_PROGRESS)
+            .setSmallIcon(R.drawable.ic_stat_download)
+            .setContentTitle(task.title)
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentIntent(downloadsIntent(context))
+            .setProgress(if (known) 100 else 0, if (known) (task.progress * 100).toInt() else 0, !known)
+            .setOngoing(true).setOnlyAlertOnce(true)
+            .addAction(0, "取消", cancel).build())
+    }
+
+    fun downloadFailed(context: Context, id: Int, task: DownloadTask) {
+        val text = "下載失敗：${task.errorMessage ?: "請重試"}"
+        notify(context, id, NotificationCompat.Builder(context, CHANNEL_STATUS)
+            .setSmallIcon(R.drawable.ic_stat_download).setContentTitle(task.title)
+            .setContentText(text).setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentIntent(downloadsIntent(context)).setAutoCancel(true)
+            .addAction(0, "重試", downloadsIntent(context, task.id)).build())
+    }
+
+    fun downloadPaused(context: Context, message: String) {
+        notify(context, PAUSED_ID, NotificationCompat.Builder(context, CHANNEL_STATUS)
+            .setSmallIcon(R.drawable.ic_stat_download).setContentTitle("下載排程已暫停")
+            .setContentText(message).setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setContentIntent(downloadsIntent(context)).setAutoCancel(true).build())
+    }
+
+    private fun downloadsIntent(context: Context, retryId: String? = null): PendingIntent =
+        PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            data = Uri.parse("media-dler://downloads/${retryId ?: "home"}")
+            retryId?.let { putExtra(MainActivity.EXTRA_RETRY_DOWNLOAD, it) }
+        }, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
     fun progress(context: Context, id: Int, title: String, progress: Float) {
         val builder = NotificationCompat.Builder(context, CHANNEL_PROGRESS)

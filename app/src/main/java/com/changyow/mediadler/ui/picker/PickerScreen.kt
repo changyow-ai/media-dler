@@ -91,6 +91,7 @@ fun ShareSheet(
     onSubmitted: () -> Unit,
     onTranscribe: () -> Unit,
     onClose: () -> Unit,
+    forcePicker: Boolean = false,
 ) {
     val context = LocalContext.current
     val container = remember { context.appContainer }
@@ -102,6 +103,7 @@ fun ShareSheet(
                     extractor = container.mediaExtractor,
                     settings = container.settingsRepository,
                     queue = container.downloadQueue,
+                    forcePicker = forcePicker,
                 )
             }
         },

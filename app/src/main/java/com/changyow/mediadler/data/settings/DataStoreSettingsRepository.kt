@@ -1,6 +1,7 @@
 package com.changyow.mediadler.data.settings
 
 import android.content.Context
+import android.os.Build
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -59,7 +60,9 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         defaultMediaKind = enumOrDefault(this[Keys.mediaKind], MediaKind.VIDEO),
         defaultVideoQuality = enumOrDefault(this[Keys.videoQuality], VideoQuality.BEST),
         audioFormat = enumOrDefault(this[Keys.audioFormat], AudioFormat.MP3),
-        storageMode = enumOrDefault(this[Keys.storageMode], StorageMode.DOWNLOADS),
+        // Android 9 has no MediaStore.Downloads collection, including after a restored backup.
+        storageMode = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) StorageMode.SAF
+            else enumOrDefault(this[Keys.storageMode], StorageMode.DOWNLOADS),
         safTreeUri = this[Keys.safTreeUri],
         downloadAllWhenMultiple = this[Keys.downloadAllWhenMultiple] ?: true,
         autoUpdateYtDlpOnStartup = this[Keys.autoUpdateYtDlpOnStartup] ?: false,

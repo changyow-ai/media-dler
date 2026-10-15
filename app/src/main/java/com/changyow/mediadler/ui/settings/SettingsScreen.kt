@@ -1,6 +1,13 @@
 package com.changyow.mediadler.ui.settings
 
+import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -52,6 +59,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -73,6 +82,7 @@ import com.changyow.mediadler.util.NetworkStatus
 fun SettingsScreen(onBack: (() -> Unit)? = null) {
     val context = LocalContext.current
     val container = remember { context.appContainer }
+    val supportsDownloads = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
     val viewModel: SettingsViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
@@ -92,6 +102,14 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
     val modelState by viewModel.modelState.collectAsStateWithLifecycle()
     var confirmMeteredDownload by remember { mutableStateOf(false) }
     var showCloudAudioHelp by remember { mutableStateOf(false) }
+    val powerManager = remember(context) { context.getSystemService(PowerManager::class.java) }
+    var ignoresBatteryOptimizations by remember(context) {
+        mutableStateOf(powerManager.isIgnoringBatteryOptimizations(context.packageName))
+    }
+    // The system owns this choice. Returning (including cancel/deny) is not proof of approval.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        ignoresBatteryOptimizations = powerManager.isIgnoringBatteryOptimizations(context.packageName)
+    }
     // On Wi-Fi just download; on mobile data ask first (gate-as-prompt, not a hard block).
     val requestModelDownload = {
         if (NetworkStatus.isMetered(context)) confirmMeteredDownload = true else viewModel.downloadModel()
@@ -103,7 +121,10 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
         if (uri != null) {
             val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             runCatching { context.contentResolver.takePersistableUriPermission(uri, flags) }
-            viewModel.update { it.copy(storageMode = StorageMode.SAF, safTreeUri = uri.toString()) }
+                .onSuccess { viewModel.update { it.copy(storageMode = StorageMode.SAF, safTreeUri = uri.toString()) } }
+                .onFailure {
+                    Toast.makeText(context, "無法保留資料夾存取權，請重新選擇本機資料夾", Toast.LENGTH_LONG).show()
+                }
         }
     }
 
@@ -166,8 +187,25 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
                 )
             }
 
+            SettingSection("背景下載") {
+                Text(
+                    if (ignoresBatteryOptimizations) "已排除系統電池最佳化" else "尚未排除系統電池最佳化",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    "未插電、螢幕關閉後，系統省電可能暫停下載。允許排除電池最佳化，" +
+                        "可讓下載在休眠時繼續；下載期間會較耗電，完成後停止背景工作。" +
+                        "部分手機還需在系統的 app 電池設定中允許背景執行。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedButton(onClick = { openDownloadBatterySettings(context) }) {
+                    Text(if (ignoresBatteryOptimizations) "管理電池設定" else "允許背景下載")
+                }
+            }
+
             SettingSection("儲存位置") {
-                ChoiceChips(
+                if (supportsDownloads) ChoiceChips(
                     options = StorageMode.entries,
                     selected = settings.storageMode,
                     label = { if (it == StorageMode.DOWNLOADS) "Downloads" else "自選資料夾" },
@@ -179,7 +217,14 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
                         }
                     },
                 )
-                if (settings.storageMode == StorageMode.DOWNLOADS) {
+                if (!supportsDownloads) {
+                    Text(
+                        "Android 9 需先選擇儲存資料夾；建議選擇 Download/media-dler。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (supportsDownloads && settings.storageMode == StorageMode.DOWNLOADS) {
                     Text(
                         "Download/media-dler/",
                         style = MaterialTheme.typography.bodySmall,
@@ -406,6 +451,30 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
 private fun formatBytes(bytes: Long): String {
     val mb = bytes.toDouble() / (1024 * 1024)
     return if (mb >= 1024) "%.1f GB".format(mb / 1024) else "%.0f MB".format(mb)
+}
+
+private fun openDownloadBatterySettings(context: Context) {
+    val packageUri = Uri.fromParts("package", context.packageName, null)
+    val powerManager = context.getSystemService(PowerManager::class.java)
+    val intents = buildList {
+        if (!powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
+            // Downloading is the app's core function; request only from this explicit user action.
+            add(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, packageUri))
+        }
+        add(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+        add(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri))
+    }
+    for (intent in intents) {
+        try {
+            context.startActivity(intent)
+            return
+        } catch (_: ActivityNotFoundException) {
+            // Some OEMs omit individual Settings actions; try the next supported entry.
+        } catch (_: SecurityException) {
+            // Managed devices may deny the direct request but allow app settings.
+        }
+    }
+    Toast.makeText(context, "無法開啟電池設定，請到系統設定調整 media-dler 的電池使用限制", Toast.LENGTH_LONG).show()
 }
 
 private fun qualityLabel(quality: VideoQuality): String =

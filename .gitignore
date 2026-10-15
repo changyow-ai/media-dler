@@ -15,3 +15,13 @@ local.properties
 
 # sherpa-onnx prebuilt native libs — fetched by scripts/fetch-sherpa-libs.sh, not committed
 /app/src/main/jniLibs/
+
+# Local notes, planning documents and device test artifacts
+test-runs/
+handoff.md
+docs/
+doc/
+plan/
+plans/
+issues/
+issue/

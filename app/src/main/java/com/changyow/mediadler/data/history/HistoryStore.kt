@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.changyow.mediadler.core.model.DownloadStatus
 import com.changyow.mediadler.core.model.DownloadTask
+import com.changyow.mediadler.core.model.SourceKind
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
@@ -67,6 +68,14 @@ class HistoryStore(private val context: Context) {
         val errorMessage: String?,
         val createdAt: Long,
         val previewPath: String? = null,
+        val sourceKind: SourceKind = SourceKind.GENERAL,
+        val pageUrl: String = sourceUrl,
+        val seriesTitle: String? = null,
+        val seasonNumber: Int? = null,
+        val episodeNumber: Int? = null,
+        val originalTitle: String? = null,
+        val lineId: String? = null,
+        val lineName: String? = null,
     ) {
         fun toTask() = DownloadTask(
             id = id,
@@ -81,6 +90,14 @@ class HistoryStore(private val context: Context) {
             errorMessage = errorMessage,
             createdAt = createdAt,
             previewPath = previewPath,
+            sourceKind = sourceKind,
+            pageUrl = pageUrl,
+            seriesTitle = seriesTitle,
+            seasonNumber = seasonNumber,
+            episodeNumber = episodeNumber,
+            originalTitle = originalTitle,
+            lineId = lineId,
+            lineName = lineName,
         )
 
         companion object {
@@ -96,6 +113,14 @@ class HistoryStore(private val context: Context) {
                 errorMessage = t.errorMessage,
                 createdAt = t.createdAt,
                 previewPath = t.previewPath,
+                sourceKind = t.sourceKind,
+                pageUrl = t.pageUrl,
+                seriesTitle = t.seriesTitle,
+                seasonNumber = t.seasonNumber,
+                episodeNumber = t.episodeNumber,
+                originalTitle = t.originalTitle,
+                lineId = t.lineId,
+                lineName = t.lineName,
             )
         }
     }

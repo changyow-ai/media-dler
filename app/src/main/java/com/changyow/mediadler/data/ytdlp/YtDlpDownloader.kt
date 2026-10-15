@@ -1,89 +1,87 @@
 package com.changyow.mediadler.data.ytdlp
 
-import android.content.Context
-import com.changyow.mediadler.core.download.FormatSelector
+import com.changyow.mediadler.core.download.DownloadPlanner
 import com.changyow.mediadler.core.model.DownloadRequest
 import com.changyow.mediadler.core.model.FormatSelection
-import com.changyow.mediadler.core.model.StorageMode
+import com.changyow.mediadler.core.model.SourceKind
+import com.changyow.mediadler.core.model.DownloadPhase
+import com.changyow.mediadler.core.model.DownloadProgress
+import com.changyow.mediadler.core.download.YtDlpProgressParser
 import com.changyow.mediadler.core.repo.DownloadOutput
 import com.changyow.mediadler.core.repo.Downloader
-import com.changyow.mediadler.core.repo.SettingsRepository
-import com.changyow.mediadler.data.storage.MediaStoreStorage
-import com.changyow.mediadler.data.storage.SafStorage
-import com.changyow.mediadler.util.FileNames
-import com.changyow.mediadler.util.MimeTypes
-import com.yausername.youtubedl_android.YoutubeDLRequest
+import com.changyow.mediadler.data.storage.DownloadPublisher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.security.MessageDigest
 
 class YtDlpDownloader(
-    private val context: Context,
     private val engine: EngineInitializer,
-    private val settings: SettingsRepository,
-    private val mediaStore: MediaStoreStorage,
-    private val saf: SafStorage,
+    private val publisher: DownloadPublisher,
+    private val workRoot: File,
 ) : Downloader {
+
+    override suspend fun recover(processId: String, onProgress: (DownloadProgress) -> Unit): Result<DownloadOutput?> =
+        try {
+            Result.success(publisher.recover(processId) {
+                onProgress(DownloadProgress(DownloadPhase.SAVING, detail = "正在恢復儲存已完成的媒體"))
+            })
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (error: Exception) { Result.failure(error) }
 
     override suspend fun download(
         request: DownloadRequest,
         processId: String,
-        onProgress: (Float, String) -> Unit,
+        onProgress: (DownloadProgress) -> Unit,
     ): Result<DownloadOutput> = withContext(Dispatchers.IO) {
         val state = engine.ensureInit()
         if (state is EngineState.Failed) {
             return@withContext Result.failure(IllegalStateException(state.message))
         }
 
-        val item = request.item
-        val workDir = File(context.cacheDir, "downloads/${System.nanoTime()}").apply { mkdirs() }
+        require(processId.matches(Regex("[A-Za-z0-9_-]+")))
+        val plan = DownloadPlanner.plan(request)
+        // A different resource/format cannot inherit incompatible partial files. Old attempts
+        // remain under this stable task directory until completion or explicit deletion.
+        val resume = if (request.item.source.kind == SourceKind.GENERAL) ""
+            else SpecialSourceResume.identity(plan.resource)
+        val identity = plan.resource.url + "\n" + plan.formatArguments.joinToString("\n") +
+            if (resume.isEmpty()) "" else "\n$resume"
+        val fingerprint = MessageDigest.getInstance("SHA-256").digest(identity.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+        val workDir = File(File(workRoot, processId), fingerprint).apply { mkdirs() }
         try {
-            val ytRequest = YoutubeDLRequest(item.sourceUrl).apply {
+            val ytRequest = plan.toYoutubeDLRequest().apply {
                 addOption("-o", File(workDir, "media.%(ext)s").absolutePath)
                 addOption("--no-mtime")
                 addOption("--no-warnings")
-                if (item.playlistIndex != null) {
-                    addOption("--playlist-items", item.playlistIndex.toString())
-                } else {
-                    addOption("--no-playlist")
-                }
-                addCommands(FormatSelector.args(request.selection))
+                addOption("--newline")
+                addOption("--progress")
+                addOption("--no-colors")
+                addOption("--concurrent-fragments", "1")
+                addOption("--abort-on-unavailable-fragments")
+                addOption("--retries", "3")
+                addOption("--fragment-retries", "3")
+                addOption("--extractor-retries", "2")
+                addOption("--file-access-retries", "2")
+                addOption("--socket-timeout", "20")
+                addCommands(listOf("--progress-template", YtDlpProgressParser.DOWNLOAD_TEMPLATE,
+                    "--progress-template", YtDlpProgressParser.POSTPROCESS_TEMPLATE))
             }
 
-            // runInterruptible so coroutine cancellation interrupts the blocking call.
-            runInterruptible {
-                engine.execute(ytRequest, processId) { progress, _, line ->
-                    if (progress >= 0f) onProgress(progress / 100f, line)
-                }
+            engine.executeDownload(ytRequest) { line ->
+                YtDlpProgressParser.parse(line)?.let(onProgress)
             }
 
             val produced = selectOutput(workDir, request.selection)
                 ?: return@withContext Result.failure(IllegalStateException("下載完成但找不到輸出檔"))
 
-            val ext = if (request.selection == FormatSelection.ImageOriginal &&
-                produced.extension.lowercase() !in IMAGE_EXTS
-            ) {
-                MimeTypes.imageExtensionFromContent(produced)
-                    ?: error("下載的內容不是支援的圖片")
-            } else produced.extension.ifBlank { "bin" }
-            val baseName = FileNames.sanitize(item.title).ifBlank { item.id.ifBlank { "media" } }
-            val displayName = "$baseName.$ext"
-            val mime = MimeTypes.fromExtension(ext)
-
-            val current = settings.settings.first()
-            val uri = when (current.storageMode) {
-                StorageMode.SAF -> saf.save(produced, displayName, mime, current.safTreeUri)
-                StorageMode.DOWNLOADS -> mediaStore.save(produced, displayName, mime)
-            }
-            Result.success(DownloadOutput(uri.toString(), displayName, mime))
+            onProgress(DownloadProgress(DownloadPhase.SAVING, detail = "正在儲存完成的媒體"))
+            Result.success(publisher.publish(processId, produced, request))
         } catch (t: Throwable) {
             if (t is CancellationException) throw t
             Result.failure(t)
-        } finally {
-            workDir.deleteRecursively()
         }
     }
 

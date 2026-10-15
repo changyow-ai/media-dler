@@ -1,6 +1,7 @@
 package com.changyow.mediadler.ui.home
 
 import android.content.ClipboardManager
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -18,6 +19,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -35,6 +39,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.VideoFile
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -45,6 +50,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,6 +58,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -60,6 +67,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.getSystemService
@@ -69,15 +77,21 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import coil.compose.AsyncImage
 import com.changyow.mediadler.ShareReceiverActivity
+import com.changyow.mediadler.TaskTranscribeActivity
 import com.changyow.mediadler.appContainer
 import com.changyow.mediadler.core.extract.UrlExtractor
 import com.changyow.mediadler.core.model.DownloadStatus
 import com.changyow.mediadler.core.model.DownloadTask
+import com.changyow.mediadler.core.model.EpisodeMetadata
+import com.changyow.mediadler.core.model.SourceKind
+import com.changyow.mediadler.core.model.isActive
 import com.changyow.mediadler.core.model.isTerminal
 import com.changyow.mediadler.download.DownloadService
 import com.changyow.mediadler.ui.common.RequestNotificationPermission
 import com.changyow.mediadler.ui.common.ScreenHeader
 import java.io.File
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 private enum class DownloadFilter(val label: String) {
     ALL("全部"), ACTIVE("進行中"), COMPLETED("已完成"), FAILED("失敗");
@@ -101,7 +115,11 @@ fun HomeScreen() {
     )
     val tasks by viewModel.tasks.collectAsStateWithLifecycle()
     var filter by rememberSaveable { mutableStateOf(DownloadFilter.ALL) }
+    var editingId by rememberSaveable { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val pending = tasks.filterNot { it.status.isTerminal }
     val visibleTasks = tasks.filter(filter::includes)
+    val pause = tasks.firstNotNullOfOrNull { it.queuePause }
 
     RequestNotificationPermission()
 
@@ -125,6 +143,17 @@ fun HomeScreen() {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item(key = "paste") { PastePanel { pasteUrlAndDownload(context) } }
+                if (pause != null) {
+                    item(key = "paused") {
+                        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("排程已暫停", style = MaterialTheme.typography.titleSmall)
+                                Text(pause.message, style = MaterialTheme.typography.bodyMedium)
+                                TextButton(onClick = { DownloadService.start(context, resumeAll = true) }) { Text("繼續排程") }
+                            }
+                        }
+                    }
+                }
                 item(key = "filters") {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(DownloadFilter.entries, key = { it.name }) { option ->
@@ -155,11 +184,29 @@ fun HomeScreen() {
                         task = task,
                         onOpen = { openFile(context, task) },
                         onRetry = { if (viewModel.retry(task.id)) DownloadService.start(context) },
+                        onCancel = { viewModel.cancel(task.id) },
                         onRemove = { viewModel.remove(task.id) },
+                        onEdit = { editingId = task.id },
+                        queueNumber = pending.indexOfFirst { it.id == task.id }.takeIf { it >= 0 }?.plus(1),
                     )
                 }
             }
         }
+    }
+    tasks.firstOrNull { it.id == editingId }?.let { task ->
+        MetadataDialog(task, onDismiss = { editingId = null }, onSave = { metadata, done ->
+            scope.launch {
+                try {
+                    viewModel.editMetadata(task, metadata)
+                    done(null)
+                    editingId = null
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    done(error.message ?: "無法保存修改，請重試")
+                }
+            }
+        })
     }
 }
 
@@ -208,7 +255,9 @@ private fun EmptyState(isFirstDownload: Boolean) {
 }
 
 @Composable
-private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit, onRemove: () -> Unit) {
+private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit, onCancel: () -> Unit,
+    onRemove: () -> Unit, onEdit: () -> Unit, queueNumber: Int?) {
+    val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
     val failed = task.status == DownloadStatus.FAILED
     val active = !task.status.isTerminal
@@ -241,6 +290,11 @@ private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit,
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(task.title, style = MaterialTheme.typography.titleSmall,
                         maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    sourceMetadata(task)?.let { metadata ->
+                        Text(metadata, style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    }
                     val format = when (task.formatLabel) {
                         "Best" -> "最佳畫質"
                         "Image" -> "圖片原檔"
@@ -256,6 +310,34 @@ private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit,
                         Icon(Icons.Filled.MoreVert, contentDescription = "下載項目選單")
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        DropdownMenuItem(text = { Text("複製原始連結") }, onClick = {
+                            showMenu = false
+                            context.getSystemService<ClipboardManager>()?.setPrimaryClip(ClipData.newPlainText("原始連結", task.sourceUrl))
+                            Toast.makeText(context, "已複製原始連結", Toast.LENGTH_SHORT).show()
+                        })
+                        DropdownMenuItem(text = { Text("開啟原始網頁") }, onClick = {
+                            showMenu = false
+                            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(task.sourceUrl))) }
+                                .onFailure { Toast.makeText(context, "無法開啟原始網頁", Toast.LENGTH_SHORT).show() }
+                        })
+                        DropdownMenuItem(text = { Text("手動選擇格式") }, onClick = {
+                            showMenu = false
+                            context.startActivity(Intent(context, ShareReceiverActivity::class.java)
+                                .putExtra(Intent.EXTRA_TEXT, task.pageUrl)
+                                .putExtra(ShareReceiverActivity.EXTRA_MANUAL_PICKER, true))
+                        })
+                        DropdownMenuItem(text = { Text("轉文字") }, enabled = transcriptSourceFor(task) != null, onClick = {
+                            showMenu = false
+                            transcribeTask(context, task)
+                        })
+                        if (task.sourceKind != SourceKind.GENERAL) {
+                            DropdownMenuItem(text = { Text("修正劇集資料") }, enabled = !task.status.isActive,
+                                onClick = { showMenu = false; onEdit() })
+                        }
+                        if (active) {
+                            DropdownMenuItem(text = { Text("取消下載") }, enabled = !task.cancelRequested,
+                                onClick = { showMenu = false; onCancel() })
+                        }
                         DropdownMenuItem(
                             text = { Text("移除紀錄") },
                             leadingIcon = { Icon(Icons.Filled.DeleteOutline, contentDescription = null) },
@@ -274,18 +356,21 @@ private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit,
                     contentDescription = null, tint = statusColor, modifier = Modifier.size(18.dp),
                 )
                 Column(Modifier.weight(1f)) {
-                    Text(statusText(task), style = MaterialTheme.typography.labelLarge, color = statusColor)
+                    Text(statusText(task, queueNumber), style = MaterialTheme.typography.labelLarge, color = statusColor)
                     if (failed) {
                         Text(task.errorMessage ?: "未知錯誤", style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    } else if (task.progressDetail != null && active) {
+                        Text(task.progressDetail.orEmpty(), style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 if (task.status == DownloadStatus.COMPLETED) {
                     FilledTonalIconButton(onClick = onOpen) {
                         Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "開啟檔案", modifier = Modifier.size(20.dp))
                     }
-                } else if (failed) {
+                } else if (failed || task.status == DownloadStatus.CANCELED) {
                     TextButton(onClick = onRetry) {
                         Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                         Text("重試", modifier = Modifier.padding(start = 4.dp))
@@ -303,8 +388,8 @@ private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit,
     }
 }
 
-private fun statusText(task: DownloadTask): String = when (task.status) {
-    DownloadStatus.QUEUED -> "排隊中"
+private fun statusText(task: DownloadTask, queueNumber: Int?): String = if (task.cancelRequested) "正在取消…" else when (task.status) {
+    DownloadStatus.QUEUED -> queueNumber?.let { "排隊中 · 排程第 $it 項" } ?: "排隊中"
     DownloadStatus.EXTRACTING -> "解析中"
     DownloadStatus.DOWNLOADING ->
         if (task.progress in 0f..1f) "下載中 ${(task.progress * 100).toInt()}%" else "下載中"
@@ -312,6 +397,80 @@ private fun statusText(task: DownloadTask): String = when (task.status) {
     DownloadStatus.COMPLETED -> "已完成"
     DownloadStatus.FAILED -> "下載失敗"
     DownloadStatus.CANCELED -> "已取消"
+}
+
+private fun sourceMetadata(task: DownloadTask): String? {
+    val source = when (task.sourceKind) {
+        SourceKind.GIMY -> "Gimy"
+        SourceKind.EIGHT_MAPLE -> "8maple"
+        SourceKind.GENERAL -> return null
+    }
+    return listOfNotNull(source, task.seriesTitle, task.seasonNumber?.let { "第 $it 季" },
+        task.episodeNumber?.let { "第 $it 集" }, task.lineName ?: task.lineId?.let { "線路 $it" }).joinToString(" · ")
+}
+
+@Composable
+private fun MetadataDialog(task: DownloadTask, onDismiss: () -> Unit,
+    onSave: (EpisodeMetadata, (String?) -> Unit) -> Unit) {
+    var title by rememberSaveable(task.id) { mutableStateOf(task.title) }
+    var series by rememberSaveable(task.id) { mutableStateOf(task.seriesTitle.orEmpty()) }
+    var season by rememberSaveable(task.id) { mutableStateOf(task.seasonNumber?.toString().orEmpty()) }
+    var episode by rememberSaveable(task.id) { mutableStateOf(task.episodeNumber?.toString().orEmpty()) }
+    var saving by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    fun validNumber(text: String) = text.isBlank() || text.trim().toIntOrNull()?.let { it > 0 } == true
+    AlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        title = { Text("修正劇集資料") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("更新記錄資訊；已建立的檔案不會搬動。留空的季數、集數表示未知。",
+                    style = MaterialTheme.typography.bodyMedium)
+                OutlinedTextField(title, { title = it }, label = { Text("標題") }, enabled = !saving,
+                    modifier = Modifier.fillMaxWidth(), singleLine = true, isError = title.isBlank())
+                OutlinedTextField(series, { series = it }, label = { Text("影集名稱（選填）") }, enabled = !saving,
+                    modifier = Modifier.fillMaxWidth(), singleLine = true)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(season, { season = it }, label = { Text("季數（選填）") }, enabled = !saving,
+                        modifier = Modifier.weight(1f), singleLine = true, isError = !validNumber(season),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    OutlinedTextField(episode, { episode = it }, label = { Text("集數（選填）") }, enabled = !saving,
+                        modifier = Modifier.weight(1f), singleLine = true, isError = !validNumber(episode),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                }
+                if (!validNumber(season) || !validNumber(episode)) {
+                    Text("季數與集數請輸入正整數，或留空表示未知。", color = MaterialTheme.colorScheme.error)
+                }
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = !saving && !task.status.isActive && title.isNotBlank() && validNumber(season) && validNumber(episode),
+                modifier = Modifier.heightIn(min = 48.dp), onClick = {
+                    saving = true
+                    error = null
+                    onSave(EpisodeMetadata(title.trim(), series.trim().ifBlank { null },
+                        season.trim().toIntOrNull(), episode.trim().toIntOrNull())) { message ->
+                        saving = false
+                        error = message
+                    }
+                }) { Text(if (saving) "儲存中…" else "儲存") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !saving, modifier = Modifier.heightIn(min = 48.dp)) { Text("取消") } },
+    )
+}
+
+private fun transcribeTask(context: Context, task: DownloadTask) {
+    val source = transcriptSourceFor(task) ?: return
+    val intent = Intent(context, TaskTranscribeActivity::class.java)
+        .putExtra(ShareReceiverActivity.EXTRA_TRANSCRIBE_ONLY, true)
+    if (source.isUrl) intent.putExtra(Intent.EXTRA_TEXT, source.uri) else {
+        intent.action = Intent.ACTION_SEND
+        intent.type = task.mimeType
+        intent.putExtra(Intent.EXTRA_STREAM, Uri.parse(source.uri))
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(intent)
 }
 
 private fun pasteUrlAndDownload(context: Context) {

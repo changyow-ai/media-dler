@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.net.Uri
+import android.os.Build
 import android.os.IBinder
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -89,9 +90,9 @@ class AudioExtractionService : Service() {
             val snapshot = settings.settings.first()
             val saved = if (snapshot.storageMode == StorageMode.SAF) {
                 container.safStorage.save(temp, displayName, mime, snapshot.safTreeUri)
-            } else {
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 container.mediaStoreStorage.save(temp, displayName, mime)
-            }
+            } else error("Android 9 請到設定選擇儲存資料夾後重試")
             Notifications.extracted(this, notifyId, title, saved.toString(), mime)
         } catch (t: Throwable) {
             Notifications.extractFailed(this, notifyId, title, t.message)

@@ -52,7 +52,9 @@ class ShopeeExtractor(context: Context) : MediaExtractor {
             val script = scriptTemplate
                 .replace("__SHOP_ID_JSON__", Json.encodeToString(product.shopId))
                 .replace("__ITEM_ID_JSON__", Json.encodeToString(product.itemId))
-            Result.success(readProduct(product, script))
+            Result.success(readProduct(product, script).map { item ->
+                item.copy(source = item.source.copy(originalUrl = url))
+            })
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {

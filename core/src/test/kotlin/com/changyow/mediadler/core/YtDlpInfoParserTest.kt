@@ -1,6 +1,9 @@
 package com.changyow.mediadler.core
 
 import com.changyow.mediadler.core.extract.YtDlpInfoParser
+import com.changyow.mediadler.core.model.DownloadTarget
+import com.changyow.mediadler.core.model.SourceContext
+import com.changyow.mediadler.core.model.SourceKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -28,6 +31,10 @@ class YtDlpInfoParserTest {
         assertEquals("jpg", image.formats.single().ext)
         assertFalse(image.formats.single().hasVideo)
         assertFalse(image.formats.single().hasAudio)
+        assertEquals(SourceContext("https://www.instagram.com/p/DeRkSRKDnnJ/",
+            "https://www.instagram.com/p/DeRkSRKDnnJ/"), image.source)
+        assertEquals(DownloadTarget.DIRECT, image.downloadTarget)
+        assertEquals(image.sourceUrl, image.formats.single().resource?.url)
     }
 
     @Test fun instagramMixedCarouselKeepsImagesAndVideoPlaylistIndices() {
@@ -50,6 +57,9 @@ class YtDlpInfoParserTest {
             items.map { it.sourceUrl })
         assertEquals("dash", items[1].formats.single().formatId)
         assertEquals(720, items[1].formats.single().height)
+        assertTrue(items.all { it.source.originalUrl == post && it.source.pageUrl == post })
+        assertEquals(listOf(DownloadTarget.DIRECT, DownloadTarget.PAGE, DownloadTarget.DIRECT),
+            items.map { it.downloadTarget })
     }
 
     @Test fun instagramReelKeepsVideoAndAudioFormatsInsteadOfThumbnail() {
@@ -171,5 +181,53 @@ class YtDlpInfoParserTest {
         val items = YtDlpInfoParser.parse(json, "http://cdn/photo.jpg")
         assertEquals(1, items.size)
         assertTrue(items[0].isImage)
+    }
+
+    @Test fun canonicalPageAndStreamsDoNotReplaceOriginalShareOrClassifyGeneralSource() {
+        val json = """{"id":"123","title":"原始標題 第5集","webpage_url":"https://example.org/watch/123",
+          "extractor_key":"Generic","formats":[{"format_id":"hls","ext":"mp4","vcodec":"h264",
+          "acodec":"aac","url":"https://cdn.example/gimy/8maple/master.m3u8?token=runtime"}]}"""
+        val item = YtDlpInfoParser.parse(json, "https://redirect.example/123", "https://share.example/short").single()
+        assertEquals("https://share.example/short", item.source.originalUrl)
+        assertEquals("https://example.org/watch/123", item.source.pageUrl)
+        assertEquals(item.source.pageUrl, item.sourceUrl)
+        assertEquals(SourceKind.GENERAL, item.source.kind)
+        assertEquals(DownloadTarget.PAGE, item.downloadTarget)
+        assertEquals("https://cdn.example/gimy/8maple/master.m3u8?token=runtime", item.formats.single().resource?.url)
+        assertEquals("原始標題 第5集", item.originalTitle)
+        assertEquals(null, item.seriesTitle)
+        assertEquals(null, item.seasonNumber)
+        assertEquals(null, item.episodeNumber)
+    }
+
+    @Test fun episodeMetadataAndResourceHeadersAreRetainedWithoutOverwritingPageHeaders() {
+        val json = """{"id":"123","title":"完整原標題","series":"劇名","episode_number":5,
+          "thumbnail":"https://cdn.example/art.jpg","http_headers":{"Referer":"https://page.example/","User-Agent":"player"},
+          "formats":[{"format_id":"hls","ext":"mp4","vcodec":"h264","acodec":"aac",
+          "url":"https://cdn.example/master.m3u8","http_headers":{"referer":"https://player.example/iframe","X-Token":"token"}}]}"""
+        val item = YtDlpInfoParser.parse(json, "https://page.example/").single()
+        assertEquals("劇名", item.seriesTitle)
+        assertEquals(5, item.episodeNumber)
+        assertEquals(null, item.seasonNumber)
+        assertEquals("完整原標題", item.originalTitle)
+        assertEquals("https://cdn.example/art.jpg", item.thumbnailUrl)
+        assertEquals(mapOf("Referer" to "https://page.example/", "User-Agent" to "player"), item.httpHeaders)
+        assertEquals(mapOf("referer" to "https://player.example/iframe", "User-Agent" to "player", "X-Token" to "token"),
+            item.formats.single().resource?.httpHeaders)
+    }
+
+    @Test fun playlistHeadersAreInheritedWithEntryAndResourceOverrides() {
+        val json = """{"_type":"playlist","webpage_url":"https://example.org/canonical",
+          "http_headers":{"Referer":"https://playlist.example/","User-Agent":"player"},"entries":[
+          {"id":"v","season_number":0,"episode_number":1,"http_headers":{"referer":"https://entry.example/"},
+           "formats":[{"format_id":"f","ext":"mp4","vcodec":"h264","acodec":"aac",
+             "url":"https://cdn.example/video.mp4","http_headers":{"X-Token":"token"}}]}]}"""
+        val item = YtDlpInfoParser.parse(json, "https://share.example/list").single()
+        assertEquals(SourceContext("https://share.example/list", "https://example.org/canonical"), item.source)
+        assertEquals(1, item.playlistIndex)
+        assertEquals(0, item.seasonNumber)
+        assertEquals(mapOf("referer" to "https://entry.example/", "User-Agent" to "player"), item.httpHeaders)
+        assertEquals(mapOf("referer" to "https://entry.example/", "User-Agent" to "player", "X-Token" to "token"),
+            item.formats.single().resource?.httpHeaders)
     }
 }

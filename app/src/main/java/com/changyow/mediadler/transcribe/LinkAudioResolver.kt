@@ -2,10 +2,17 @@ package com.changyow.mediadler.transcribe
 
 import android.content.Context
 import com.changyow.mediadler.core.extract.ThreadsUrl
+import com.changyow.mediadler.core.extract.SpecialSources
+import com.changyow.mediadler.core.download.DownloadPlanner
+import com.changyow.mediadler.core.model.AudioFormat
+import com.changyow.mediadler.core.model.DownloadRequest
+import com.changyow.mediadler.core.model.FormatSelection
+import com.changyow.mediadler.core.model.MediaItem
 import com.changyow.mediadler.core.repo.MediaExtractor
 import com.changyow.mediadler.core.transcribe.SubtitleVtt
 import com.changyow.mediadler.data.ytdlp.EngineInitializer
 import com.changyow.mediadler.data.ytdlp.EngineState
+import com.changyow.mediadler.data.ytdlp.toYoutubeDLRequest
 import com.yausername.youtubedl_android.YoutubeDLRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -42,8 +49,16 @@ class LinkAudioResolver(
             // Resolve it through the media extractor first (which scrapes the shared post's direct
             // CDN video), then transcribe that concrete media URL. Other links keep the captions
             // shortcut + best-audio path, which works directly off the original URL.
-            if (ThreadsUrl.embedUrlOrNull(url) != null) {
-                Resolved.Audio(downloadAudio(resolveThreadsVideoUrl(url), onDownloadProgress))
+            val specialPage = SpecialSources.episodePageOrNull(url)
+            if (specialPage != null) {
+                val items = mediaExtractor.extract(url).getOrThrow()
+                check(items.size == 1 && !items.single().isImage && items.single().source.kind == specialPage.kind) {
+                    "這個播放頁沒有可轉文字的影片"
+                }
+                Resolved.Audio(downloadAudio(url, onDownloadProgress, items.single()))
+            } else if (ThreadsUrl.embedUrlOrNull(url) != null) {
+                val video = resolveThreadsVideo(url)
+                Resolved.Audio(downloadAudio(url, onDownloadProgress, video))
             } else {
                 tryCaptions(url) ?: Resolved.Audio(downloadAudio(url, onDownloadProgress))
             }
@@ -54,11 +69,11 @@ class LinkAudioResolver(
      * downloader uses, scoped to the shared post). Picks the first video; images/text can't be
      * transcribed. Throws a user-facing message when the post has no video.
      */
-    private suspend fun resolveThreadsVideoUrl(url: String): String {
+    private suspend fun resolveThreadsVideo(url: String): MediaItem {
         val items = mediaExtractor.extract(url).getOrElse { throw it }
         val video = items.firstOrNull { !it.isImage }
             ?: error("這則 Threads 貼文沒有可轉文字的影片（可能只有圖片或純文字）")
-        return video.sourceUrl
+        return video
     }
 
     /** Best-effort subtitle fetch without downloading the video. Returns null when there are none. */
@@ -97,10 +112,15 @@ class LinkAudioResolver(
     }
 
     /** Downloads best audio as a MediaCodec-friendly m4a. Caller owns (and deletes) the file. */
-    private suspend fun downloadAudio(url: String, onProgress: (Float) -> Unit): File {
+    private suspend fun downloadAudio(url: String, onProgress: (Float) -> Unit, item: MediaItem? = null): File {
         val dir = File(context.cacheDir, "transcribe/audio/${System.nanoTime()}").apply { mkdirs() }
         val processId = "transcribe-${System.nanoTime()}"
-        val request = YoutubeDLRequest(url).apply {
+        val sourceRequest = item?.let {
+            DownloadPlanner.plan(DownloadRequest(it, FormatSelection.Audio(AudioFormat.M4A)))
+                .copy(formatArguments = emptyList())
+                .toYoutubeDLRequest()
+        } ?: YoutubeDLRequest(url)
+        val request = sourceRequest.apply {
             addOption("-f", "bestaudio[ext=m4a]/bestaudio/best")
             addOption("-x")
             addOption("--audio-format", "m4a")

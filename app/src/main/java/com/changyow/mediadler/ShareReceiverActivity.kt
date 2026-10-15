@@ -6,9 +6,11 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.lifecycleScope
 import com.changyow.mediadler.core.extract.UrlExtractor
+import com.changyow.mediadler.core.extract.SeriesCatalogParser
 import com.changyow.mediadler.download.DownloadService
 import com.changyow.mediadler.transcribe.AudioExtractionService
 import com.changyow.mediadler.transcribe.TranscriptJob
@@ -16,20 +18,28 @@ import com.changyow.mediadler.transcribe.TranscriptionService
 import com.changyow.mediadler.ui.picker.LocalMediaSheet
 import com.changyow.mediadler.ui.picker.ShareSheet
 import com.changyow.mediadler.ui.theme.MediaDlerTheme
+import com.changyow.mediadler.ui.series.SeriesPickerScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-/** Transparent entry point for ACTION_SEND / ACTION_VIEW / ACTION_PROCESS_TEXT share intents. */
-class ShareReceiverActivity : ComponentActivity() {
+/** Transparent entry point for shared links/media and ACTION_PROCESS_TEXT selections. */
+open class ShareReceiverActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // The exported share entry always retains the normal chooser. Only our
+        // non-exported Activity may use the explicit in-app transcription shortcut.
+        val directTranscribe = this is TaskTranscribeActivity && intent.getBooleanExtra(EXTRA_TRANSCRIBE_ONLY, false)
 
         // A shared local media file: ask what to do. Video → 轉文字 or 取出聲音; audio → 轉文字 only.
         val mediaStream = extractMediaStream(intent)
         if (mediaStream != null) {
+            if (directTranscribe) {
+                transcribeLocalFile(mediaStream)
+                return
+            }
             val isVideo = intent.type?.startsWith("video/") == true
             setContent {
                 MediaDlerTheme {
@@ -54,10 +64,29 @@ class ShareReceiverActivity : ComponentActivity() {
             finish()
             return
         }
+        if (directTranscribe) {
+            startTranscribe(TranscriptJob.idFor(url), url, isUrl = true, label = url)
+            finish()
+            return
+        }
+        if (SeriesCatalogParser.isCatalogUrl(url)) {
+            enableEdgeToEdge()
+            setContent {
+                MediaDlerTheme {
+                    SeriesPickerScreen(url = url, onSubmitted = { count ->
+                        DownloadService.start(this)
+                        Toast.makeText(this, "已加入 $count 個下載", Toast.LENGTH_SHORT).show()
+                        finish()
+                    }, onClose = { finish() })
+                }
+            }
+            return
+        }
         setContent {
             MediaDlerTheme {
                 ShareSheet(
                     url = url,
+                    forcePicker = intent.getBooleanExtra(EXTRA_MANUAL_PICKER, false),
                     onSubmitted = { DownloadService.start(this) },
                     onTranscribe = {
                         startTranscribe(TranscriptJob.idFor(url), url, isUrl = true, label = url)
@@ -132,4 +161,12 @@ class ShareReceiverActivity : ComponentActivity() {
         }
         return null
     }
+
+    companion object {
+        const val EXTRA_MANUAL_PICKER = "extra_manual_picker"
+        const val EXTRA_TRANSCRIBE_ONLY = "extra_transcribe_only"
+    }
 }
+
+/** Private entry for an explicit action on an existing task. */
+class TaskTranscribeActivity : ShareReceiverActivity()

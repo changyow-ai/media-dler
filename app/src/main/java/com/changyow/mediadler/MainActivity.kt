@@ -1,6 +1,7 @@
 package com.changyow.mediadler
 
 import android.os.Bundle
+import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -33,9 +34,17 @@ import com.changyow.mediadler.ui.theme.MediaDlerTheme
 import com.changyow.mediadler.ui.transcribe.TranscriptHistoryScreen
 
 class MainActivity : ComponentActivity() {
+    companion object { const val EXTRA_RETRY_DOWNLOAD = "retry_download_task" }
+
+    override fun onStart() {
+        super.onStart()
+        if (appContainer.downloadQueue.hasQueued()) com.changyow.mediadler.download.DownloadService.start(this)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        handleDownloadAction(intent)
 
         val manager = appContainer.transcriptionManager
         // Persisted jobs load off the main thread; wait for that before deciding what to resume/open,
@@ -50,6 +59,20 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MediaDlerTheme { AppNavHost() }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleDownloadAction(intent)
+    }
+
+    private fun handleDownloadAction(intent: Intent) {
+        val taskId = intent.getStringExtra(EXTRA_RETRY_DOWNLOAD) ?: return
+        intent.removeExtra(EXTRA_RETRY_DOWNLOAD)
+        if (appContainer.downloadQueue.retry(taskId)) {
+            com.changyow.mediadler.download.DownloadService.start(this)
         }
     }
 }

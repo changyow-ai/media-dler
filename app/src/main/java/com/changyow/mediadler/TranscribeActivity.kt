@@ -12,11 +12,16 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.changyow.mediadler.ui.theme.MediaDlerTheme
 import com.changyow.mediadler.ui.transcribe.TranscribeScreen
 import com.changyow.mediadler.ui.transcribe.TranscribeViewModel
+import com.changyow.mediadler.transcribe.TranscriptionService
+import kotlinx.coroutines.launch
 
 /**
  * Full-screen transcribe flow. Launched from [ShareReceiverActivity] (local file or link), from a
@@ -34,6 +39,15 @@ class TranscribeActivity : ComponentActivity() {
             return
         }
         val manager = appContainer.transcriptionManager
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                manager.awaitHydrated()
+                // A retained task or notification can recreate this page without MainActivity.
+                // Resume only from a visible entry, after persisted checkpoints are loaded.
+                if (manager.hasPending()) TranscriptionService.start(this@TranscribeActivity)
+            }
+        }
 
         val viewModel: TranscribeViewModel by viewModels {
             viewModelFactory {

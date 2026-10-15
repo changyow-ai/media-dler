@@ -44,7 +44,7 @@ class ThreadsExtractor : MediaExtractor {
                         append("，含 OuterContainer=").append(body.contains("OuterContainer"))
                     }
                 }
-                items
+                items.map { item -> item.copy(source = item.source.copy(originalUrl = url)) }
             }
         }
 

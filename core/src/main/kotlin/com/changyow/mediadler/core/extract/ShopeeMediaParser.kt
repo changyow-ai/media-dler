@@ -2,6 +2,9 @@ package com.changyow.mediadler.core.extract
 
 import com.changyow.mediadler.core.model.MediaFormat
 import com.changyow.mediadler.core.model.MediaItem
+import com.changyow.mediadler.core.model.DownloadTarget
+import com.changyow.mediadler.core.model.MediaResource
+import com.changyow.mediadler.core.model.SourceContext
 import java.net.URI
 import java.util.Locale
 import kotlinx.serialization.Serializable
@@ -51,7 +54,9 @@ object ShopeeMediaParser {
             val name = "ShopeeImage_${product.shopId}_${product.itemId}_${index + 1}"
             items += media(url, name, isImage = true, thumbnail = url)
         }
-        return items
+        return items.map { item ->
+            item.copy(source = SourceContext(product.canonicalUrl, product.canonicalUrl))
+        }
     }
 
     private fun codecRank(codec: String): Int = when (codec.uppercase(Locale.ROOT).replace(".", "")) {
@@ -108,8 +113,10 @@ object ShopeeMediaParser {
                 hasAudio = !isImage,
                 isImage = isImage,
                 filesizeBytes = size,
+                resource = MediaResource(url),
             ),
         ),
+        downloadTarget = DownloadTarget.DIRECT,
     )
 
     @Serializable private data class Snapshot(

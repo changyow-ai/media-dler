@@ -10,17 +10,10 @@ import com.changyow.mediadler.core.transcribe.SegmentMerge
 import com.changyow.mediadler.core.transcribe.Transcript
 import com.changyow.mediadler.core.transcribe.WindowPlanner
 import com.changyow.mediadler.util.NetworkStatus
-import com.k2fsa.sherpa.onnx.FeatureConfig
-import com.k2fsa.sherpa.onnx.OfflineModelConfig
-import com.k2fsa.sherpa.onnx.OfflineParaformerModelConfig
-import com.k2fsa.sherpa.onnx.OfflineQwen3AsrModelConfig
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
-import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
-import com.k2fsa.sherpa.onnx.OfflineSenseVoiceModelConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import java.io.File
 
 /**
  * On-device [StreamingEngine] backed by sherpa-onnx (ONNX Runtime, JNI). Handles the sherpa-backed
@@ -66,7 +59,6 @@ class SherpaOnnxEngine(
         }
         val modelDir = models.ensure(model) { onProgress(it * 0.05f) }
         val uri = Uri.parse(audioUri)
-        val threads = Runtime.getRuntime().availableProcessors().coerceIn(2, 8)
 
         // Plan windows from container duration so PCM is decoded one window at a time (bounded memory).
         // Unknown duration ⇒ stream open-ended windows, stopping at the first empty slice.
@@ -81,7 +73,7 @@ class SherpaOnnxEngine(
 
         val recognizer = OfflineRecognizer(
             assetManager = null,
-            config = configFor(model, modelDir, knownLanguage, threads),
+            config = sherpaRecognizerConfig(model, modelDir, knownLanguage),
         )
         try {
             val parts = ArrayList<String>()
@@ -152,7 +144,7 @@ class SherpaOnnxEngine(
                 Log.d(
                     "SherpaDbg",
                     "model=$model win=$index slice=${slice.size} samples (${slice.size / AudioToPcm.TARGET_SAMPLE_RATE}s) " +
-                        "svLang='${senseVoiceLang(knownLanguage)}' knownLang=$knownLanguage " +
+                        "svLang='${senseVoiceLanguageHint(knownLanguage)}' knownLang=$knownLanguage " +
                         "=> rawText='${text}' rawLang='${lang}' textLen=${text.length}",
                 )
 
@@ -193,57 +185,6 @@ class SherpaOnnxEngine(
             val secs = maxSliceSamples / AudioToPcm.TARGET_SAMPLE_RATE
             append("音訊已解碼（最長視窗 $maxSliceSamples samples ≈ ${secs}s）但模型輸出為空（疑似模型／ONNX 層）。")
         }
-    }
-
-    /** Builds the OfflineRecognizer config for [model], pointing it at the extracted files in [dir]. */
-    private fun configFor(
-        model: SherpaModel,
-        dir: File,
-        knownLanguage: String?,
-        threads: Int,
-    ): OfflineRecognizerConfig {
-        val mc = OfflineModelConfig(numThreads = threads, provider = "cpu")
-        when (model) {
-            SherpaModel.SENSE_VOICE -> {
-                mc.senseVoice = OfflineSenseVoiceModelConfig(
-                    model = File(dir, "model.int8.onnx").absolutePath,
-                    language = senseVoiceLang(knownLanguage),
-                    useInverseTextNormalization = true,
-                )
-                mc.tokens = File(dir, "tokens.txt").absolutePath
-            }
-            SherpaModel.PARAFORMER -> {
-                mc.paraformer = OfflineParaformerModelConfig(
-                    model = File(dir, "model.int8.onnx").absolutePath,
-                )
-                mc.tokens = File(dir, "tokens.txt").absolutePath
-            }
-            SherpaModel.QWEN3 -> {
-                // Qwen3-ASR is a multi-file model (no tokens.txt): conv frontend + encoder + decoder +
-                // an HF-style tokenizer directory. Filenames match the sherpa-onnx packaging.
-                mc.qwen3Asr = OfflineQwen3AsrModelConfig(
-                    convFrontend = File(dir, "conv_frontend.onnx").absolutePath,
-                    encoder = File(dir, "encoder.int8.onnx").absolutePath,
-                    decoder = File(dir, "decoder.int8.onnx").absolutePath,
-                    tokenizer = File(dir, "tokenizer").absolutePath,
-                )
-            }
-        }
-        return OfflineRecognizerConfig(
-            featConfig = FeatureConfig(sampleRate = AudioToPcm.TARGET_SAMPLE_RATE, featureDim = 80),
-            modelConfig = mc,
-            decodingMethod = "greedy_search",
-        )
-    }
-
-    /** Maps a forced ISO language to a SenseVoice hint; unsupported/auto ⇒ "" (SenseVoice auto). */
-    private fun senseVoiceLang(knownLanguage: String?): String = when (knownLanguage?.lowercase()) {
-        "zh" -> "zh"
-        "en" -> "en"
-        "ja" -> "ja"
-        "ko" -> "ko"
-        "yue" -> "yue"
-        else -> ""
     }
 
     /** Default language when none is forced: Paraformer is Chinese-only; others detect per result. */

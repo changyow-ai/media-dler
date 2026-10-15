@@ -2,6 +2,9 @@ package com.changyow.mediadler.core.extract
 
 import com.changyow.mediadler.core.model.MediaFormat
 import com.changyow.mediadler.core.model.MediaItem
+import com.changyow.mediadler.core.model.DownloadTarget
+import com.changyow.mediadler.core.model.MediaResource
+import com.changyow.mediadler.core.model.SourceContext
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
@@ -86,7 +89,16 @@ object ThreadsEmbedParser {
         images.forEachIndexed { i, u ->
             items += build(u, "ThreadsImage_${code}_${i + 1}", isImage = true)
         }
-        return items
+        return items.map { item ->
+            val isPage = INSTAGRAM_REEL.containsMatchIn(item.sourceUrl)
+            item.copy(
+                source = SourceContext(postUrl, if (isPage) item.sourceUrl else postUrl),
+                downloadTarget = if (isPage) DownloadTarget.PAGE else DownloadTarget.DIRECT,
+                formats = item.formats.map { format ->
+                    format.copy(resource = if (isPage) null else MediaResource(item.sourceUrl))
+                },
+            )
+        }
     }
 
     /**
