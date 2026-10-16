@@ -21,6 +21,12 @@ object YtDlpProgressParser {
 
     fun parse(line: String): DownloadProgress? {
         val value = line.trim()
+        if (value.startsWith("media-dler-resume:")) {
+            val fragment = value.removePrefix("media-dler-resume:").toLongOrNull()?.takeIf { it > 0 }
+                ?: return null
+            return DownloadProgress(DownloadPhase.DOWNLOADING,
+                detail = "正在從片段 $fragment 接續（回退一段重新下載）")
+        }
         if (value.startsWith("media-dler-phase:") || postprocessor.containsMatchIn(value)) {
             return DownloadProgress(DownloadPhase.PROCESSING, detail = "正在封裝與處理媒體")
         }

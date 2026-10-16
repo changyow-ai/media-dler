@@ -4,8 +4,10 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.net.wifi.WifiManager
 import android.os.IBinder
 import android.os.PowerManager
+import android.util.Log
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.changyow.mediadler.appContainer
@@ -28,6 +30,7 @@ class DownloadService : Service() {
     private var latestStartId = 0
     private var stoppedNormally = false
     private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -38,17 +41,23 @@ class DownloadService : Service() {
         wakeLock = getSystemService(PowerManager::class.java)
             ?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "media-dler:download")
             ?.apply { setReferenceCounted(false) }
+        wifiLock = createWifiLock()
         scope.launch {
             runner.state.collectLatest { state ->
                 if (state.owner != owner) return@collectLatest
                 if (state.phase == DownloadRunner.Phase.RUNNING || state.phase == DownloadRunner.Phase.STOPPING) {
                     try {
+                        // CPU wakefulness alone does not keep the Wi-Fi radio awake on older phones.
+                        try { wifiLock?.acquire() }
+                        catch (error: RuntimeException) {
+                            Log.w(TAG, "Unable to acquire download Wi-Fi lock", error)
+                        }
                         while (true) {
                             // Bounded leases, renewed only while this foreground service owns work.
                             wakeLock?.acquire(10 * 60_000L)
                             delay(4 * 60_000L)
                         }
-                    } finally { releaseWakeLock() }
+                    } finally { releaseDownloadLocks() }
                 } else if (state.startId == latestStartId && stopSelfResult(state.startId)) {
                     stoppedNormally = true
                     ServiceCompat.stopForeground(this@DownloadService, ServiceCompat.STOP_FOREGROUND_REMOVE)
@@ -61,14 +70,16 @@ class DownloadService : Service() {
         latestStartId = startId
         runner.wake(owner, startId, userInitiated = intent?.getBooleanExtra(EXTRA_USER, false) == true,
             resumeAll = intent?.getBooleanExtra(EXTRA_RESUME, false) == true)
-        return START_NOT_STICKY
+        // A system restart uses the durable queue, without replaying user resume commands.
+        // Explicit stopSelf() on idle, pause or timeout still ends the service normally.
+        return START_STICKY
     }
 
     override fun onTimeout(startId: Int, fgsType: Int) {
         runner.stop(owner, QueuePause(QueuePauseKind.SYSTEM, "系統已暫停背景下載，開啟 App 後可繼續排程"))
         // Android's timeout grace is short: cancellation/ack continue in the application runner.
         stoppedNormally = true
-        releaseWakeLock()
+        releaseDownloadLocks()
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -76,14 +87,31 @@ class DownloadService : Service() {
     override fun onDestroy() {
         if (!stoppedNormally) runner.stop(owner)
         scope.cancel()
-        releaseWakeLock()
+        releaseDownloadLocks()
         super.onDestroy()
     }
 
-    private fun releaseWakeLock() { wakeLock?.takeIf { it.isHeld }?.release() }
+    @Suppress("DEPRECATION") // HIGH_PERF supports screen-off downloads on Android 9/11.
+    private fun createWifiLock(): WifiManager.WifiLock? = try {
+        applicationContext.getSystemService(WifiManager::class.java)
+            ?.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "media-dler:download-wifi")
+            ?.apply { setReferenceCounted(false) }
+    } catch (error: RuntimeException) {
+        // Devices without usable Wi-Fi must still retain foreground/CPU protection.
+        Log.w(TAG, "Unable to create download Wi-Fi lock", error)
+        null
+    }
+
+    private fun releaseDownloadLocks() {
+        try { wifiLock?.takeIf { it.isHeld }?.release() }
+        catch (error: RuntimeException) {
+            Log.w(TAG, "Unable to release download Wi-Fi lock", error)
+        } finally { wakeLock?.takeIf { it.isHeld }?.release() }
+    }
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
+        private const val TAG = "DownloadService"
         private const val EXTRA_USER = "user_initiated"
         private const val EXTRA_RESUME = "resume_all"
 

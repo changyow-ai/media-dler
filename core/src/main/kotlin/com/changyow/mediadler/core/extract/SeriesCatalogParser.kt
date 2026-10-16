@@ -7,7 +7,7 @@ import com.changyow.mediadler.core.model.SeriesCatalog
 import com.changyow.mediadler.core.model.SourceKind
 import java.net.URI
 
-/** Scoped to the two observed playlist structures. No page or player scripts are executed. */
+/** Scoped to observed playlist structures. No page or player scripts are executed. */
 object SeriesCatalogParser {
     private val flags = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
     private val attributes = Regex("""([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')""")
@@ -40,6 +40,7 @@ object SeriesCatalogParser {
                 val label = text(link.groupValues[2]).takeIf { it.isNotBlank() } ?: return@forEachIndexed
                 if (label in nonEpisodeLabels) return@forEachIndexed
                 val number = episodeLabel.matchEntire(label)?.groupValues?.get(1)?.toIntOrNull()
+                    ?: label.takeIf { GimyUrl.isGimyAi(pageUrl) && it.matches(Regex("\\d+")) }?.toIntOrNull()
                 val key = URI(url).path
                 val previous = result[key]
                 if (previous != null) {
@@ -75,6 +76,24 @@ object SeriesCatalogParser {
                 check("myui-content__list" in attrs(block.groupValues[2])["class"].orEmpty().split(Regex("\\s+"))) { "8maple 播放清單結構已變更" }
                 PlaybackLine(id, name, order, episodes(block.groupValues[3], id, name) { url ->
                     EightMapleUrl.playbackOrNull(url)?.let { it.id == eightMapleId && it.line.toString() == id } == true
+                })
+            }
+        } else if (GimyUrl.isGimyAi(pageUrl)) {
+            val routes = Regex("""<div\b[^>]*class=["']route-title["'][^>]*>(.*?)</div\s*>\s*<div\b([^>]*)>(.*?)</div\s*>""", flags)
+                .findAll(clean).toList()
+            val seen = mutableSetOf<String>()
+            check(routes.isNotEmpty()) { "Gimy 首頁播放清單缺失，請稍後重試" }
+            routes.mapIndexed { order, route ->
+                val attributes = attrs(route.groupValues[2])
+                val id = attributes["data-route-sid"]?.takeIf { it.toIntOrNull()?.let { n -> n > 0 } == true }
+                    ?: error("Gimy 線路編號無法辨識")
+                check("episodes-route" in attributes["class"].orEmpty().split(Regex("\\s+")) && seen.add(id)) {
+                    "Gimy 播放線路資料缺失或不明確"
+                }
+                val name = text(route.groupValues[1].replace(Regex("""<span\b[^>]*class=["']hd["'][^>]*>.*?</span\s*>""", flags), ""))
+                    .ifBlank { "線路 $id" }
+                PlaybackLine(id, name, order, episodes(route.groupValues[3], id, name) { url ->
+                    GimyUrl.playbackOrNull(url)?.let { it.id == gimyId && it.line.toString() == id } == true
                 })
             }
         } else {

@@ -158,6 +158,19 @@ class RoutingMediaExtractorTest {
         assertEquals(emptyList(), fallback.urls)
     }
 
+    @Test fun gimyAiPlaybackUsesTheDedicatedExtractor() = runTest {
+        val page = "https://gimyai.tw/play/916639-3-1.html"
+        val video = media("https://cdn.example/index.m3u8", "第 1 集", null, null)
+            .copy(source = SourceContext(page, page, SourceKind.GIMY))
+        val special = RecordingExtractor(Result.success(listOf(video)))
+        val fallback = unusedExtractor()
+        val result = RoutingMediaExtractor(unusedExtractor(), fallback, unusedExtractor(), gimy = special)
+            .extract(page).getOrThrow().single()
+        assertEquals(video, result)
+        assertEquals(listOf(page), special.urls)
+        assertEquals(emptyList(), fallback.urls)
+    }
+
     private fun unusedExtractor() = RecordingExtractor(Result.failure(AssertionError("must not be called")))
 
     private fun media(

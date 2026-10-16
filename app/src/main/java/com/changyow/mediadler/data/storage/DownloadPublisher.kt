@@ -2,6 +2,7 @@ package com.changyow.mediadler.data.storage
 
 import android.os.Build
 import com.changyow.mediadler.core.download.DownloadDestinationPolicy
+import com.changyow.mediadler.core.model.AppSettings
 import com.changyow.mediadler.core.model.DownloadRequest
 import com.changyow.mediadler.core.model.FormatSelection
 import com.changyow.mediadler.core.model.StorageMode
@@ -46,6 +47,16 @@ class DownloadPublisher(
         }
     }
 
+    /** Validate before network work, and recheck before committing a new destination. */
+    internal suspend fun requireWritableDestination(): AppSettings = withContext(Dispatchers.IO) {
+        settings.settings.first().also { current ->
+            if (current.storageMode == StorageMode.SAF) saf.requireWritableTree(current.safTreeUri)
+            else check(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                "Android 9 請到設定選擇儲存資料夾後重試"
+            }
+        }
+    }
+
     suspend fun publish(taskId: String, sourceFile: File, request: DownloadRequest): DownloadOutput =
         withContext(Dispatchers.IO) {
             mutex.withLock {
@@ -58,13 +69,9 @@ class DownloadPublisher(
                     ) MimeTypes.imageExtensionFromContent(sourceFile) ?: error("下載的內容不是支援的圖片")
                     else sourceFile.extension.ifBlank { "bin" }
                     val destination = DownloadDestinationPolicy.destination(request.item, ext)
-                    val current = settings.settings.first()
                     // Do not persist an unusable destination: retry must be able to pick up
                     // the folder chosen after an initial missing/revoked SAF permission.
-                    if (current.storageMode == StorageMode.SAF) saf.requireWritableTree(current.safTreeUri)
-                    else check(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        "Android 9 請到設定選擇儲存資料夾後重試"
-                    }
+                    val current = requireWritableDestination()
                     val token = MessageDigest.getInstance("SHA-256").digest(taskId.toByteArray())
                         .joinToString("") { "%02x".format(it) }.take(24)
                     // SAF rename may change the document URI. Its final token also closes

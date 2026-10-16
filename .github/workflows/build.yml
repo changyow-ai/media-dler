@@ -39,6 +39,9 @@ jobs:
           # fails at project configuration (even for :core tasks).
           sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools" "ndk;23.2.8568313" "cmake;3.22.1"
 
+      - name: Run HLS checkpoint tests
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s app/src/test/python -p 'test_*.py'
+
       - name: Run :core unit tests (red/green gate)
         run: ./gradlew :core:test --stacktrace
 

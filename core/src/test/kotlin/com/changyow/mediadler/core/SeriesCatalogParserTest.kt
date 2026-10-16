@@ -13,6 +13,41 @@ class SeriesCatalogParserTest {
     private val eightMapleUrl = "https://8maple.st/video/5uYC.html"
     private val gimyUrl = "https://gimytv.io/voddetail2/202561679.html"
 
+    @Test fun gimyAiDetailRoutesToSeriesPicker() {
+        assertTrue(SeriesCatalogParser.isCatalogUrl("https://gimyai.tw/detail/916639.html"))
+    }
+
+    @Test fun actualGimyAiCatalogPreservesItsRoutesAndNumericEpisodeLabels() {
+        val url = "https://gimyai.tw/detail/916639.html"
+        val catalog = SeriesCatalogParser.parse(fixture("gimyai-916639.html"), url)
+        assertEquals(SourceKind.GIMY, catalog.kind)
+        assertEquals("Doctor X：白色黑手黨時代", catalog.title)
+        assertEquals(listOf("3", "2", "1", "6", "4", "5", "7", "8"), catalog.lines.map { it.id })
+        assertEquals(listOf("清晰雲", "藍光線路 ᴴᴰ", "曦光雲", "墨都雲", "吉境雲", "微捷雲", "歐克雲", "天映雲"), catalog.lines.map { it.name })
+        assertEquals(15, catalog.lines.sumOf { it.episodes.size })
+        assertEquals(listOf("01", "02"), catalog.lines[1].episodes.map { it.label })
+        catalog.lines.forEachIndexed { order, line ->
+            assertEquals(order, line.sourceOrder)
+            assertEquals((1..line.episodes.size).toList(), line.episodes.map { it.page.episodeNumber })
+            line.episodes.forEachIndexed { index, episode ->
+                assertEquals("https://gimyai.tw/play/916639-${line.id}-${index + 1}.html", episode.page.playbackUrl)
+                assertEquals(url, episode.page.catalogUrl)
+                assertEquals(line.id, episode.page.lineId)
+                assertEquals(line.name, episode.page.lineName)
+                assertEquals(catalog.title, episode.page.seriesTitle)
+            }
+        }
+    }
+
+    @Test fun gimyAiCatalogScopesEpisodesToTheirSeriesAndRoute() {
+        val html = fixture("gimyai-916639.html").replace(
+            "href=\"/play/916639-3-2.html\"", "href=\"/play/999999-3-2.html\"",
+        ).replace("href=\"/play/916639-2-2.html\"", "href=\"/play/916639-1-2.html\"")
+        val catalog = SeriesCatalogParser.parse(html, "https://gimyai.tw/detail/916639.html")
+        assertEquals(1, catalog.lines[0].episodes.size)
+        assertEquals(1, catalog.lines[1].episodes.size)
+    }
+
     @Test fun actualEightMapleCatalogPreservesFourLinesAndAllEpisodeLabelsInPageOrder() {
         val original = "$eightMapleUrl?share=original"
         val catalog = SeriesCatalogParser.parse(fixture("8maple-5uYC.html"), eightMapleUrl, original)

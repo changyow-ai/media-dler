@@ -17,6 +17,9 @@ class GimyExtractor(private val client: SitePageClient = SitePageClient()) : Med
                 url, "Gimy", GimyMediaParser.USER_AGENT,
                 allowed = { GimyUrl.playbackId(it) != null },
             )
+            if (GimyUrl.playbackOrNull(page.url) != null) {
+                return@withContext Result.success(listOf(GimyMediaParser.parsePage(page.html, page.url, url)))
+            }
             val playerUrl = GimyMediaParser.playerUrl(page.html, page.url)
             val player = client.read(
                 playerUrl, "Gimy", GimyMediaParser.USER_AGENT,

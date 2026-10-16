@@ -1,6 +1,7 @@
 package com.changyow.mediadler.data.ytdlp
 
 import com.changyow.mediadler.core.download.DownloadPlanner
+import com.changyow.mediadler.core.download.HlsNetworkRetry
 import com.changyow.mediadler.core.model.DownloadRequest
 import com.changyow.mediadler.core.model.FormatSelection
 import com.changyow.mediadler.core.model.SourceKind
@@ -15,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.security.MessageDigest
+import java.util.UUID
 
 class YtDlpDownloader(
     private val engine: EngineInitializer,
@@ -24,9 +26,13 @@ class YtDlpDownloader(
 
     override suspend fun recover(processId: String, onProgress: (DownloadProgress) -> Unit): Result<DownloadOutput?> =
         try {
-            Result.success(publisher.recover(processId) {
+            val recovered = publisher.recover(processId) {
                 onProgress(DownloadProgress(DownloadPhase.SAVING, detail = "正在恢復儲存已完成的媒體"))
-            })
+            }
+            // The runner calls recover before page resolution or starting a native download.
+            // An existing publication retains its own destination and bypasses this check.
+            if (recovered == null) publisher.requireWritableDestination()
+            Result.success(recovered)
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (error: Exception) { Result.failure(error) }
 
@@ -41,17 +47,23 @@ class YtDlpDownloader(
         }
 
         require(processId.matches(Regex("[A-Za-z0-9_-]+")))
-        val plan = DownloadPlanner.plan(request)
+        val originalPlan = DownloadPlanner.plan(request)
+        val hls = if (request.item.source.kind == SourceKind.GENERAL) null
+            else SpecialSourceResume.prepare(originalPlan.resource)
+        // Download the exact child whose snapshot we validated, rather than selecting
+        // a potentially different variant from the master again on each attempt.
+        val plan = hls?.let { originalPlan.copy(resource = it.resource) } ?: originalPlan
         // A different resource/format cannot inherit incompatible partial files. Old attempts
         // remain under this stable task directory until completion or explicit deletion.
         val resume = if (request.item.source.kind == SourceKind.GENERAL) ""
-            else SpecialSourceResume.identity(plan.resource)
+            else hls?.let { "hls-checkpoint-v1\n${it.identity}" } ?: UUID.randomUUID().toString()
         val identity = plan.resource.url + "\n" + plan.formatArguments.joinToString("\n") +
             if (resume.isEmpty()) "" else "\n$resume"
         val fingerprint = MessageDigest.getInstance("SHA-256").digest(identity.toByteArray())
             .joinToString("") { "%02x".format(it) }
         val workDir = File(File(workRoot, processId), fingerprint).apply { mkdirs() }
         try {
+            val hlsSession = hls?.let { HlsResumeFiles.writeSession(workDir, it) }
             val ytRequest = plan.toYoutubeDLRequest().apply {
                 addOption("-o", File(workDir, "media.%(ext)s").absolutePath)
                 addOption("--no-mtime")
@@ -66,13 +78,22 @@ class YtDlpDownloader(
                 addOption("--extractor-retries", "2")
                 addOption("--file-access-retries", "2")
                 addOption("--socket-timeout", "20")
+                if (hlsSession != null) addOption("--hls-prefer-native")
                 addCommands(listOf("--progress-template", YtDlpProgressParser.DOWNLOAD_TEMPLATE,
                     "--progress-template", YtDlpProgressParser.POSTPROCESS_TEMPLATE))
             }
 
-            engine.executeDownload(ytRequest) { line ->
-                YtDlpProgressParser.parse(line)?.let(onProgress)
+            suspend fun executeOnce() {
+                engine.executeDownload(ytRequest, hlsSession) { line ->
+                    YtDlpProgressParser.parse(line)?.let(onProgress)
+                }
             }
+            if (hlsSession == null) executeOnce() else HlsNetworkRetry.execute(
+                onRetry = { attempt, wait ->
+                    onProgress(DownloadProgress(DownloadPhase.DOWNLOADING,
+                        detail = "網路暫時中斷，${wait / 1000} 秒後接續已下載片段（第 $attempt 次重試）"))
+                }, download = { executeOnce() },
+            )
 
             val produced = selectOutput(workDir, request.selection)
                 ?: return@withContext Result.failure(IllegalStateException("下載完成但找不到輸出檔"))
@@ -87,9 +108,10 @@ class YtDlpDownloader(
 
     /** Picks the real output file, matching the requested kind rather than blindly the largest. */
     private fun selectOutput(workDir: File, selection: FormatSelection): File? {
-        val files = workDir.walkTopDown()
-            .filter { it.isFile && it.extension.lowercase() !in TEMP_EXTS }
-            .toList()
+        // Control files and retained fragment files are never publishable media.
+        val files = workDir.listFiles().orEmpty()
+            .filter { it.isFile && it.name.startsWith("media.") &&
+                !it.name.contains("-Frag") && it.extension.lowercase() !in TEMP_EXTS }
         if (files.isEmpty()) return null
         return when (selection) {
             is FormatSelection.Audio ->

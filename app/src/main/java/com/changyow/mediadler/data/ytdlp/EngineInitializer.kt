@@ -72,7 +72,11 @@ class EngineInitializer(private val application: Application) {
     }
 
     /** Download-only supervision; archive access lasts through native exit and output-reader cleanup. */
-    suspend fun executeDownload(request: YoutubeDLRequest, onLine: (String) -> Unit) {
+    suspend fun executeDownload(
+        request: YoutubeDLRequest,
+        hlsResumeSession: File? = null,
+        onLine: (String) -> Unit,
+    ) {
         val initialized = ensureInit()
         currentCoroutineContext().ensureActive()
         check(initialized is EngineState.Ready) {
@@ -116,7 +120,16 @@ class EngineInitializer(private val application: Application) {
                     request.addOption("--external-downloader-args", "aria2c:--summary-interval=1")
                     request.addOption("--external-downloader-args", "aria2c:--ca-certificate=${certificate.absolutePath}")
                 }
-                process.execute(listOf(ytdlp.absolutePath) + request.buildCommand(), onLine)
+                val entry = if (hlsResumeSession == null) listOf(ytdlp.absolutePath) else {
+                    // This adapter belongs to the app, not the updatable engine archive.
+                    val adapter = File(hlsResumeSession.parentFile, "runner.py")
+                    application.assets.open("hls_resume.py").use { input ->
+                        adapter.outputStream().use { output -> input.copyTo(output) }
+                    }
+                    listOf(adapter.absolutePath, "--spec", hlsResumeSession.absolutePath,
+                        "--ytdlp", ytdlp.absolutePath)
+                }
+                process.execute(entry + request.buildCommand(), onLine)
             }
         }
         try {

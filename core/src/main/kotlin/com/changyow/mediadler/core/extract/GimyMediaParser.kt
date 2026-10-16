@@ -10,12 +10,15 @@ import java.net.URI
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonPrimitive
 
-/** Reads the named player iframe and its DPlayer literal, without executing page scripts. */
+/** Reads static player data or the legacy named DPlayer iframe, without executing scripts. */
 object GimyMediaParser {
     const val USER_AGENT = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"
     private val scripts = Regex("""<script\b[^>]*>(.*?)</script\s*>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
     private val attribute = Regex("""([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')""")
     private val variable = Regex("""\b(?:var|let|const)\s+url\s*=\s*("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')\s*;""")
+
+    fun parsePage(html: String, pageUrl: String, originalUrl: String = pageUrl): MediaItem =
+        MacCmsMediaParser.parse(html, pageUrl, originalUrl, SourceKind.GIMY)
 
     fun playerUrl(html: String, pageUrl: String): String {
         check(GimyUrl.playbackId(pageUrl) != null) { "請分享 Gimy 的單集播放頁網址" }

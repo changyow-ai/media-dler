@@ -13,6 +13,15 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class YtDlpProgressParserTest {
+    @Test fun resumedFragmentReportsTheRollbackBoundaryWithoutInventingAByteCount() {
+        val progress = YtDlpProgressParser.parse("media-dler-resume:116")!!
+        assertEquals(DownloadPhase.DOWNLOADING, progress.phase)
+        assertEquals("正在從片段 116 接續（回退一段重新下載）", progress.detail)
+        assertNull(progress.downloadedBytes)
+        assertEquals(-1f, progress.fraction)
+        assertNull(YtDlpProgressParser.parse("media-dler-resume:0"))
+        assertNull(YtDlpProgressParser.parse("media-dler-resume:bad"))
+    }
     @Test fun knownTotalShowsActualBytesAndPhaseLocalFraction() {
         val progress = YtDlpProgressParser.parse("""media-dler-progress:{"status":"downloading","downloaded_bytes":500000,"total_bytes":1000000}""")!!
         assertEquals(.5f, progress.fraction)
