@@ -10,9 +10,11 @@ import com.changyow.mediadler.core.model.DownloadProgress
 import com.changyow.mediadler.core.download.YtDlpProgressParser
 import com.changyow.mediadler.core.repo.DownloadOutput
 import com.changyow.mediadler.core.repo.Downloader
+import com.changyow.mediadler.core.repo.SettingsRepository
 import com.changyow.mediadler.data.storage.DownloadPublisher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.security.MessageDigest
@@ -22,6 +24,7 @@ class YtDlpDownloader(
     private val engine: EngineInitializer,
     private val publisher: DownloadPublisher,
     private val workRoot: File,
+    private val settingsRepository: SettingsRepository,
 ) : Downloader {
 
     override suspend fun recover(processId: String, onProgress: (DownloadProgress) -> Unit): Result<DownloadOutput?> =
@@ -64,7 +67,10 @@ class YtDlpDownloader(
         val workDir = File(File(workRoot, processId), fingerprint).apply { mkdirs() }
         try {
             val hlsSession = hls?.let { HlsResumeFiles.writeSession(workDir, it) }
-            val ytRequest = plan.toYoutubeDLRequest().apply {
+            // Rate changes apply on the next start/manual retry. Keep this out of the
+            // resource fingerprint so changing the cap never discards resumable data.
+            val rateLimit = settingsRepository.settings.first().downloadRateLimitBytesPerSecond
+            val ytRequest = plan.toYoutubeDLRequest(rateLimit).apply {
                 addOption("-o", File(workDir, "media.%(ext)s").absolutePath)
                 addOption("--no-mtime")
                 addOption("--no-warnings")

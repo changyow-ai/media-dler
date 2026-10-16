@@ -93,6 +93,7 @@ class AppContainer(application: Application, isAppForeground: () -> Boolean = { 
         engine = engine,
         publisher = downloadPublisher,
         workRoot = downloadWorkRoot,
+        settingsRepository = settingsRepository,
     )
     private val downloadScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val downloadRunner = DownloadRunner(downloadQueue, QueuedRequestResolver(mediaExtractor), downloader, downloadScope,

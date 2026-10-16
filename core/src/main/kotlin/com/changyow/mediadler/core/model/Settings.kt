@@ -79,6 +79,8 @@ data class AppSettings(
     val storageMode: StorageMode = StorageMode.DOWNLOADS,
     val safTreeUri: String? = null,
     val downloadAllWhenMultiple: Boolean = true,
+    /** Null is unlimited. Read when a media download starts, in bytes per second. */
+    val downloadRateLimitBytesPerSecond: Long? = null,
     val autoUpdateYtDlpOnStartup: Boolean = false,
     val transcribeLanguage: TranscribeLanguage = TranscribeLanguage.AUTO,
     val transcribeEngine: TranscribeEngine = TranscribeEngine.ON_DEVICE,

@@ -14,6 +14,7 @@ import com.changyow.mediadler.download.PreviewStore
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +34,13 @@ class HomeViewModel(
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun retry(id: String): Boolean = queue.retry(id)
+    fun retryAllFailed(): Int = queue.retryAllFailed()
+
+    // History-only records lack a recoverable request and cannot be retried by the queue.
+    val retryableFailedCount: StateFlow<Int> = queue.tasks.map { live ->
+        live.count { it.status == DownloadStatus.FAILED }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
     fun cancel(id: String) = queue.cancel(id)
 
     suspend fun editMetadata(task: DownloadTask, metadata: EpisodeMetadata) = withContext(Dispatchers.IO) {

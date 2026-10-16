@@ -187,6 +187,13 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
                 )
             }
 
+            SettingSection("下載速限") {
+                DownloadRateSetting(
+                    value = settings.downloadRateLimitBytesPerSecond,
+                    onChange = { rate -> viewModel.update { it.copy(downloadRateLimitBytesPerSecond = rate) } },
+                )
+            }
+
             SettingSection("背景下載") {
                 Text(
                     if (ignoresBatteryOptimizations) "已排除系統電池最佳化" else "尚未排除系統電池最佳化",

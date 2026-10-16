@@ -204,11 +204,18 @@ class DownloadQueue(
         } }
         if (delete) finishDeletion(claim.id)
     }
-    fun retry(id: String): Boolean {
-        var retried = false
+    fun retry(id: String): Boolean = retryMatching {
+        it.id == id && it.status in setOf(DownloadStatus.FAILED, DownloadStatus.CANCELED)
+    } > 0
+
+    /** Reset the current failed set atomically; repeated taps cannot enqueue duplicates. */
+    fun retryAllFailed(): Int = retryMatching { it.status == DownloadStatus.FAILED }
+
+    private fun retryMatching(matches: (DownloadTask) -> Boolean): Int {
+        var retried = 0
         mutate { records -> records.map {
-            if (it.task.id != id || it.deleteRequested || it.task.status !in setOf(DownloadStatus.FAILED, DownloadStatus.CANCELED)) it else {
-                retried = true
+            if (it.deleteRequested || !matches(it.task)) it else {
+                retried++
                 it.copy(task = it.task.copy(status = DownloadStatus.QUEUED, progress = -1f, errorMessage = null,
                     progressDetail = null, cancelRequested = false, queuePause = null))
             }

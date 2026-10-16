@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.changyow.mediadler.core.model.AppSettings
@@ -35,6 +36,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         val storageMode = stringPreferencesKey("storage_mode")
         val safTreeUri = stringPreferencesKey("saf_tree_uri")
         val downloadAllWhenMultiple = booleanPreferencesKey("download_all_when_multiple")
+        val downloadRateLimit = longPreferencesKey("download_rate_limit_bytes_per_second")
         val autoUpdateYtDlpOnStartup = booleanPreferencesKey("auto_update_ytdlp_on_startup")
         val transcribeLanguage = stringPreferencesKey("transcribe_language")
         val transcribeEngine = stringPreferencesKey("transcribe_engine")
@@ -65,6 +67,7 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
             else enumOrDefault(this[Keys.storageMode], StorageMode.DOWNLOADS),
         safTreeUri = this[Keys.safTreeUri],
         downloadAllWhenMultiple = this[Keys.downloadAllWhenMultiple] ?: true,
+        downloadRateLimitBytesPerSecond = this[Keys.downloadRateLimit]?.takeIf { it > 0 },
         autoUpdateYtDlpOnStartup = this[Keys.autoUpdateYtDlpOnStartup] ?: false,
         transcribeLanguage = enumOrDefault(this[Keys.transcribeLanguage], TranscribeLanguage.AUTO),
         transcribeEngine = enumOrDefault(this[Keys.transcribeEngine], TranscribeEngine.ON_DEVICE),
@@ -84,6 +87,9 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         this[Keys.audioFormat] = settings.audioFormat.name
         this[Keys.storageMode] = settings.storageMode.name
         this[Keys.downloadAllWhenMultiple] = settings.downloadAllWhenMultiple
+        val rate = settings.downloadRateLimitBytesPerSecond
+        require(rate == null || rate > 0) { "Download rate must be positive" }
+        if (rate != null) this[Keys.downloadRateLimit] = rate else remove(Keys.downloadRateLimit)
         this[Keys.autoUpdateYtDlpOnStartup] = settings.autoUpdateYtDlpOnStartup
         this[Keys.transcribeLanguage] = settings.transcribeLanguage.name
         this[Keys.transcribeEngine] = settings.transcribeEngine.name

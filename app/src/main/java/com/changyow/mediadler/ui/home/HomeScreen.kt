@@ -51,6 +51,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -114,6 +115,7 @@ fun HomeScreen() {
         },
     )
     val tasks by viewModel.tasks.collectAsStateWithLifecycle()
+    val retryableFailedCount by viewModel.retryableFailedCount.collectAsStateWithLifecycle()
     var filter by rememberSaveable { mutableStateOf(DownloadFilter.ALL) }
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -151,6 +153,17 @@ fun HomeScreen() {
                                 Text(pause.message, style = MaterialTheme.typography.bodyMedium)
                                 TextButton(onClick = { DownloadService.start(context, resumeAll = true) }) { Text("繼續排程") }
                             }
+                        }
+                    }
+                }
+                if (retryableFailedCount > 0) {
+                    item(key = "retry_all_failed") {
+                        OutlinedButton(
+                            onClick = { if (viewModel.retryAllFailed() > 0) DownloadService.start(context) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        ) {
+                            Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Text("重試全部失敗（$retryableFailedCount）", modifier = Modifier.padding(start = 8.dp))
                         }
                     }
                 }

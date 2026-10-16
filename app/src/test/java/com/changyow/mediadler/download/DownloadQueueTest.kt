@@ -151,6 +151,82 @@ class DownloadQueueTest {
         assertEquals("resumable bytes", partial.readText())
     }
 
+    @Test fun bulkRetryOnlyResetsFailedTasksInOneTransactionAndRetainsTheirIdentityAndBytes() {
+        val fixture = fixture()
+        val ids = fixture.queue.submitRequests(List(6) { genericRequest() })
+        val failedClaims = (0..1).map { index ->
+            assertNotNull(fixture.queue.claimNext()).also { claim ->
+                fixture.queue.resolved(claim, genericRequest())
+                fixture.queue.setProgress(claim, .4f, "partial transfer")
+                fixture.queue.fail(claim, "network failure $index")
+            }
+        }
+        val partials = failedClaims.map { fixture.partialFile(it.id) }
+        val completed = assertNotNull(fixture.queue.claimNext())
+        fixture.queue.complete(completed, "content://media/completed", "video/mp4")
+        val canceled = assertNotNull(fixture.queue.claimNext())
+        fixture.queue.cancel(canceled.id)
+        fixture.queue.acknowledgeStop(canceled)
+        val active = assertNotNull(fixture.queue.claimNext())
+        fixture.queue.setProgress(active, .5f, "still downloading")
+        val before = fixture.diskRecords().associateBy { it.task.id }
+        val transactions = fixture.store.transactionCount
+
+        assertEquals(2, fixture.queue.retryAllFailed())
+        assertEquals(transactions + 1, fixture.store.transactionCount)
+        val after = fixture.diskRecords().associateBy { it.task.id }
+        failedClaims.forEach { claim ->
+            val original = before.getValue(claim.id)
+            val retried = after.getValue(claim.id)
+            assertEquals(DownloadStatus.QUEUED, retried.task.status)
+            assertEquals(-1f, retried.task.progress)
+            assertNull(retried.task.errorMessage)
+            assertNull(retried.task.progressDetail)
+            assertFalse(retried.task.cancelRequested)
+            assertEquals(original.task.queuePosition, retried.task.queuePosition)
+            assertEquals(original.spec, retried.spec)
+            assertEquals(original.resolvedRequest, retried.resolvedRequest)
+            assertEquals(original.attempt, retried.attempt)
+        }
+        ids.drop(2).forEach { assertEquals(before[it], after[it]) }
+        partials.forEach { assertEquals("resumable bytes", it.readText()) }
+        assertEquals(0, fixture.queue.retryAllFailed())
+        assertNull(fixture.queue.claimNext()) // Existing writer still owns its slot.
+        fixture.queue.complete(active, "content://media/active-finished", "video/mp4")
+
+        val restarted = fixture.reopen()
+        assertEquals(ids.first(), assertNotNull(restarted.claimNext()).id)
+        assertEquals(DownloadStatus.QUEUED, assertNotNull(restarted.get(ids[1])).status)
+        partials.forEach { assertEquals("resumable bytes", it.readText()) }
+    }
+
+    @Test fun failedBulkRetryCommitLeavesEveryTaskUnchanged() {
+        val fixture = fixture()
+        repeat(2) { fixture.queue.submit(genericRequest()) }
+        repeat(2) { fixture.queue.fail(assertNotNull(fixture.queue.claimNext()), "network") }
+        val before = fixture.queue.tasks.value
+        val stored = fixture.diskRecords()
+        fixture.store.failNextCommit = true
+        assertFailsWith<CommitFailure> { fixture.queue.retryAllFailed() }
+        assertEquals(before, fixture.queue.tasks.value)
+        assertEquals(stored, fixture.diskRecords())
+        assertEquals(2, fixture.queue.retryAllFailed())
+    }
+
+    @Test fun bulkRetryDoesNotRevivePendingDeletion() {
+        val fixture = fixture()
+        val ids = fixture.queue.submitRequests(List(2) { genericRequest() })
+        repeat(2) { fixture.queue.fail(assertNotNull(fixture.queue.claimNext()), "network") }
+        fixture.store.transact { records -> records.map {
+            if (it.task.id == ids.first()) it.copy(deleteRequested = true) else it
+        } }
+        val deleting = fixture.diskRecords().first()
+        assertEquals(1, fixture.queue.retryAllFailed())
+        assertEquals(deleting, fixture.diskRecords().first())
+        assertNull(fixture.queue.get(ids.first()))
+        assertEquals(DownloadStatus.QUEUED, assertNotNull(fixture.queue.get(ids.last())).status)
+    }
+
     @Test fun activeCancellationOccupiesSlotUntilAcknowledged() {
         val fixture = fixture()
         val first = fixture.queue.submit(genericRequest())
