@@ -4,7 +4,7 @@ import com.changyow.mediadler.core.model.DownloadRequest
 import com.changyow.mediadler.core.model.QueuedSpec
 import com.changyow.mediadler.core.repo.MediaExtractor
 
-/** Resolve only the claimed episode. A retry always starts from its retained playback page. */
+/** Resolve only the claimed episode. Manual retries and expired background URLs return to its page. */
 class QueuedRequestResolver(private val extractor: MediaExtractor) {
     suspend fun resolve(spec: QueuedSpec): DownloadRequest = when (spec) {
         is QueuedSpec.Resolved -> spec.request

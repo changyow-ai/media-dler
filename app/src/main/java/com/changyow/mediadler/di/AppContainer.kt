@@ -22,6 +22,8 @@ import com.changyow.mediadler.data.ytdlp.YtDlpMediaExtractor
 import com.changyow.mediadler.download.DownloadQueue
 import com.changyow.mediadler.download.PreviewStore
 import com.changyow.mediadler.download.DownloadRunner
+import com.changyow.mediadler.download.DownloadNetworkMonitor
+import com.changyow.mediadler.download.DownloadRecovery
 import com.changyow.mediadler.download.DownloadObserver
 import com.changyow.mediadler.download.QueuedRequestResolver
 import com.changyow.mediadler.core.model.AppSettings
@@ -96,6 +98,8 @@ class AppContainer(application: Application, isAppForeground: () -> Boolean = { 
         settingsRepository = settingsRepository,
     )
     private val downloadScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    val downloadNetwork = DownloadNetworkMonitor(application)
     val downloadRunner = DownloadRunner(downloadQueue, QueuedRequestResolver(mediaExtractor), downloader, downloadScope,
-        DownloadObserver(application, downloadQueue, historyStore, previewStore))
+        DownloadObserver(application, downloadQueue, historyStore, previewStore), downloadNetwork.available)
+    val downloadRecovery = DownloadRecovery(application, downloadQueue, downloadNetwork, downloadScope)
 }

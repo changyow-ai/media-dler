@@ -149,7 +149,8 @@ fun HomeScreen() {
                     item(key = "paused") {
                         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("排程已暫停", style = MaterialTheme.typography.titleSmall)
+                                Text(if (pause.kind == com.changyow.mediadler.core.model.QueuePauseKind.NETWORK)
+                                    "等待網路恢復" else "排程已暫停", style = MaterialTheme.typography.titleSmall)
                                 Text(pause.message, style = MaterialTheme.typography.bodyMedium)
                                 TextButton(onClick = { DownloadService.start(context, resumeAll = true) }) { Text("繼續排程") }
                             }

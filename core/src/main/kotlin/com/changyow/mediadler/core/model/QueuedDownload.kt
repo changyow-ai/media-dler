@@ -23,7 +23,7 @@ import kotlinx.serialization.Serializable
     @Serializable data class Resolved(val request: DownloadRequest) : QueuedSpec
 }
 
-/** Last resolved request is a checkpoint, never the authority for a Page retry. */
+/** Automatic background continuation reuses this checkpoint; manual retries resolve the page again. */
 @Serializable data class QueuedDownload(
     val task: DownloadTask,
     val spec: QueuedSpec,
@@ -32,4 +32,9 @@ import kotlinx.serialization.Serializable
     val deleteRequested: Boolean = false,
 )
 
-data class DownloadClaim(val id: String, val attempt: Int, val spec: QueuedSpec)
+data class DownloadClaim(
+    val id: String,
+    val attempt: Int,
+    val spec: QueuedSpec,
+    val resolvedRequest: DownloadRequest? = null,
+)

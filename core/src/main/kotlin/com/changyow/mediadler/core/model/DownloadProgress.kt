@@ -13,5 +13,5 @@ data class DownloadProgress(
     val totalBytes: Long? = null,
 )
 
-@Serializable enum class QueuePauseKind { SYSTEM, STORAGE }
+@Serializable enum class QueuePauseKind { SYSTEM, STORAGE, NETWORK }
 @Serializable data class QueuePause(val kind: QueuePauseKind, val message: String)

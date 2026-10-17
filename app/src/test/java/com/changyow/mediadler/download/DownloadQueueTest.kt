@@ -485,6 +485,95 @@ class DownloadQueueTest {
         assertFalse(fixture.queue.editMetadata(general, correction))
     }
 
+    @Test fun networkWaitIsAtomicDurableAndRetainsTheSameCheckpointAndFifoPosition() {
+        val fixture = fixture()
+        val ids = fixture.queue.submitRequests(listOf(genericRequest(), genericRequest()))
+        val claim = assertNotNull(fixture.queue.claimNext())
+        fixture.queue.setProgress(claim, .4f, "partial")
+        val partial = fixture.partialFile(claim.id)
+        val before = fixture.diskRecords()
+        fixture.store.failNextCommit = true
+        assertFailsWith<CommitFailure> { fixture.queue.parkNetwork(claim) }
+        assertEquals(before, fixture.diskRecords())
+        assertEquals(before.map { it.task }, fixture.queue.tasks.value)
+        assertTrue(fixture.queue.parkNetwork(claim))
+        val restarted = fixture.reopen()
+        assertEquals(QueuePauseKind.NETWORK, restarted.pauseReason()?.kind)
+        assertEquals(DownloadStatus.QUEUED, restarted.get(claim.id)?.status)
+        assertEquals(.4f, restarted.get(claim.id)?.progress)
+        assertNotNull(restarted.get(claim.id)?.progressDetail)
+        assertNull(restarted.claimNext())
+        restarted.resumeNetwork()
+        val resumed = assertNotNull(restarted.claimNext())
+        assertEquals(ids.first(), resumed.id)
+        assertTrue(resumed.attempt > claim.attempt)
+        assertEquals("resumable bytes", partial.readText())
+        assertEquals(ids, restarted.tasks.value.map { it.id })
+        assertFalse(restarted.parkNetwork(claim)) // Stale callbacks cannot park a later attempt.
+    }
+
+    @Test fun cancelOrDeleteNetworkWaitTransfersItsAnchorAndNeverRevivesTheCanceledTask() {
+        for (delete in listOf(false, true)) {
+            val fixture = fixture()
+            val ids = fixture.queue.submitRequests(listOf(genericRequest(), genericRequest()))
+            val claim = assertNotNull(fixture.queue.claimNext())
+            fixture.queue.parkNetwork(claim)
+            if (delete) fixture.queue.remove(ids.first()) else fixture.queue.cancel(ids.first())
+            val restarted = fixture.reopen()
+            assertEquals(QueuePauseKind.NETWORK, restarted.get(ids.last())?.queuePause?.kind)
+            assertNull(restarted.get(ids.first())?.queuePause)
+            restarted.resumeNetwork()
+            assertEquals(ids.last(), restarted.claimNext()?.id)
+            assertTrue(restarted.get(ids.first())?.status in listOf(null, DownloadStatus.CANCELED))
+        }
+        val fixture = fixture()
+        val id = fixture.queue.submit(genericRequest())
+        fixture.queue.parkNetwork(assertNotNull(fixture.queue.claimNext()))
+        fixture.queue.cancel(id)
+        assertNull(fixture.queue.pauseReason())
+        fixture.queue.resumeNetwork()
+        assertEquals(DownloadStatus.CANCELED, fixture.queue.get(id)?.status)
+        assertNull(fixture.queue.claimNext())
+    }
+
+    @Test fun networkPauseAndAutomaticResumeNeverReplaceSystemOrStoragePause() {
+        for (kind in listOf(QueuePauseKind.SYSTEM, QueuePauseKind.STORAGE)) {
+            val fixture = fixture()
+            fixture.queue.submit(genericRequest())
+            val claim = assertNotNull(fixture.queue.claimNext())
+            val stronger = QueuePause(kind, "manual resume required")
+            fixture.queue.pause(stronger, claim.id)
+            assertTrue(fixture.queue.parkNetwork(claim))
+            fixture.queue.pause(QueuePause(QueuePauseKind.NETWORK, "network"), claim.id)
+            fixture.queue.resumeNetwork()
+            assertEquals(stronger, fixture.queue.pauseReason())
+            assertNull(fixture.queue.claimNext())
+        }
+    }
+
+    @Test fun onlyAutomaticClaimsReuseTheDurableResolvedPageRequest() {
+        val fixture = fixture()
+        val page = episode(1)
+        val id = fixture.queue.submitPages(listOf(page), FormatSelection.BestVideo).single()
+        val original = assertNotNull(fixture.queue.claimNext())
+        val request = genericRequest().let { it.copy(item = it.item.copy(
+            source = SourceContext(page.originalUrl, page.playbackUrl, page.kind))) }
+        fixture.queue.resolved(original, request)
+        fixture.queue.parkNetwork(original)
+
+        val reopened = fixture.reopen()
+        reopened.resumeNetwork()
+        val automatic = assertNotNull(reopened.claimNext(preferResolved = true))
+        assertEquals(id, automatic.id)
+        assertEquals(request, automatic.resolvedRequest)
+        reopened.parkNetwork(automatic)
+        reopened.resumeNetwork()
+        val manual = assertNotNull(reopened.claimNext())
+        assertEquals(id, manual.id)
+        assertNull(manual.resolvedRequest)
+        assertEquals(request, fixture.diskRecords().single().resolvedRequest)
+    }
+
     private fun episode(number: Int) = EpisodePage(
         playbackUrl = "https://play.8maple.st/play/OD4C-2-$number.html",
         kind = SourceKind.EIGHT_MAPLE,

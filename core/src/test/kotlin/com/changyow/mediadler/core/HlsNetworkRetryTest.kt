@@ -1,6 +1,7 @@
 package com.changyow.mediadler.core
 
 import com.changyow.mediadler.core.download.HlsNetworkRetry
+import com.changyow.mediadler.core.download.DownloadFailurePolicy
 import java.io.IOException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancelAndJoin
@@ -13,6 +14,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
+import kotlin.test.assertFalse
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HlsNetworkRetryTest {
@@ -81,6 +84,21 @@ class HlsNetworkRetryTest {
         job.cancelAndJoin()
         advanceUntilIdle()
         assertEquals(1, calls)
+    }
+
+    @Test fun sharedNetworkClassifierHandlesWrappedExtractionAndNativeErrorsWithoutMaskingPermanentFailures() {
+        for (failure in listOf(
+            IllegalStateException("extract failed", java.net.UnknownHostException("cdn.example")),
+            IOException("Connection refused"), IOException("HTTP Error 408"), IOException("HTTP Error 429"),
+            IOException("HTTP Error 503: service unavailable"), IOException("Unable to resolve host cdn.example"),
+            IOException("The read operation timed out"),
+        )) assertTrue(DownloadFailurePolicy.isTransientNetworkFailure(failure), failure.toString())
+        for (message in listOf("HTTP Error 401\nConnection reset", "HTTP Error 404\nHTTP Error 503",
+            "HTTP Error 403\nUnable to resolve host", "HTTP Error 410\nConnection reset",
+            "No space left on device\nConnection reset", "Read-only file system\nConnection reset",
+            "Permission denied\nHTTP Error 503", "unsupported media format")) {
+            assertFalse(DownloadFailurePolicy.isTransientNetworkFailure(IOException(message)), message)
+        }
     }
 
     @Test fun nonNetworkFailureAndSuccessfulDownloadExecuteOnlyOnce() = runTest {

@@ -55,7 +55,7 @@ internal fun DownloadRateSetting(value: Long?, onChange: (Long?) -> Unit) {
         Text("自訂速限")
     }
     Text(
-        "套用至之後開始或手動重試的下載。正在下載的項目維持原速限。",
+        "套用至之後開始或重試的下載。正在下載的項目維持原速限。",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )

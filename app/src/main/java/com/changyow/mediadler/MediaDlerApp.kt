@@ -35,6 +35,7 @@ class MediaDlerApp : Application() {
         container = AppContainer(this) { isForeground }
         registerActivityLifecycleCallbacks(ForegroundTracker())
         Notifications.createChannels(this)
+        container.downloadRecovery.start()
         // Warm up yt-dlp/ffmpeg off the main thread. Only refresh yt-dlp on startup
         // when the user has opted in — auto-update is off by default so launches stay
         // fast and offline-friendly; users can update on demand from Settings.

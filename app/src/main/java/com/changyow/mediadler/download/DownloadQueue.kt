@@ -1,5 +1,6 @@
 package com.changyow.mediadler.download
 
+import com.changyow.mediadler.core.download.DownloadFailurePolicy
 import com.changyow.mediadler.core.model.*
 import com.changyow.mediadler.core.repo.DownloadQueueStore
 import java.io.File
@@ -73,14 +74,16 @@ class DownloadQueue(
         return ids
     }
 
-    fun claimNext(): DownloadClaim? {
+    /** Only automatic continuation reuses a resolved URL, preserving HLS checkpoint identity. */
+    fun claimNext(preferResolved: Boolean = false): DownloadClaim? {
         var claim: DownloadClaim? = null
         mutate { records ->
             if (records.any { it.task.status.isActive || it.task.queuePause != null }) return@mutate records
             val next = records.filter { it.task.status == DownloadStatus.QUEUED }.minByOrNull { it.task.queuePosition }
                 ?: return@mutate records
             val attempt = next.attempt + 1
-            claim = DownloadClaim(next.task.id, attempt, next.spec)
+            claim = DownloadClaim(next.task.id, attempt, next.spec,
+                resolvedRequest = next.resolvedRequest.takeIf { preferResolved })
             records.map { if (it.task.id != next.task.id) it else it.copy(attempt = attempt,
                 task = it.task.copy(status = if (it.spec is QueuedSpec.Page) DownloadStatus.EXTRACTING else DownloadStatus.DOWNLOADING,
                     progress = -1f, progressDetail = null, errorMessage = null)) }
@@ -145,23 +148,49 @@ class DownloadQueue(
     fun pause(reason: QueuePause, taskId: String? = null): QueuePause? {
         var applied: QueuePause? = null
         mutate { records ->
-            val existing = records.firstOrNull { it.task.queuePause?.kind == QueuePauseKind.STORAGE }
-            val effective = if (reason.kind == QueuePauseKind.SYSTEM) existing?.task?.queuePause ?: reason else reason
-            val target = existing?.takeIf { reason.kind == QueuePauseKind.SYSTEM }
+            val existing = records.filter { it.task.queuePause != null }.maxByOrNull { pausePriority(it.task.queuePause!!) }
+            val retained = existing?.takeIf { pausePriority(it.task.queuePause!!) >= pausePriority(reason) }
+            val effective = retained?.task?.queuePause ?: reason
+            val target = retained
                 ?: records.firstOrNull { it.task.id == taskId && it.task.status != DownloadStatus.COMPLETED }
                 ?: records.firstOrNull { !it.task.status.isTerminal }
                 ?: return@mutate records
             applied = effective
-            records.map { if (it.task.id == target.task.id) it.copy(task = it.task.copy(queuePause = effective)) else it }
+            records.map { record -> record.copy(task = record.task.copy(
+                queuePause = effective.takeIf { record.task.id == target.task.id })) }
         }
         return applied
     }
 
-    fun resume(systemOnly: Boolean = false) = mutate { records -> records.map {
+    /** Atomically retain the claim/checkpoint as queued and close the whole FIFO's claim gate. */
+    fun parkNetwork(claim: DownloadClaim): Boolean {
+        var parked = false
+        mutate { records ->
+            val stronger = records.any { it.task.queuePause?.kind in setOf(QueuePauseKind.SYSTEM, QueuePauseKind.STORAGE) }
+            records.map {
+                if (it.task.id != claim.id || it.attempt != claim.attempt || !it.task.status.isActive || it.task.cancelRequested) it
+                else {
+                    parked = true
+                    it.copy(task = it.task.copy(status = DownloadStatus.QUEUED,
+                        progressDetail = DownloadFailurePolicy.networkPause.message, errorMessage = null,
+                        queuePause = if (stronger) it.task.queuePause else DownloadFailurePolicy.networkPause))
+                }
+            }
+        }
+        return parked
+    }
+
+    fun resumeNetwork() = clearPauses { it.kind == QueuePauseKind.NETWORK }
+
+    fun resume(systemOnly: Boolean = false) = clearPauses { !systemOnly || it.kind != QueuePauseKind.STORAGE }
+
+    private fun clearPauses(matches: (QueuePause) -> Boolean) = mutate { records -> records.map {
         val pause = it.task.queuePause
-        if (pause == null || systemOnly && pause.kind != QueuePauseKind.SYSTEM) it else it.copy(task = it.task.copy(
+        if (pause == null || !matches(pause)) it else it.copy(task = it.task.copy(
             queuePause = null, errorMessage = null,
-            status = if (it.task.status == DownloadStatus.FAILED) DownloadStatus.QUEUED else it.task.status,
+            progressDetail = if (pause.kind == QueuePauseKind.NETWORK) null else it.task.progressDetail,
+            status = if (pause.kind != QueuePauseKind.NETWORK && it.task.status == DownloadStatus.FAILED)
+                DownloadStatus.QUEUED else it.task.status,
         ))
     } }
     fun processing(claim: DownloadClaim, detail: String = "正在封裝與儲存") = update(claim) {
@@ -257,21 +286,28 @@ class DownloadQueue(
             .filterNot { it.deleteRequested && !it.task.status.isActive }.map { it.task }
     }
 
-    /** A hidden deletion tombstone cannot be the only owner of a global pause. */
+    /** Deletion tombstones and canceled network waits cannot be the only owner of a global pause. */
     private fun transferDeletedPause(records: List<QueuedDownload>): List<QueuedDownload> {
         fun hidden(record: QueuedDownload) = record.deleteRequested && !record.task.status.isActive
-        val removed = records.filter(::hidden).mapNotNull { it.task.queuePause }
+        fun relinquish(record: QueuedDownload) = hidden(record) ||
+            record.task.status.isTerminal && record.task.queuePause?.kind == QueuePauseKind.NETWORK
+        val removed = records.filter(::relinquish).mapNotNull { it.task.queuePause }
         if (removed.isEmpty()) return records
-        val visible = records.filterNot(::hidden)
+        val visible = records.filterNot(::relinquish)
         val target = visible.firstOrNull { it.task.queuePause != null }
             ?: visible.firstOrNull { !it.task.status.isTerminal }
-        val reason = (removed + visible.mapNotNull { it.task.queuePause })
-            .firstOrNull { it.kind == QueuePauseKind.STORAGE } ?: removed.first()
+        val reason = (removed + visible.mapNotNull { it.task.queuePause }).maxByOrNull(::pausePriority)!!
         return records.map { record -> when {
-            hidden(record) -> record.copy(task = record.task.copy(queuePause = null))
+            relinquish(record) -> record.copy(task = record.task.copy(queuePause = null))
             record.task.id == target?.task?.id -> record.copy(task = record.task.copy(queuePause = reason))
             else -> record
         } }
+    }
+
+    private fun pausePriority(reason: QueuePause): Int = when (reason.kind) {
+        QueuePauseKind.NETWORK -> 0
+        QueuePauseKind.SYSTEM -> 1
+        QueuePauseKind.STORAGE -> 2
     }
 
     private fun specFor(request: DownloadRequest): QueuedSpec {
