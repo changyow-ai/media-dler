@@ -551,6 +551,52 @@ class DownloadQueueTest {
         }
     }
 
+    @Test fun manualPageRetryRequiresFreshResolutionEvenWhenRecoveryWorkerClaimsFirst() {
+        for (status in listOf(DownloadStatus.FAILED, DownloadStatus.CANCELED)) {
+            val fixture = fixture()
+            val page = episode(1)
+            val id = fixture.queue.submitPages(listOf(page), FormatSelection.BestVideo).single()
+            val original = assertNotNull(fixture.queue.claimNext())
+            val request = genericRequest().let { it.copy(item = it.item.copy(
+                source = SourceContext(page.originalUrl, page.playbackUrl, page.kind))) }
+            fixture.queue.resolved(original, request)
+            if (status == DownloadStatus.FAILED) fixture.queue.fail(original, "HTTP 404") else {
+                fixture.queue.cancel(id)
+                fixture.queue.acknowledgeStop(original)
+            }
+
+            assertTrue(fixture.queue.retry(id))
+            val automatic = assertNotNull(fixture.reopen().claimNext(preferResolved = true))
+            assertEquals(id, automatic.id)
+            assertEquals(original.spec, automatic.spec)
+            assertNull(automatic.resolvedRequest)
+            assertNull(fixture.diskRecords().single().resolvedRequest)
+        }
+    }
+
+    @Test fun bulkPageRetryRequiresFreshResolutionEvenWhenRecoveryWorkerClaimsFirst() {
+        val fixture = fixture()
+        val pages = listOf(episode(1), episode(2))
+        val ids = fixture.queue.submitPages(pages, FormatSelection.BestVideo)
+        pages.forEach { page ->
+            val original = assertNotNull(fixture.queue.claimNext())
+            val request = genericRequest().let { it.copy(item = it.item.copy(
+                source = SourceContext(page.originalUrl, page.playbackUrl, page.kind))) }
+            fixture.queue.resolved(original, request)
+            fixture.queue.fail(original, "HTTP 404")
+        }
+
+        assertEquals(2, fixture.queue.retryAllFailed())
+        assertTrue(fixture.diskRecords().all { it.resolvedRequest == null })
+        val restarted = fixture.reopen()
+        ids.forEach { id ->
+            val automatic = assertNotNull(restarted.claimNext(preferResolved = true))
+            assertEquals(id, automatic.id)
+            assertNull(automatic.resolvedRequest)
+            restarted.complete(automatic, "content://media/$id", "video/mp4")
+        }
+    }
+
     @Test fun onlyAutomaticClaimsReuseTheDurableResolvedPageRequest() {
         val fixture = fixture()
         val page = episode(1)

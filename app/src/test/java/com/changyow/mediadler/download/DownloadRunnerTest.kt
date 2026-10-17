@@ -266,6 +266,31 @@ class DownloadRunnerTest {
         assertEquals("content://already-published", fixture.queue.get(id)?.outputUri)
     }
 
+    @Test fun publicationInterruptedByProcessDeathCanFinishWhenReopenedOffline() = runTest {
+        val network = MutableStateFlow(false)
+        val downloader = FakeDownloader().apply {
+            recovered = DownloadOutput("content://already-published", "episode.mp4", "video/mp4")
+        }
+        val fixture = fixture(backgroundScope, downloader, networkAvailable = network)
+        val id = fixture.queue.submitPages(listOf(page(1)), FormatSelection.BestVideo).single()
+        val claim = fixture.queue.claimNext()!!
+        fixture.queue.processing(claim)
+        val reopened = DownloadQueue(fixture.store, fixture.root)
+        val runner = DownloadRunner(reopened, QueuedRequestResolver(fixture.extractor), downloader,
+            backgroundScope, networkAvailable = network)
+
+        runner.wake("reopened-service", 1, userInitiated = true)
+        runCurrent()
+
+        assertEquals(listOf(id), downloader.recoveryCalls)
+        assertEquals(DownloadStatus.COMPLETED, reopened.get(id)?.status)
+        assertEquals("content://already-published", reopened.get(id)?.outputUri)
+        assertTrue(fixture.extractor.urls.isEmpty())
+        assertTrue(downloader.calls.isEmpty())
+        assertNull(reopened.pauseReason())
+        assertEquals(DownloadRunner.Phase.IDLE, runner.state.value.phase)
+    }
+
     @Test fun removingTheLastPausedFailureDoesNotTrapLaterExplicitWork() = runTest {
         val fixture = fixture(backgroundScope)
         val first = fixture.queue.submit(request("1"))
@@ -394,7 +419,7 @@ class DownloadRunnerTest {
         assertNull(fixture.queue.pauseReason())
     }
 
-    @Test fun offlineWakeNeverClaimsExtractsOrDownloadsAndForegroundWakeRechecksConnectivity() = runTest {
+    @Test fun offlineWakeAttemptsLocalRecoveryWithoutExtractingOrDownloading() = runTest {
         val network = MutableStateFlow(false)
         val fixture = fixture(backgroundScope, networkAvailable = network)
         val id = fixture.queue.submitPages(listOf(page(1)), FormatSelection.BestVideo).single()
@@ -402,6 +427,7 @@ class DownloadRunnerTest {
         runCurrent()
         assertEquals(DownloadStatus.QUEUED, fixture.queue.get(id)?.status)
         assertEquals(QueuePauseKind.NETWORK, fixture.queue.pauseReason()?.kind)
+        assertEquals(listOf(id), fixture.downloader.recoveryCalls)
         assertTrue(fixture.extractor.urls.isEmpty())
         assertTrue(fixture.downloader.calls.isEmpty())
         val acquired = async { fixture.runner.acquireBackground("worker") }
@@ -411,6 +437,7 @@ class DownloadRunnerTest {
         runCurrent()
         assertTrue(fixture.extractor.urls.isEmpty())
         assertEquals(QueuePauseKind.NETWORK, fixture.queue.pauseReason()?.kind)
+        assertEquals(listOf(id, id), fixture.downloader.recoveryCalls)
     }
 
     @Test fun extractionNetworkFailureParksBeforeDownloadingAndRecreatedRunnerResumesSameTask() = runTest {
@@ -642,6 +669,110 @@ class DownloadRunnerTest {
         assertEquals(2, fixture.downloader.calls.size)
     }
 
+    @Test fun unsupportedOrUnconfirmedResumeAtWindowExpiryRequiresForegroundResume() = runTest {
+        for (canResume in listOf(false, null)) {
+            val downloader = FakeDownloader().apply { resumeSupport = canResume }
+            val fixture = fixture(backgroundScope, downloader)
+            val id = fixture.queue.submitPages(listOf(page(1)), FormatSelection.BestVideo).single()
+            val window = async { fixture.runner.runBackgroundWindow("worker", 1_000) }
+            runCurrent()
+            downloader.calls.single().progress(DownloadProgress(DownloadPhase.DOWNLOADING, fraction = 0.2f))
+            advanceTimeBy(1_000)
+            runCurrent()
+            window.await()
+
+            assertEquals(DownloadStatus.QUEUED, fixture.queue.get(id)?.status)
+            assertEquals(QueuePauseKind.SYSTEM, fixture.queue.pauseReason()?.kind)
+            val retryWindow = async { fixture.runner.runBackgroundWindow("worker-2", 1_000) }
+            runCurrent()
+            retryWindow.await()
+            assertEquals(1, downloader.calls.size)
+
+            fixture.runner.wake("service", 1, userInitiated = true)
+            runCurrent()
+            assertEquals(id, downloader.calls.last().id)
+            assertEquals(2, downloader.calls.size)
+            downloader.calls.last().succeed()
+            runCurrent()
+            assertEquals(DownloadStatus.COMPLETED, fixture.queue.get(id)?.status)
+        }
+    }
+
+    @Test fun externallyCanceledNonResumableWindowWaitsForCleanupAndRequiresForeground() = runTest {
+        val releaseCleanup = CompletableDeferred<Unit>()
+        val downloader = FakeDownloader { _, _ ->
+            try { awaitCancellation() } finally { withContext(NonCancellable) { releaseCleanup.await() } }
+        }.apply { resumeSupport = false }
+        val fixture = fixture(backgroundScope, downloader)
+        val id = fixture.queue.submitPages(listOf(page(1)), FormatSelection.BestVideo).single()
+        val window = async { fixture.runner.runBackgroundWindow("worker", 10_000) }
+        runCurrent()
+        window.cancel()
+        runCurrent()
+        assertFalse(window.isCompleted)
+        assertEquals(1, downloader.active)
+        releaseCleanup.complete(Unit)
+        runCurrent()
+        assertTrue(window.isCompleted)
+        assertEquals(0, downloader.active)
+        assertEquals(DownloadStatus.QUEUED, fixture.queue.get(id)?.status)
+        assertEquals(QueuePauseKind.SYSTEM, fixture.queue.pauseReason()?.kind)
+    }
+
+    @Test fun foregroundHandoverLetsNonResumableAttemptOutliveTheOldWorkerWindow() = runTest {
+        val downloader = FakeDownloader().apply { resumeSupport = false }
+        val fixture = fixture(backgroundScope, downloader)
+        val id = fixture.queue.submitPages(listOf(page(1)), FormatSelection.BestVideo).single()
+        val window = async { fixture.runner.runBackgroundWindow("worker", 1_000) }
+        runCurrent()
+        fixture.runner.wake("service", 1, userInitiated = true)
+        runCurrent()
+        window.await()
+        advanceTimeBy(2_000)
+        runCurrent()
+        assertEquals(1, downloader.calls.size)
+        assertEquals(DownloadRunner.Phase.RUNNING, fixture.runner.state.value.phase)
+        assertNull(fixture.queue.pauseReason())
+        downloader.calls.single().succeed()
+        runCurrent()
+        assertEquals(DownloadStatus.COMPLETED, fixture.queue.get(id)?.status)
+    }
+
+    @Test fun completedNonResumableAttemptDoesNotRequireForegroundForTheFollowingTask() = runTest {
+        val listener = RecordingListener().apply { completionGate = CompletableDeferred() }
+        val downloader = FakeDownloader().apply { resumeSupport = false }
+        val fixture = fixture(backgroundScope, downloader, listener)
+        val ids = fixture.queue.submitRequests(listOf(request("1"), request("2")))
+        val window = async { fixture.runner.runBackgroundWindow("worker", 1_000) }
+        runCurrent()
+        downloader.calls.single().succeed()
+        runCurrent()
+        assertEquals(DownloadStatus.COMPLETED, fixture.queue.get(ids.first())?.status)
+
+        advanceTimeBy(1_000)
+        runCurrent()
+        window.await()
+        assertEquals(DownloadStatus.QUEUED, fixture.queue.get(ids.last())?.status)
+        assertEquals(QueuePauseKind.NETWORK, fixture.queue.pauseReason()?.kind)
+        assertEquals("content://output/${ids.first()}", fixture.queue.get(ids.first())?.outputUri)
+    }
+
+    @Test fun refreshingARejectedUrlClearsPreviousResumeSupportBeforeNewNativeWork() = runTest {
+        val fixture = fixture(backgroundScope)
+        val id = fixture.queue.submitPages(listOf(page(1)), FormatSelection.BestVideo).single()
+        val window = async { fixture.runner.runBackgroundWindow("worker", 1_000) }
+        runCurrent()
+        fixture.downloader.resumeSupport = null
+        fixture.downloader.calls.single().fail(IOException("HTTP Error 403"))
+        runCurrent()
+        assertEquals(2, fixture.downloader.calls.size)
+        advanceTimeBy(1_000)
+        runCurrent()
+        window.await()
+        assertEquals(DownloadStatus.QUEUED, fixture.queue.get(id)?.status)
+        assertEquals(QueuePauseKind.SYSTEM, fixture.queue.pauseReason()?.kind)
+    }
+
     @Test fun expiredCachedBackgroundUrlRefreshesOnlyTheSamePageOnce() = runTest {
         val fixture = fixture(backgroundScope)
         val page = page(1)
@@ -721,10 +852,14 @@ class DownloadRunnerTest {
         val stopped = mutableListOf<String>()
         val failed = mutableListOf<String>()
         var completionFailure: Exception? = null
+        var completionGate: CompletableDeferred<Unit>? = null
         var failureGate: CompletableDeferred<Unit>? = null
         override fun onStopped(taskId: String, task: DownloadTask?) { stopped += taskId }
         override suspend fun onFailed(task: DownloadTask, error: Throwable) { failed += task.id; failureGate?.await() }
-        override suspend fun onCompleted(task: DownloadTask, output: DownloadOutput) { completionFailure?.let { throw it } }
+        override suspend fun onCompleted(task: DownloadTask, output: DownloadOutput) {
+            completionFailure?.let { throw it }
+            completionGate?.await()
+        }
     }
 
     private class RecordingExtractor : MediaExtractor {
@@ -745,9 +880,15 @@ class DownloadRunnerTest {
         var active = 0
         var maximumActive = 0
         var recovered: DownloadOutput? = null
-        override suspend fun recover(processId: String, onProgress: (DownloadProgress) -> Unit): Result<DownloadOutput?> =
-            Result.success(recovered)
+        var resumeSupport: Boolean? = true
+        val recoveryCalls = mutableListOf<String>()
+        override suspend fun recover(processId: String, onProgress: (DownloadProgress) -> Unit): Result<DownloadOutput?> {
+            recoveryCalls += processId
+            if (recovered != null) onProgress(DownloadProgress(DownloadPhase.SAVING))
+            return Result.success(recovered)
+        }
         override suspend fun download(request: DownloadRequest, processId: String, onProgress: (DownloadProgress) -> Unit): Result<DownloadOutput> {
+            resumeSupport?.let { onProgress(DownloadProgress(DownloadPhase.DOWNLOADING, canResume = it)) }
             val call = Call(request, processId, onProgress)
             val index = calls.size
             calls += call

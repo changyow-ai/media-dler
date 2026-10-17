@@ -11,6 +11,8 @@ data class DownloadProgress(
     val detail: String? = null,
     val downloadedBytes: Long? = null,
     val totalBytes: Long? = null,
+    /** Report before native work: true if partial files can survive restart; null keeps the last report. */
+    val canResume: Boolean? = null,
 )
 
 @Serializable enum class QueuePauseKind { SYSTEM, STORAGE, NETWORK }

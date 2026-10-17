@@ -53,6 +53,10 @@ class YtDlpDownloader(
         val originalPlan = DownloadPlanner.plan(request)
         val hls = if (request.item.source.kind == SourceKind.GENERAL) null
             else SpecialSourceResume.prepare(originalPlan.resource)
+        // Unsupported special sources use a fresh work directory on every attempt.
+        // A bounded worker must require foreground continuation if it interrupts one.
+        onProgress(DownloadProgress(DownloadPhase.DOWNLOADING,
+            canResume = request.item.source.kind == SourceKind.GENERAL || hls != null))
         // Download the exact child whose snapshot we validated, rather than selecting
         // a potentially different variant from the master again on each attempt.
         val plan = hls?.let { originalPlan.copy(resource = it.resource) } ?: originalPlan

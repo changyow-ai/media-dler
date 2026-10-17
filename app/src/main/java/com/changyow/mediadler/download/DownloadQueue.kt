@@ -245,7 +245,9 @@ class DownloadQueue(
         mutate { records -> records.map {
             if (it.deleteRequested || !matches(it.task)) it else {
                 retried++
-                it.copy(task = it.task.copy(status = DownloadStatus.QUEUED, progress = -1f, errorMessage = null,
+                // Invalidate before any worker can claim the manual retry with preferResolved.
+                it.copy(resolvedRequest = if (it.spec is QueuedSpec.Page) null else it.resolvedRequest,
+                    task = it.task.copy(status = DownloadStatus.QUEUED, progress = -1f, errorMessage = null,
                     progressDetail = null, cancelRequested = false, queuePause = null))
             }
         } }

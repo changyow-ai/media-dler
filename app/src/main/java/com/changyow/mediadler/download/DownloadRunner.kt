@@ -72,20 +72,20 @@ class DownloadRunner(
             else expired = withTimeoutOrNull(windowMillis) { runWindow(); true } == null
         } finally {
             withContext(NonCancellable) {
-                stopAndAwait(owner, DownloadFailurePolicy.networkPause, processingExpiry = expired)
+                stopAndAwait(owner, DownloadFailurePolicy.networkPause, windowExpired = expired)
             }
         }
     }
 
     /** Returns only after the owner's native attempt has finished its cancellation cleanup. */
     suspend fun stopAndAwait(owner: String, reason: QueuePause = QueuePause(QueuePauseKind.SYSTEM, "下載已暫停，開啟 App 後可繼續排程")) {
-        stopAndAwait(owner, reason, processingExpiry = false)
+        stopAndAwait(owner, reason, windowExpired = false)
     }
 
-    private suspend fun stopAndAwait(owner: String, reason: QueuePause, processingExpiry: Boolean) {
+    private suspend fun stopAndAwait(owner: String, reason: QueuePause, windowExpired: Boolean) {
         val reply = CompletableDeferred<Unit>()
         pendingStops.add(owner)
-        commands.send(Command.Stop(owner, reason, reply, processingExpiry))
+        commands.send(Command.Stop(owner, reason, reply, windowExpired))
         reply.await()
     }
 
@@ -119,10 +119,6 @@ class DownloadRunner(
         fun pump() {
             val currentOwner = owner ?: return
             if (currentOwner in pendingStops || running != null || pendingAck != null || pause != null || queue.pauseReason() != null) return
-            if (!networkAvailable.value && queue.hasQueued()) {
-                park(DownloadFailurePolicy.networkPause)
-                return
-            }
             val claim = try { persisted { queue.claimNext(preferResolved) } } catch (error: PersistenceFailure) {
                 persistenceBlocked = true
                 park(persistencePause(error))
@@ -174,9 +170,15 @@ class DownloadRunner(
                     if (command.owner != owner) { command.reply?.complete(Unit); continue }
                     // A lifecycle stop must not turn an explicit storage pause into auto-resume.
                     if (running != null || pendingAck != null || queue.hasQueued()) {
-                        val reason = if (command.processingExpiry &&
-                            running?.claim?.id?.let(queue::get)?.status == DownloadStatus.PROCESSING)
-                            QueuePause(QueuePauseKind.SYSTEM, "背景處理已暫停，開啟 App 後可繼續排程") else command.reason
+                        val activeTask = running?.claim?.id?.let(queue::get)?.takeIf { it.status.isActive }
+                        val reason = when {
+                            command.windowExpired && activeTask?.status == DownloadStatus.PROCESSING ->
+                                QueuePause(QueuePauseKind.SYSTEM, "背景處理已暫停，開啟 App 後可繼續排程")
+                            activeTask != null && (command.windowExpired && running?.canResume != true ||
+                                command.reason.kind == QueuePauseKind.NETWORK && running?.canResume == false) ->
+                                QueuePause(QueuePauseKind.SYSTEM, "這項下載無法在背景分次接續，請開啟 App 後繼續排程")
+                            else -> command.reason
+                        }
                         park(reason, running?.claim?.id)
                     } else {
                         // A worker releasing a drained FIFO must not emit a false pause notification.
@@ -255,7 +257,7 @@ class DownloadRunner(
                 }
                 try {
                     changed(claim.id)
-                    val output = download(claim)
+                    val output = download(attempt)
                     currentCoroutineContext().ensureActive()
                     if (persisted { queue.complete(claim, output.uri, output.mimeType) }) {
                         queue.get(claim.id)?.let { task -> notifySuspending { listener.onCompleted(task, output) } }
@@ -305,13 +307,17 @@ class DownloadRunner(
         }
     }
 
-    private suspend fun download(claim: DownloadClaim): DownloadOutput {
-        ensureAttemptActive(claim)
+    private suspend fun download(attempt: Attempt): DownloadOutput {
+        val claim = attempt.claim
+        // The publication journal and completed private media need no network.
+        ensureAttemptActive(claim, requiresNetwork = false)
         downloader.recover(claim.id) { progress ->
             persisted { queue.setProgress(claim, progress) }
             changed(claim.id)
         }.getOrThrow()?.let { return it }
         repeat(2) { refresh ->
+            // A refreshed URL must establish its own checkpoint support.
+            attempt.canResume = null
             ensureAttemptActive(claim)
             if (claim.spec is QueuedSpec.Page) {
                 persisted { queue.extracting(claim, if (refresh == 0) null else "串流連結已失效，正在重新解析同一集") }
@@ -323,6 +329,7 @@ class DownloadRunner(
             changed(claim.id)
             try {
                 return downloader.download(request, claim.id) { progress ->
+                    progress.canResume?.let { attempt.canResume = it }
                     persisted { queue.setProgress(claim, progress) }
                     changed(claim.id)
                 }.getOrThrow()
@@ -337,10 +344,10 @@ class DownloadRunner(
 
     private fun changed(id: String) { queue.get(id)?.let { task -> notify { listener.onChanged(task) } } }
 
-    private suspend fun ensureAttemptActive(claim: DownloadClaim) {
+    private suspend fun ensureAttemptActive(claim: DownloadClaim, requiresNetwork: Boolean = true) {
         currentCoroutineContext().ensureActive()
         if (queue.get(claim.id)?.cancelRequested == true) throw CancellationException("Download canceled by user")
-        if (!networkAvailable.value) throw UnknownHostException("Network disconnected")
+        if (requiresNetwork && !networkAvailable.value) throw UnknownHostException("Network disconnected")
     }
 
     private inline fun notify(block: () -> Unit) {
@@ -364,6 +371,7 @@ class DownloadRunner(
         var stopping = false
         @Volatile var entered = false
         @Volatile var interrupted = false
+        @Volatile var canResume: Boolean? = null
         var pause: QueuePause? = null
         var ackPending = false
         var persistenceFailed = false
@@ -372,7 +380,7 @@ class DownloadRunner(
     private sealed interface Command {
         data class Wake(val owner: String, val startId: Int, val userInitiated: Boolean, val resumeAll: Boolean) : Command
         data class Stop(val owner: String, val reason: QueuePause, val reply: CompletableDeferred<Unit>? = null,
-            val processingExpiry: Boolean = false) : Command
+            val windowExpired: Boolean = false) : Command
         data class AcquireBackground(val owner: String, val reply: CompletableDeferred<Boolean>) : Command
         data class Finished(val attempt: Attempt) : Command
     }
