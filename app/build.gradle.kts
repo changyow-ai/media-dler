@@ -29,8 +29,9 @@ android {
         applicationId = "com.changyow.mediadler"
         minSdk = 28
         targetSdk = 35
-        versionCode = 10
-        versionName = "0.1.9"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        versionCode = 11
+        versionName = "0.1.10"
 
         // yt-dlp / ffmpeg ship native libraries for these ABIs.
         // TEMP (Phase 1): arm64-v8a (devices) + x86_64 (emulator testing) only, to keep the
@@ -103,6 +104,8 @@ android {
     }
 
     compileOptions {
+        // jUPnP uses Java 9 collection factories; keep sharing compatible with Android 9.
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -124,6 +127,7 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     implementation(project(":core"))
 
     implementation(libs.androidx.core.ktx)
@@ -159,4 +163,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("org.apache.sshd:sshd-sftp:2.20.0")
 }

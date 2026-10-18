@@ -48,6 +48,7 @@ class AppContainer(application: Application, isAppForeground: () -> Boolean = { 
 
     val engine = EngineInitializer(application)
     val settingsRepository: SettingsRepository = DataStoreSettingsRepository(application)
+    val sharingController = com.changyow.mediadler.sharing.SharingController(application)
     val historyStore = HistoryStore(application)
     private val downloadWorkRoot = File(application.noBackupFilesDir, "download-work")
     val mediaStoreStorage = MediaStoreStorage(application)

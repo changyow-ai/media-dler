@@ -49,6 +49,31 @@
 
 - 分享**影片**時選「**取出聲音**」，會**無損**抽出原音軌存成 `.m4a`（保留原音質、不重新編碼），存到你的下載位置。
 
+### 區網分享（UPnP / SFTP）
+
+- 在「設定 → 區網分享」分別開啟 **UPnP／DLNA** 與 **SFTP**。分享目前下載資料夾及子目錄；切換儲存位置會重新啟動分享。
+- **UPnP／DLNA**：同區網播放器可找到 `media-dler`、瀏覽影音與圖片、直接串流及快轉；依播放器支援的原始格式播放，沒有轉碼。
+- **SFTP**：先儲存帳號、密碼與連接埠（預設 `2222`），再依畫面上的位址連線。提供列目錄、讀檔與續傳，唯讀且不提供 SSH shell。
+- 不需要開著 Kodi 或停留在 app 畫面。分享使用獨立前景服務，通知列可一鍵停止；程序或裝置重新啟動後預設關閉。
+- 預設下載位置只列出 Android 允許本 app 讀取的 MediaStore 檔案；要分享其他來源或重新安裝前留下的檔案，請以 SAF 授權該資料夾。
+- 只分享已完成的檔案，忽略下載暫存；直接讀取現有資料夾，不依賴下載歷史，也不建立媒體索引或複製影片。SAF 位置需支援隨機讀取，建議本機資料夾。
+- 使用同一個 Wi-Fi 或乙太網路（IPv4）；訪客網路、用戶端隔離或封鎖多播可能讓播放器找不到伺服器。UPnP 沒有帳密，開啟期間同區網裝置可讀取分享內容；SFTP 需登入。
+- 分享期間會耗電，系統或廠商的省電限制仍可能停止服務。SFTP 密碼僅保存加鹽雜湊，主機金鑰保存在 app 私有且不備份的目錄。
+
+實際連線驗證：
+
+```sh
+python -m pip install paramiko
+python scripts/check-sharing.py --root /tmp/media-dler-sharing --prepare
+./gradlew :core:sharingSmokeServer -PshareRoot=/tmp/media-dler-sharing
+# 在另一個終端機，使用上一步印出的 HTTP 連接埠：
+python scripts/check-sharing.py --root /tmp/media-dler-sharing --http <port> --ssdp
+```
+
+這套檢查會真的連線測 SSDP、SOAP、事件訂閱、HTTP Range、SFTP 登入與唯讀限制，包含中文檔名及超過 4 GiB 的位移。Android 的儲存與服務測試可在可用 Wi-Fi 的測試裝置／模擬器執行 `./gradlew :app:connectedDebugAndroidTest`；會改寫測試裝置的 SFTP 登入設定，請使用專用測試環境。若要驗證 SAF，先在 app 授權本機資料夾，再加上 `-Pandroid.testInstrumentationRunnerArguments.treeUri=<tree URI>`。
+
+已安裝 FFmpeg 的環境可在建立測試檔與連線檢查兩個指令都加上 `--playback`，實際串流、跳轉並解碼 H.264 影片。
+
 ---
 
 ## 使用
@@ -74,6 +99,6 @@
 
 ## 致謝
 
-本專案站在這些之上：[yt-dlp](https://github.com/yt-dlp/yt-dlp)、[FFmpeg](https://ffmpeg.org/)、[youtubedl-android](https://github.com/JunkFood02/youtubedl-android)、[whisper.cpp](https://github.com/ggerganov/whisper.cpp)、[OpenCC](https://github.com/BYVoid/OpenCC)，雲端轉錄透過 [OpenRouter](https://openrouter.ai/)。
+本專案站在這些之上：[yt-dlp](https://github.com/yt-dlp/yt-dlp)、[FFmpeg](https://ffmpeg.org/)、[youtubedl-android](https://github.com/JunkFood02/youtubedl-android)、[whisper.cpp](https://github.com/ggerganov/whisper.cpp)、[OpenCC](https://github.com/BYVoid/OpenCC)、[jUPnP](https://github.com/jupnp/jupnp)、[Apache MINA SSHD](https://github.com/apache/mina-sshd) 與 [Apache HttpComponents](https://hc.apache.org/)，雲端轉錄透過 [OpenRouter](https://openrouter.ai/)。
 
 > 設計、架構與實作筆記見 [`plan/media-dler-plan.md`](plan/media-dler-plan.md)（下載）與 [`plan/video2text-plan.md`](plan/video2text-plan.md)（語音轉文字 / 抽音）。

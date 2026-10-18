@@ -247,6 +247,10 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
                 }
             }
 
+            SettingSection("區網分享") {
+                SharingSettings(container.sharingController)
+            }
+
             SettingSection("下載引擎") {
                 Text(
                     engineStatus,
