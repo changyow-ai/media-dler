@@ -1,0 +1,953 @@
+{
+  "schema": 1,
+  "date": "2026-10-19",
+  "branch": "experiment/ad-multisignal",
+  "base_commit": "d4f53bd14c98fd116a3386d79d94720727385f5c",
+  "aye_task": "t-6eeb87276e861a4c6966",
+  "scope": "Bounded host shadow experiment only; no App changes, device action or automatic unknown-ad removal. Labels precede feature assessment.",
+  "status": "VALID_EXPERIMENT; rule not ready for generalized automatic removal",
+  "policy": "experimental-v1",
+  "protocol": "experiments/ad-multisignal/protocol-20261019.json",
+  "raw_report": "/tmp/media-dler-ad-multisignal-20261019/attempt-003/report.json",
+  "raw_report_sha256": "b07a326603d3a8c16380c8c1f2bcf2bd590dbfa6857a60477a5d3c58886ce549",
+  "review_csv": "/tmp/media-dler-ad-multisignal-20261019/attempt-003/review.csv",
+  "metrics": {
+    "exact_baseline": {
+      "ad_cases": 6,
+      "flagged_ad_cases": 5,
+      "unflagged_ad_cases": 1,
+      "retain_cases": 6,
+      "false_flags_on_retain_cases": 0,
+      "flagged_ids": [
+        "e1-ad-02",
+        "e1-ad-04",
+        "e1-ad-06",
+        "e1-ad-08",
+        "heldout-288588-family"
+      ]
+    },
+    "content_only": {
+      "ad_cases": 6,
+      "flagged_ad_cases": 0,
+      "unflagged_ad_cases": 6,
+      "retain_cases": 6,
+      "false_flags_on_retain_cases": 1,
+      "flagged_ids": [
+        "normal-banner-overlay"
+      ]
+    },
+    "bridge_only": {
+      "ad_cases": 6,
+      "flagged_ad_cases": 3,
+      "unflagged_ad_cases": 3,
+      "retain_cases": 6,
+      "false_flags_on_retain_cases": 0,
+      "flagged_ids": [
+        "e1-ad-02",
+        "e1-ad-04",
+        "unseen-phone-ad"
+      ]
+    },
+    "combined": {
+      "ad_cases": 6,
+      "flagged_ad_cases": 0,
+      "unflagged_ad_cases": 6,
+      "retain_cases": 6,
+      "false_flags_on_retain_cases": 0,
+      "flagged_ids": []
+    },
+    "exact_or_combined": {
+      "ad_cases": 6,
+      "flagged_ad_cases": 5,
+      "unflagged_ad_cases": 1,
+      "retain_cases": 6,
+      "false_flags_on_retain_cases": 0,
+      "flagged_ids": [
+        "e1-ad-02",
+        "e1-ad-04",
+        "e1-ad-06",
+        "e1-ad-08",
+        "heldout-288588-family"
+      ]
+    }
+  },
+  "case_counts": {
+    "total": 12,
+    "ad_occurrences": 6,
+    "ad_creative_families": 4,
+    "retain_cases": 6,
+    "constructed_negative_boundaries": 5
+  },
+  "decision": {
+    "enable_generic_removal": false,
+    "reason": "Combined v1 flags no advertisements. Zero false flags here is an abstention result, not precision evidence. Bridge provides insertion candidates including an uncatalogued creative; promotional-text requirements are the immediate bottleneck.",
+    "new_uncatalogued_ad_candidate_ids": [
+      "unseen-phone-ad"
+    ],
+    "new_uncatalogued_combined_flags": [],
+    "retention_mechanism_limit": "Neither actual credits nor the constructed banner can be claimed semantically understood: this run mostly retains by unknown. Banner is rejected by S low-information guard, not underlying-programme recognition."
+  },
+  "verification": {
+    "focused_tests": {
+      "passed": 18,
+      "command": "python3 scripts/test_probe_hls_ad_features.py",
+      "source": "independent task_executor run; includes FFV1, delayed-video/AAC-tail, H264 long-GOP/Bframes MP4+TS exactbytes/timestamps and fakeOCR integration"
+    },
+    "native_input_checks": "Real TS47 frames and MP4slice156 frames exactly match ffprobe-selected counts/timestamps; source decode framecontent covered by regression.",
+    "optional_macOS_OCR": "Compiled adapter and ran all12cases with systemVision. Geometryclampedtoimage; no text/confidence/score changes. Not Android OCR verification.",
+    "frozen_source_settings_and_case_hashes_match": true,
+    "valid_candidate_decodes": 12,
+    "unexpected_input_errors": [],
+    "OCR_errors": [],
+    "source_files_unchanged_size_and_mtime": 21,
+    "source_postrun_full_content_hashes": false,
+    "all_actions": "preserve",
+    "app_source_changed": false,
+    "independent_review": {
+      "agent": "ad_multisignal_astra",
+      "configuration": "user-authorized Astra/max",
+      "decision": "GO for hostexperimentcommit; NO-GO for genericAppremoval",
+      "checked": "source/case/protocolhashes, settings, all12validdecodes/actualOCRroles, matrixcounts, no labelleakage and allactionspreserve",
+      "limitations": "OCR does not distinguish programmeoverlay; S/Pcanbecorrelated; programme negatives do not bracket exacttwohardcuts."
+    }
+  },
+  "failure_history": {
+    "attempt001": "Input seeking/logged-frame mismatch made rule assessment invalid; raw report and source protocol retained under /tmp/media-dler-ad-multisignal-20261019. Mechanical extraction repaired without scoring changes.",
+    "attempt002": "Native inputs valid; out-of-image Vision boxes caused2OCR-role unknowns. Provider geometry normalized; all12fixedcasesrerun asattempt003. No threshold/pattern/samplefraction/case-label tuning."
+  },
+  "limitations": [
+    "Six positive occurrences represent only4creative families; repeatedA/B are development examples, not newgeneralization.",
+    "One held-out-from-rule-development288588family is known to the exact baseline; it is not evidence of detecting arbitrarynewadfamilies.",
+    "Normal programme windows were visually reviewed, but artificial boundaries do not bracket both exact hard cuts of a full shot/reverse-shot. This high-risk negative remains untested.",
+    "Constructed loud/banner variants share the same programme source; they are not independent negatives.",
+    "Only one drama provides normal negatives. No reliable accuracy or zero-false-removal rate is established.",
+    "RGB64x36 similarity and local motionbaseline do not prove action/dialogue continuity. S abstains on missing/low-information visualcontext; W abstains on missing or numeric-floor audio. No after-context atEOF.",
+    "OCRconfidence .8 is uncalibrated for this provider, Chinesepromowords often score.3/.5 and are discarded;3timesamples/limitedlexicon can misspromo content.",
+    "Unicode domainwordboundaries can miss a domain directly adjacent to Chinese; retained as knownv1recall limitation.",
+    "S/P can be correlated through one overlay; textboxarea/underlying-programme continuity are recorded or proposed but not solved by thisrule.",
+    "No wholeepisode filtered output, Android runtime/performance verification, or productiongeneric-removal change."
+  ],
+  "next_experiment_priorities": [
+    "Calibrate and broaden promotional-evidence extraction without requiring a brittle isolated keyword; report OCRmissingness, textual persistence/layout and engine-specificconfidence.",
+    "Add exacthard-cut shot/reverse-shot and dynamicprogramme-with-overlay negatives before any removalrule; verify programme continues THROUGH B beneath the overlay.",
+    "Freeze a revisedrule before family/programme-separated fresh evaluation. Keep exactfingerprint removal available."
+  ],
+  "cases": [
+    {
+      "id": "e1-ad-02",
+      "truth": "ad",
+      "creative_family": "451451-A",
+      "split": "development",
+      "boundary_provenance": "real_hls_discontinuity",
+      "flags": {
+        "exact_baseline": true,
+        "content_only": false,
+        "bridge_only": true,
+        "combined": false,
+        "exact_or_combined": true
+      },
+      "combined_result": "unknown",
+      "bridge": {
+        "start_seam_mae": 0.35669026870007264,
+        "end_seam_mae": 0.3289595815177923,
+        "joined_edge_mae": 0.007074936456063907,
+        "side_native_adjacent_mae_p90": [
+          0.0063322667029774874,
+          0.007105573710965868
+        ],
+        "joined_limit": 0.028422294843863473,
+        "minimum_original_seam_limit": 0.028299745824255627,
+        "status": "strong",
+        "reason": "temporal_bridge_heuristic"
+      },
+      "promotion": {
+        "status": "unknown",
+        "domain_distinct_time_counts": {
+          "451451.com": 2
+        },
+        "persistent_new_domains": [
+          "451451.com"
+        ],
+        "outside_domains": [],
+        "outside_ocr_status": {
+          "before": "ok",
+          "after": "ok"
+        },
+        "promotional_words": [],
+        "programme_contradictions": [],
+        "reason": "insufficient_or_conflicting_ocr_evidence"
+      },
+      "style": {
+        "status": "unknown",
+        "votes_in_decision": false,
+        "relative_audio": {
+          "before": {
+            "status": "ok",
+            "rms_gain_db": 11.912187309299359
+          },
+          "after": {
+            "status": "ok",
+            "rms_gain_db": 9.364540058065204
+          }
+        },
+        "top_color_bin_median": 0.06966145833333334
+      },
+      "OCR_status": {
+        "candidate": "ok",
+        "before": "ok",
+        "after": "ok"
+      },
+      "input_decode_counts": {
+        "candidate": 494,
+        "before": 47,
+        "after": 47
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "e1-ad-04",
+      "truth": "ad",
+      "creative_family": "451451-B",
+      "split": "development",
+      "boundary_provenance": "real_hls_discontinuity",
+      "flags": {
+        "exact_baseline": true,
+        "content_only": false,
+        "bridge_only": true,
+        "combined": false,
+        "exact_or_combined": true
+      },
+      "combined_result": "unknown",
+      "bridge": {
+        "start_seam_mae": 0.26049779865649964,
+        "end_seam_mae": 0.33305135711692085,
+        "joined_edge_mae": 0.012043277959331881,
+        "side_native_adjacent_mae_p90": [
+          0.005699096768336964,
+          0.0033831472403776327
+        ],
+        "joined_limit": 0.022796387073347857,
+        "minimum_original_seam_limit": 0.048173111837327524,
+        "status": "strong",
+        "reason": "temporal_bridge_heuristic"
+      },
+      "promotion": {
+        "status": "unknown",
+        "domain_distinct_time_counts": {
+          "451451.com": 2
+        },
+        "persistent_new_domains": [
+          "451451.com"
+        ],
+        "outside_domains": [],
+        "outside_ocr_status": {
+          "before": "ok",
+          "after": "ok"
+        },
+        "promotional_words": [],
+        "programme_contradictions": [],
+        "reason": "insufficient_or_conflicting_ocr_evidence"
+      },
+      "style": {
+        "status": "unknown",
+        "votes_in_decision": false,
+        "relative_audio": {
+          "before": {
+            "status": "ok",
+            "rms_gain_db": 9.191641496230577
+          },
+          "after": {
+            "status": "ok",
+            "rms_gain_db": 7.288576442258626
+          }
+        },
+        "top_color_bin_median": 0.072265625
+      },
+      "OCR_status": {
+        "candidate": "ok",
+        "before": "ok",
+        "after": "ok"
+      },
+      "input_decode_counts": {
+        "candidate": 530,
+        "before": 47,
+        "after": 47
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "e1-ad-06",
+      "truth": "ad",
+      "creative_family": "451451-A",
+      "split": "development",
+      "boundary_provenance": "real_hls_discontinuity",
+      "flags": {
+        "exact_baseline": true,
+        "content_only": false,
+        "bridge_only": false,
+        "combined": false,
+        "exact_or_combined": true
+      },
+      "combined_result": "unknown",
+      "bridge": {
+        "start_seam_mae": 0.3232621868191721,
+        "end_seam_mae": 0.26876304920116195,
+        "joined_edge_mae": 0.01574017338416848,
+        "side_native_adjacent_mae_p90": [
+          0.00046069353667392885,
+          0.0005775689905591866
+        ],
+        "status": "unknown",
+        "reason": "static_or_low_information_context"
+      },
+      "promotion": {
+        "status": "unknown",
+        "domain_distinct_time_counts": {
+          "451451.com": 2
+        },
+        "persistent_new_domains": [
+          "451451.com"
+        ],
+        "outside_domains": [],
+        "outside_ocr_status": {
+          "before": "ok",
+          "after": "ok"
+        },
+        "promotional_words": [],
+        "programme_contradictions": [],
+        "reason": "insufficient_or_conflicting_ocr_evidence"
+      },
+      "style": {
+        "status": "unknown",
+        "votes_in_decision": false,
+        "relative_audio": {
+          "before": {
+            "status": "ok",
+            "rms_gain_db": 8.493776690750442
+          },
+          "after": {
+            "status": "ok",
+            "rms_gain_db": 9.8416757285918
+          }
+        },
+        "top_color_bin_median": 0.06966145833333334
+      },
+      "OCR_status": {
+        "candidate": "ok",
+        "before": "ok",
+        "after": "ok"
+      },
+      "input_decode_counts": {
+        "candidate": 494,
+        "before": 47,
+        "after": 47
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "e1-ad-08",
+      "truth": "ad",
+      "creative_family": "451451-B",
+      "split": "development",
+      "boundary_provenance": "real_hls_discontinuity",
+      "flags": {
+        "exact_baseline": true,
+        "content_only": false,
+        "bridge_only": false,
+        "combined": false,
+        "exact_or_combined": true
+      },
+      "combined_result": "unknown",
+      "bridge": {
+        "status": "unknown",
+        "reason": "requires_two_discontinuity_boundaries"
+      },
+      "promotion": {
+        "status": "unknown",
+        "domain_distinct_time_counts": {
+          "451451.com": 2
+        },
+        "persistent_new_domains": [
+          "451451.com"
+        ],
+        "outside_domains": [],
+        "outside_ocr_status": {
+          "before": "ok",
+          "after": "absent"
+        },
+        "promotional_words": [],
+        "programme_contradictions": [],
+        "reason": "insufficient_or_conflicting_ocr_evidence"
+      },
+      "style": {
+        "status": "unknown",
+        "votes_in_decision": false,
+        "relative_audio": {
+          "before": {
+            "status": "unknown",
+            "reason": "missing_audio_or_numerical_floor"
+          },
+          "after": {
+            "status": "unknown",
+            "reason": "missing_audio_or_numerical_floor"
+          }
+        },
+        "top_color_bin_median": 0.072265625
+      },
+      "OCR_status": {
+        "candidate": "ok",
+        "before": "ok",
+        "after": "absent"
+      },
+      "input_decode_counts": {
+        "candidate": 530,
+        "before": 42,
+        "after": null
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "unseen-phone-ad",
+      "truth": "ad",
+      "creative_family": "unseen-phone-collage",
+      "split": "development",
+      "boundary_provenance": "real_hls_discontinuity",
+      "flags": {
+        "exact_baseline": false,
+        "content_only": false,
+        "bridge_only": true,
+        "combined": false,
+        "exact_or_combined": false
+      },
+      "combined_result": "unknown",
+      "bridge": {
+        "start_seam_mae": 0.3045258033769063,
+        "end_seam_mae": 0.27925347222222224,
+        "joined_edge_mae": 0.03412763253449528,
+        "side_native_adjacent_mae_p90": [
+          0.022701638525780683,
+          0.04040373093681917
+        ],
+        "joined_limit": 0.16161492374727668,
+        "minimum_original_seam_limit": 0.13651053013798112,
+        "status": "strong",
+        "reason": "temporal_bridge_heuristic"
+      },
+      "promotion": {
+        "status": "unknown",
+        "domain_distinct_time_counts": {
+          "588917.com": 1,
+          "711290.com": 1,
+          "718372.com": 1
+        },
+        "persistent_new_domains": [],
+        "outside_domains": [],
+        "outside_ocr_status": {
+          "before": "ok",
+          "after": "ok"
+        },
+        "promotional_words": [
+          "棋牌"
+        ],
+        "programme_contradictions": [],
+        "reason": "insufficient_or_conflicting_ocr_evidence"
+      },
+      "style": {
+        "status": "unknown",
+        "votes_in_decision": false,
+        "relative_audio": {
+          "before": {
+            "status": "ok",
+            "rms_gain_db": 18.631765386817023
+          },
+          "after": {
+            "status": "ok",
+            "rms_gain_db": 22.79305527944002
+          }
+        },
+        "top_color_bin_median": 0.1408420138888889
+      },
+      "OCR_status": {
+        "candidate": "ok",
+        "before": "ok",
+        "after": "ok"
+      },
+      "input_decode_counts": {
+        "candidate": 441,
+        "before": 50,
+        "after": 49
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "normal-credits-with-domain",
+      "truth": "mixed_programme_overlay",
+      "creative_family": "programme-credits",
+      "split": "development",
+      "boundary_provenance": "real_hls_discontinuity",
+      "flags": {
+        "exact_baseline": false,
+        "content_only": false,
+        "bridge_only": false,
+        "combined": false,
+        "exact_or_combined": false
+      },
+      "combined_result": "unknown",
+      "bridge": {
+        "start_seam_mae": 0.37375408496732027,
+        "end_seam_mae": 0.4346751316267248,
+        "joined_edge_mae": 0.2867737835875091,
+        "side_native_adjacent_mae_p90": [
+          0.020046977124183008,
+          0.0038205791575889616
+        ],
+        "joined_limit": 0.08018790849673203,
+        "minimum_original_seam_limit": 1.1470951343500364,
+        "status": "unknown",
+        "reason": "bridge_thresholds_not_met"
+      },
+      "promotion": {
+        "status": "unknown",
+        "domain_distinct_time_counts": {},
+        "persistent_new_domains": [],
+        "outside_domains": [
+          "588917.com",
+          "711290.com",
+          "718372.com"
+        ],
+        "outside_ocr_status": {
+          "before": "ok",
+          "after": "ok"
+        },
+        "promotional_words": [],
+        "programme_contradictions": [],
+        "reason": "insufficient_or_conflicting_ocr_evidence"
+      },
+      "style": {
+        "status": "unknown",
+        "votes_in_decision": false,
+        "relative_audio": {
+          "before": {
+            "status": "unknown",
+            "reason": "missing_audio_or_numerical_floor"
+          },
+          "after": {
+            "status": "unknown",
+            "reason": "missing_audio_or_numerical_floor"
+          }
+        },
+        "top_color_bin_median": 0.9227430555555556
+      },
+      "OCR_status": {
+        "candidate": "ok",
+        "before": "ok",
+        "after": "ok"
+      },
+      "input_decode_counts": {
+        "candidate": 701,
+        "before": 50,
+        "after": 49
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "normal-shot-reverse-shot",
+      "truth": "normal",
+      "creative_family": "e1-normal-office",
+      "split": "development",
+      "boundary_provenance": "constructed_candidate_boundaries_over_real_contiguous_programme; not a real HLS discontinuity interval",
+      "flags": {
+        "exact_baseline": false,
+        "content_only": false,
+        "bridge_only": false,
+        "combined": false,
+        "exact_or_combined": false
+      },
+      "combined_result": "unknown",
+      "bridge": {
+        "start_seam_mae": 0.0055385348583877995,
+        "end_seam_mae": 0.000900394880174292,
+        "joined_edge_mae": 0.07413421387073348,
+        "side_native_adjacent_mae_p90": [
+          0.004976851851851852,
+          0.0016600853304284677
+        ],
+        "joined_limit": 0.01990740740740741,
+        "minimum_original_seam_limit": 0.2965368554829339,
+        "status": "unknown",
+        "reason": "bridge_thresholds_not_met"
+      },
+      "promotion": {
+        "status": "unknown",
+        "domain_distinct_time_counts": {},
+        "persistent_new_domains": [],
+        "outside_domains": [],
+        "outside_ocr_status": {
+          "before": "ok",
+          "after": "ok"
+        },
+        "promotional_words": [],
+        "programme_contradictions": [],
+        "reason": "insufficient_or_conflicting_ocr_evidence"
+      },
+      "style": {
+        "status": "unknown",
+        "votes_in_decision": false,
+        "relative_audio": {
+          "before": {
+            "status": "ok",
+            "rms_gain_db": 0.1575635833363198
+          },
+          "after": {
+            "status": "ok",
+            "rms_gain_db": -1.8206750800021858
+          }
+        },
+        "top_color_bin_median": 0.3517795138888889
+      },
+      "OCR_status": {
+        "candidate": "ok",
+        "before": "ok",
+        "after": "ok"
+      },
+      "input_decode_counts": {
+        "candidate": 156,
+        "before": 48,
+        "after": 48
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "normal-continuous-dialogue",
+      "truth": "normal",
+      "creative_family": "e1-normal-dialogue",
+      "split": "development",
+      "boundary_provenance": "constructed_candidate_boundaries_over_real_contiguous_programme; not a real HLS discontinuity interval",
+      "flags": {
+        "exact_baseline": false,
+        "content_only": false,
+        "bridge_only": false,
+        "combined": false,
+        "exact_or_combined": false
+      },
+      "combined_result": "unknown",
+      "bridge": {
+        "start_seam_mae": 0.0013781091140159768,
+        "end_seam_mae": 0.0012771196441539578,
+        "joined_edge_mae": 0.01185775236020334,
+        "side_native_adjacent_mae_p90": [
+          0.0019959604212055194,
+          0.0025287082425562817
+        ],
+        "status": "unknown",
+        "reason": "static_or_low_information_context"
+      },
+      "promotion": {
+        "status": "unknown",
+        "domain_distinct_time_counts": {},
+        "persistent_new_domains": [],
+        "outside_domains": [],
+        "outside_ocr_status": {
+          "before": "ok",
+          "after": "ok"
+        },
+        "promotional_words": [],
+        "programme_contradictions": [],
+        "reason": "insufficient_or_conflicting_ocr_evidence"
+      },
+      "style": {
+        "status": "unknown",
+        "votes_in_decision": false,
+        "relative_audio": {
+          "before": {
+            "status": "ok",
+            "rms_gain_db": -2.727236667187063
+          },
+          "after": {
+            "status": "ok",
+            "rms_gain_db": -1.3637339567343623
+          }
+        },
+        "top_color_bin_median": 0.5904947916666667
+      },
+      "OCR_status": {
+        "candidate": "ok",
+        "before": "ok",
+        "after": "ok"
+      },
+      "input_decode_counts": {
+        "candidate": 24,
+        "before": 48,
+        "after": 48
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "normal-scene-transition",
+      "truth": "normal",
+      "creative_family": "e1-normal-scene-transition",
+      "split": "challenge",
+      "boundary_provenance": "constructed_candidate_boundaries_over_real_contiguous_programme; not a real HLS discontinuity interval",
+      "flags": {
+        "exact_baseline": false,
+        "content_only": false,
+        "bridge_only": false,
+        "combined": false,
+        "exact_or_combined": false
+      },
+      "combined_result": "unknown",
+      "bridge": {
+        "start_seam_mae": 0.002629697712418301,
+        "end_seam_mae": 0.0011982570806100218,
+        "joined_edge_mae": 0.05553796750181554,
+        "side_native_adjacent_mae_p90": [
+          0.002786855482933914,
+          0.0023721178286129265
+        ],
+        "status": "unknown",
+        "reason": "static_or_low_information_context"
+      },
+      "promotion": {
+        "status": "unknown",
+        "domain_distinct_time_counts": {},
+        "persistent_new_domains": [],
+        "outside_domains": [],
+        "outside_ocr_status": {
+          "before": "ok",
+          "after": "ok"
+        },
+        "promotional_words": [],
+        "programme_contradictions": [],
+        "reason": "insufficient_or_conflicting_ocr_evidence"
+      },
+      "style": {
+        "status": "unknown",
+        "votes_in_decision": false,
+        "relative_audio": {
+          "before": {
+            "status": "ok",
+            "rms_gain_db": -8.981569266301369
+          },
+          "after": {
+            "status": "ok",
+            "rms_gain_db": -12.200704257419673
+          }
+        },
+        "top_color_bin_median": 0.8075086805555556
+      },
+      "OCR_status": {
+        "candidate": "ok",
+        "before": "ok",
+        "after": "ok"
+      },
+      "input_decode_counts": {
+        "candidate": 48,
+        "before": 48,
+        "after": 48
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "normal-loud",
+      "truth": "normal",
+      "creative_family": "e1-normal-dialogue",
+      "split": "challenge",
+      "boundary_provenance": "constructed_candidate_boundaries_over_real_contiguous_programme; not a real HLS discontinuity interval",
+      "flags": {
+        "exact_baseline": false,
+        "content_only": false,
+        "bridge_only": false,
+        "combined": false,
+        "exact_or_combined": false
+      },
+      "combined_result": "unknown",
+      "bridge": {
+        "start_seam_mae": 0.001468886165577342,
+        "end_seam_mae": 0.0013866194625998546,
+        "joined_edge_mae": 0.01185775236020334,
+        "side_native_adjacent_mae_p90": [
+          0.0019959604212055194,
+          0.0025287082425562817
+        ],
+        "status": "unknown",
+        "reason": "static_or_low_information_context"
+      },
+      "promotion": {
+        "status": "unknown",
+        "domain_distinct_time_counts": {},
+        "persistent_new_domains": [],
+        "outside_domains": [],
+        "outside_ocr_status": {
+          "before": "ok",
+          "after": "ok"
+        },
+        "promotional_words": [],
+        "programme_contradictions": [],
+        "reason": "insufficient_or_conflicting_ocr_evidence"
+      },
+      "style": {
+        "status": "strong",
+        "votes_in_decision": false,
+        "relative_audio": {
+          "before": {
+            "status": "ok",
+            "rms_gain_db": 9.17621293189237
+          },
+          "after": {
+            "status": "ok",
+            "rms_gain_db": 10.53971564234507
+          }
+        },
+        "top_color_bin_median": 0.58984375
+      },
+      "OCR_status": {
+        "candidate": "ok",
+        "before": "ok",
+        "after": "ok"
+      },
+      "input_decode_counts": {
+        "candidate": 24,
+        "before": 48,
+        "after": 48
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "normal-banner-overlay",
+      "truth": "mixed_programme_overlay",
+      "creative_family": "e1-normal-dialogue",
+      "split": "challenge",
+      "boundary_provenance": "constructed_candidate_boundaries_over_real_contiguous_programme; not a real HLS discontinuity interval",
+      "flags": {
+        "exact_baseline": false,
+        "content_only": true,
+        "bridge_only": false,
+        "combined": false,
+        "exact_or_combined": false
+      },
+      "combined_result": "unknown",
+      "bridge": {
+        "start_seam_mae": 0.012744530682643428,
+        "end_seam_mae": 0.012600989469862019,
+        "joined_edge_mae": 0.01185775236020334,
+        "side_native_adjacent_mae_p90": [
+          0.0019959604212055194,
+          0.0025287082425562817
+        ],
+        "status": "unknown",
+        "reason": "static_or_low_information_context"
+      },
+      "promotion": {
+        "status": "strong",
+        "domain_distinct_time_counts": {
+          "999888.com": 3
+        },
+        "persistent_new_domains": [
+          "999888.com"
+        ],
+        "outside_domains": [],
+        "outside_ocr_status": {
+          "before": "ok",
+          "after": "ok"
+        },
+        "promotional_words": [
+          "bonus",
+          "register"
+        ],
+        "programme_contradictions": [],
+        "reason": "persistent_domain_and_promotion"
+      },
+      "style": {
+        "status": "unknown",
+        "votes_in_decision": false,
+        "relative_audio": {
+          "before": {
+            "status": "ok",
+            "rms_gain_db": -2.737413545660285
+          },
+          "after": {
+            "status": "ok",
+            "rms_gain_db": -1.3739108352075844
+          }
+        },
+        "top_color_bin_median": 0.5653211805555556
+      },
+      "OCR_status": {
+        "candidate": "ok",
+        "before": "ok",
+        "after": "ok"
+      },
+      "input_decode_counts": {
+        "candidate": 24,
+        "before": 48,
+        "after": 48
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "heldout-288588-family",
+      "truth": "ad",
+      "creative_family": "288588",
+      "split": "creative_family_challenge",
+      "boundary_provenance": "real_hls_discontinuity",
+      "flags": {
+        "exact_baseline": true,
+        "content_only": false,
+        "bridge_only": false,
+        "combined": false,
+        "exact_or_combined": true
+      },
+      "combined_result": "unknown",
+      "bridge": {
+        "start_seam_mae": 0.3333651053013798,
+        "end_seam_mae": 0.34235657225853305,
+        "joined_edge_mae": 0.10652403322440088,
+        "side_native_adjacent_mae_p90": [
+          0.001358251633986928,
+          0.000687636165577342
+        ],
+        "status": "unknown",
+        "reason": "static_or_low_information_context"
+      },
+      "promotion": {
+        "status": "unknown",
+        "domain_distinct_time_counts": {},
+        "persistent_new_domains": [],
+        "outside_domains": [],
+        "outside_ocr_status": {
+          "before": "ok",
+          "after": "ok"
+        },
+        "promotional_words": [],
+        "programme_contradictions": [],
+        "reason": "insufficient_or_conflicting_ocr_evidence"
+      },
+      "style": {
+        "status": "unknown",
+        "votes_in_decision": false,
+        "relative_audio": {
+          "before": {
+            "status": "ok",
+            "rms_gain_db": 25.604846821832766
+          },
+          "after": {
+            "status": "ok",
+            "rms_gain_db": 11.685961598679736
+          }
+        },
+        "top_color_bin_median": 0.068359375
+      },
+      "OCR_status": {
+        "candidate": "ok",
+        "before": "ok",
+        "after": "ok"
+      },
+      "input_decode_counts": {
+        "candidate": 644,
+        "before": 47,
+        "after": 47
+      },
+      "action": "preserve"
+    }
+  ]
+}

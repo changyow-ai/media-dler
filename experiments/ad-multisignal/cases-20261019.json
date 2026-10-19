@@ -1,0 +1,432 @@
+{
+  "schema": 1,
+  "purpose": "Fixed12-case development/challenge evidence set, labels set before feature evaluation; all generic decisions preserve.",
+  "baseline_commit": "d4f53bd14c98fd116a3386d79d94720727385f5c",
+  "cases": [
+    {
+      "id": "e1-ad-02",
+      "candidate": {
+        "path": "/tmp/media-dler-continuity-20261019/ground-truth/region-02.mp4"
+      },
+      "before": {
+        "path": "/tmp/media-dler-continuity-20261019/ground-truth/d435a5a20f242243ef6f0bfcb120b4b6e42a1ab9b85d8b87b5ad7b10617e27c0.ts"
+      },
+      "after": {
+        "path": "/tmp/media-dler-continuity-20261019/ground-truth/bb4e2dd164d280db93dede6286d133990d248d1c6c144c8323a6f9360321a4a0.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "ground_truth": "ad",
+        "creative_family": "451451-A",
+        "split": "development",
+        "boundary_provenance": "real_hls_discontinuity",
+        "baseline_exact_match": true,
+        "note": "User-confirmed ad; repeated creative occurrence is not an independent new family."
+      }
+    },
+    {
+      "id": "e1-ad-04",
+      "candidate": {
+        "path": "/tmp/media-dler-continuity-20261019/ground-truth/region-04.mp4"
+      },
+      "before": {
+        "path": "/tmp/media-dler-continuity-20261019/ground-truth/a140336cb81d2e5d8d4b09dc544f93da1ccb0e1aaaec6c28440e01992583a454.ts"
+      },
+      "after": {
+        "path": "/tmp/media-dler-continuity-20261019/ground-truth/c7a9bec307b6e290e1e82a35958f78f63908e209487b4d402bb62522f22259f0.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "ground_truth": "ad",
+        "creative_family": "451451-B",
+        "split": "development",
+        "boundary_provenance": "real_hls_discontinuity",
+        "baseline_exact_match": true,
+        "note": "User-confirmed ad; repeated creative occurrence is not an independent new family."
+      }
+    },
+    {
+      "id": "e1-ad-06",
+      "candidate": {
+        "path": "/tmp/media-dler-continuity-20261019/ground-truth/region-06.mp4"
+      },
+      "before": {
+        "path": "/tmp/media-dler-continuity-20261019/ground-truth/837979f9d3558dfcf3b3c0ec17d87edb103d452080cb2addb3d6e52f5cfa7e5f.ts"
+      },
+      "after": {
+        "path": "/tmp/media-dler-continuity-20261019/ground-truth/951632dc51515f12b48c16d2558facd5563e5e0568b72e5f56de062b42b22508.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "ground_truth": "ad",
+        "creative_family": "451451-A",
+        "split": "development",
+        "boundary_provenance": "real_hls_discontinuity",
+        "baseline_exact_match": true,
+        "note": "User-confirmed ad; repeated creative occurrence is not an independent new family."
+      }
+    },
+    {
+      "id": "e1-ad-08",
+      "candidate": {
+        "path": "/tmp/media-dler-continuity-20261019/ground-truth/region-08.mp4"
+      },
+      "before": {
+        "path": "/tmp/media-dler-continuity-20261019/ground-truth/9c6f14569ab7117091a9b1d9e14bd3352b07c7806c94aaca4c51a02284a02b1f.ts"
+      },
+      "after": null,
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "playlist_end"
+      },
+      "annotations": {
+        "ground_truth": "ad",
+        "creative_family": "451451-B",
+        "split": "development",
+        "boundary_provenance": "real_hls_discontinuity",
+        "baseline_exact_match": true,
+        "note": "User-confirmed ad; repeated creative occurrence is not an independent new family."
+      }
+    },
+    {
+      "id": "unseen-phone-ad",
+      "candidate": {
+        "path": "/tmp/media-dler-continuity-20261019/line4-E03-probe/candidate-001.mp4"
+      },
+      "before": {
+        "path": "/tmp/media-dler-ad-multisignal-20261019/unseen-context/before.ts"
+      },
+      "after": {
+        "path": "/tmp/media-dler-ad-multisignal-20261019/unseen-context/after.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "ground_truth": "ad",
+        "creative_family": "unseen-phone-collage",
+        "split": "development",
+        "boundary_provenance": "real_hls_discontinuity",
+        "baseline_exact_match": false,
+        "note": "Visually confirmed different gambling creative; development sample, not held-out after this experiment. Original catalogue has no signature."
+      }
+    },
+    {
+      "id": "normal-credits-with-domain",
+      "candidate": {
+        "path": "/tmp/media-dler-continuity-20261019/line4-E03-probe/candidate-008.mp4"
+      },
+      "before": {
+        "path": "/tmp/media-dler-continuity-20261019/line4-E03-probe/candidate-001.mp4"
+      },
+      "after": {
+        "path": "/tmp/media-dler-continuity-20261019/line4-E03-probe/candidate-001.mp4"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "ground_truth": "mixed_programme_overlay",
+        "creative_family": "programme-credits",
+        "split": "development",
+        "boundary_provenance": "real_hls_discontinuity",
+        "baseline_exact_match": false,
+        "note": "True HLS region8 between repeated same unknown creative in regions7/9; credit names beneath702818.com promotional banner must be retained."
+      }
+    },
+    {
+      "id": "normal-shot-reverse-shot",
+      "candidate": {
+        "path": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+        "start_seconds": 202.5,
+        "duration_seconds": 6.5
+      },
+      "before": {
+        "path": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+        "start_seconds": 200.5,
+        "duration_seconds": 2
+      },
+      "after": {
+        "path": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+        "start_seconds": 209,
+        "duration_seconds": 2
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "ground_truth": "normal",
+        "creative_family": "e1-normal-office",
+        "split": "development",
+        "boundary_provenance": "constructed_candidate_boundaries_over_real_contiguous_programme; not a real HLS discontinuity interval",
+        "baseline_exact_match": false,
+        "note": "Contact sheet reviewed before features: legitimate office dialogue A–other angle–A, not an advertisement."
+      }
+    },
+    {
+      "id": "normal-continuous-dialogue",
+      "candidate": {
+        "path": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+        "start_seconds": 1202,
+        "duration_seconds": 1
+      },
+      "before": {
+        "path": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+        "start_seconds": 1200,
+        "duration_seconds": 2
+      },
+      "after": {
+        "path": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+        "start_seconds": 1203,
+        "duration_seconds": 2
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "ground_truth": "normal",
+        "creative_family": "e1-normal-dialogue",
+        "split": "development",
+        "boundary_provenance": "constructed_candidate_boundaries_over_real_contiguous_programme; not a real HLS discontinuity interval",
+        "baseline_exact_match": false,
+        "note": "Contiguous programme movement/dialogue; removing middle is not justified even when seam resembles surrounding frames."
+      }
+    },
+    {
+      "id": "normal-scene-transition",
+      "candidate": {
+        "path": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+        "start_seconds": 2707,
+        "duration_seconds": 2
+      },
+      "before": {
+        "path": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+        "start_seconds": 2705,
+        "duration_seconds": 2
+      },
+      "after": {
+        "path": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+        "start_seconds": 2709,
+        "duration_seconds": 2
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "ground_truth": "normal",
+        "creative_family": "e1-normal-scene-transition",
+        "split": "challenge",
+        "boundary_provenance": "constructed_candidate_boundaries_over_real_contiguous_programme; not a real HLS discontinuity interval",
+        "baseline_exact_match": false,
+        "note": "Contact sheet reviewed: car scene -> hospital exterior -> office, all normal programme."
+      }
+    },
+    {
+      "id": "normal-loud",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-multisignal-20261019/constructed-controls/normal-loud.mp4"
+      },
+      "before": {
+        "path": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+        "start_seconds": 1200,
+        "duration_seconds": 2
+      },
+      "after": {
+        "path": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+        "start_seconds": 1203,
+        "duration_seconds": 2
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "ground_truth": "normal",
+        "creative_family": "e1-normal-dialogue",
+        "split": "challenge",
+        "boundary_provenance": "constructed_candidate_boundaries_over_real_contiguous_programme; not a real HLS discontinuity interval",
+        "baseline_exact_match": false,
+        "note": "Constructed transformation of normal-continuous-dialogue; not an independent source/family. Detailed generation command in constructed-controls/provenance.json."
+      }
+    },
+    {
+      "id": "normal-banner-overlay",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-multisignal-20261019/constructed-controls/normal-banner-overlay.mp4"
+      },
+      "before": {
+        "path": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+        "start_seconds": 1200,
+        "duration_seconds": 2
+      },
+      "after": {
+        "path": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+        "start_seconds": 1203,
+        "duration_seconds": 2
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "ground_truth": "mixed_programme_overlay",
+        "creative_family": "e1-normal-dialogue",
+        "split": "challenge",
+        "boundary_provenance": "constructed_candidate_boundaries_over_real_contiguous_programme; not a real HLS discontinuity interval",
+        "baseline_exact_match": false,
+        "note": "Constructed transformation of normal-continuous-dialogue; not an independent source/family. Detailed generation command in constructed-controls/provenance.json."
+      }
+    },
+    {
+      "id": "heldout-288588-family",
+      "candidate": {
+        "path": "/tmp/media-dler-cross-source-ad-20261019/sutong-marked-ad.mp4"
+      },
+      "before": {
+        "path": "/tmp/media-dler-tests/8maple-ads-source/source/snippets/74.ts"
+      },
+      "after": {
+        "path": "/tmp/media-dler-tests/8maple-ads-source/source/snippets/82.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "ground_truth": "ad",
+        "creative_family": "288588",
+        "split": "creative_family_challenge",
+        "boundary_provenance": "real_hls_discontinuity",
+        "baseline_exact_match": true,
+        "note": "Actual marked creative and true normal adjacent TS; first multi-signal feature evaluation of this family. Known by baseline exactcatalog, not used by generic rule. One family case is not a reliable accuracy estimate."
+      }
+    }
+  ],
+  "input_provenance": {
+    "/tmp/media-dler-ad-multisignal-20261019/constructed-controls/normal-banner-overlay.mp4": {
+      "bytes": 271718,
+      "mtime_ns": 1792412063055832761,
+      "sha256": "63396da644db68020ec93285db197b0ed6c8c3fca812ffbc1a58e4dada407a2f"
+    },
+    "/tmp/media-dler-ad-multisignal-20261019/constructed-controls/normal-loud.mp4": {
+      "bytes": 282100,
+      "mtime_ns": 1792412062536076408,
+      "sha256": "19d67995c1de2615b405ff6ec3927ea6d47102aeb42b8059b9cee0d9d4c904ba"
+    },
+    "/tmp/media-dler-ad-multisignal-20261019/unseen-context/after.ts": {
+      "bytes": 611752,
+      "mtime_ns": 1792411730943082538,
+      "sha256": "695c38b71a2b7362bd67a2bfdc496c0bc30eafcf0ae42db678987202f8f07973"
+    },
+    "/tmp/media-dler-ad-multisignal-20261019/unseen-context/before.ts": {
+      "bytes": 652548,
+      "mtime_ns": 1792411729732202701,
+      "sha256": "f0079c6552426734edb775ed9d54dd832d3abb8190615445955799305168e55e"
+    },
+    "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4": {
+      "bytes": 792309570,
+      "mtime_ns": 1792396656914395448,
+      "sha256": "5d476922a5db5d0e91ae6c4aeb3f34fae53465aae7ca7ceb774b9e2f5ed31125"
+    },
+    "/tmp/media-dler-continuity-20261019/ground-truth/837979f9d3558dfcf3b3c0ec17d87edb103d452080cb2addb3d6e52f5cfa7e5f.ts": {
+      "bytes": 249476,
+      "mtime_ns": 1792399482739559629,
+      "sha256": "0c1fdc511f32aad168e52cd849842865d96e4b642340fd634e6064fed99a573a"
+    },
+    "/tmp/media-dler-continuity-20261019/ground-truth/951632dc51515f12b48c16d2558facd5563e5e0568b72e5f56de062b42b22508.ts": {
+      "bytes": 447440,
+      "mtime_ns": 1792399483464596946,
+      "sha256": "e94ddf2d92f470b7c72c049bd2bb7b1e43c1a28e3f303ebb568c9aaedb02ea36"
+    },
+    "/tmp/media-dler-continuity-20261019/ground-truth/9c6f14569ab7117091a9b1d9e14bd3352b07c7806c94aaca4c51a02284a02b1f.ts": {
+      "bytes": 129532,
+      "mtime_ns": 1792399487872250729,
+      "sha256": "5921ec01c1ff3f76caa70e6d1d02a40e1fa4bca3aac76159e464ac8a3cf367a2"
+    },
+    "/tmp/media-dler-continuity-20261019/ground-truth/a140336cb81d2e5d8d4b09dc544f93da1ccb0e1aaaec6c28440e01992583a454.ts": {
+      "bytes": 578664,
+      "mtime_ns": 1792399478345202670,
+      "sha256": "2fecd128e189502d2ca61349829a570b8fe698b894e3c3b0cb4f41dbefa09306"
+    },
+    "/tmp/media-dler-continuity-20261019/ground-truth/bb4e2dd164d280db93dede6286d133990d248d1c6c144c8323a6f9360321a4a0.ts": {
+      "bytes": 900144,
+      "mtime_ns": 1792399472618710594,
+      "sha256": "507d895cc41f0fc7c21ec11821407c244ade00fccfda9e0bca1e6375a67b31fa"
+    },
+    "/tmp/media-dler-continuity-20261019/ground-truth/c7a9bec307b6e290e1e82a35958f78f63908e209487b4d402bb62522f22259f0.ts": {
+      "bytes": 613820,
+      "mtime_ns": 1792399479546178770,
+      "sha256": "7621303a5fd9739cb1e096ca3cca7118934fc75e09c8a27bf0107e8017ba5403"
+    },
+    "/tmp/media-dler-continuity-20261019/ground-truth/d435a5a20f242243ef6f0bfcb120b4b6e42a1ab9b85d8b87b5ad7b10617e27c0.ts": {
+      "bytes": 1056184,
+      "mtime_ns": 1792399472515846149,
+      "sha256": "ddcff858caa1865f683c94bedac7b8e68bafc8de624112673aa42a030cdd10cb"
+    },
+    "/tmp/media-dler-continuity-20261019/ground-truth/region-02.mp4": {
+      "bytes": 6465741,
+      "mtime_ns": 1792399490267735506,
+      "sha256": "bfb961509d622e996ccd4defcca172028ebc352d32e5ef9f3314bbc8aded4571"
+    },
+    "/tmp/media-dler-continuity-20261019/ground-truth/region-04.mp4": {
+      "bytes": 7214654,
+      "mtime_ns": 1792399490448508900,
+      "sha256": "5537dee387a610c50fd8277610a04b4789160ba83025796e21cb041c3259bc41"
+    },
+    "/tmp/media-dler-continuity-20261019/ground-truth/region-06.mp4": {
+      "bytes": 6465741,
+      "mtime_ns": 1792399490638899288,
+      "sha256": "bfb961509d622e996ccd4defcca172028ebc352d32e5ef9f3314bbc8aded4571"
+    },
+    "/tmp/media-dler-continuity-20261019/ground-truth/region-08.mp4": {
+      "bytes": 7214654,
+      "mtime_ns": 1792399490831627444,
+      "sha256": "5537dee387a610c50fd8277610a04b4789160ba83025796e21cb041c3259bc41"
+    },
+    "/tmp/media-dler-continuity-20261019/line4-E03-probe/candidate-001.mp4": {
+      "bytes": 6683783,
+      "mtime_ns": 1792399608171975403,
+      "sha256": "c1fb4048bcdb2bd53e6af6fa332ec28bcbc05f3a83e62e2bd4ed58bda7520add"
+    },
+    "/tmp/media-dler-continuity-20261019/line4-E03-probe/candidate-008.mp4": {
+      "bytes": 830803,
+      "mtime_ns": 1792399627996797782,
+      "sha256": "d8515a0673fec4f6938242d11129b9ebd017fc078b38b795583d57031a0310d7"
+    },
+    "/tmp/media-dler-cross-source-ad-20261019/sutong-marked-ad.mp4": {
+      "bytes": 6851629,
+      "mtime_ns": 1792398516433783219,
+      "sha256": "a96a4e6928658953442cfedcf4e2851779b8762982410e3c23eed449fe5e498c"
+    },
+    "/tmp/media-dler-tests/8maple-ads-source/source/snippets/74.ts": {
+      "bytes": 182924,
+      "mtime_ns": 1792392041446553645,
+      "sha256": "77935e5a44c30bfce8c5d974e88aaefe93cca64af858d012051c3d4b6edc03d1"
+    },
+    "/tmp/media-dler-tests/8maple-ads-source/source/snippets/82.ts": {
+      "bytes": 238384,
+      "mtime_ns": 1792392041869828729,
+      "sha256": "de5b50cfc7324ca7178ae6767915edf0b988f275bd12f982dc55c6afbbd302d5"
+    }
+  },
+  "limitations": [
+    "E1 repeated A/B ads count as two creative families.",
+    "Synthetic candidate boundaries and transformed normal clips are labelled as such, not genuine HLS observations.",
+    "All programme negatives currently from one drama; no broad real-world accuracy claim.",
+    "Generic rules receive no annotation/id/exactcatalog data. Exact baseline values reuse previously verified complete-content matches."
+  ]
+}
