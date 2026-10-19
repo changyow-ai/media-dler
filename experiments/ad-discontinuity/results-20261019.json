@@ -1,0 +1,459 @@
+{
+  "schema": 1,
+  "date": "2026-10-19",
+  "branch": "experiment/ad-discontinuity",
+  "base_commit": "ebf50ffcd2e83933997096a6528b9880f36b8955",
+  "aye_task": "t-5ed71b1bcfa6316d83a5",
+  "scope": "Host experiment on actual HLS candidates and read-only copies of ASUS downloaded episodes; Android behavior and shipped catalog unchanged.",
+  "method": {
+    "candidate": "Complete plain-TS VOD regions bounded by discontinuity and playlist start/end. Markers are hints only; 60-second scan budget is not an ad decision.",
+    "content": "Stream-copy candidate TS to MP4. Require exact codec metadata and SHA256 of every ordered full packet in both H264 and AAC streams; ignore absolute timestamps and container interleaving. No partial fingerprint matches.",
+    "ground_truth": "Visually reviewed complete two creative contact sheets and first-episode interior boundaries; matched complete AV sequences against all four ASUS originals. E01 supplies two confirmed references, E02-E04 are held-out episodes.",
+    "does_not_prove": "No automatic classification of unseen ad creative or reencoding; packet equality alone does not authorize arbitrary MP4 byte cuts."
+  },
+  "counts": {
+    "ASUS_episodes": 4,
+    "unmarked_known_ads": 16,
+    "unmarked_confirmed_after_one_fetch_recovery": 16,
+    "held_out_episodes": 3,
+    "held_out_known_ads": 12,
+    "held_out_confirmed": 12,
+    "marked_reference_ads_confirmed": 3,
+    "normal_short_region_false_matches": 0,
+    "normal_short_regions_checked": 1
+  },
+  "references": {
+    "288588": {
+      "normalizer": "h264-aac-complete-packet-sequences-v1",
+      "streams": {
+        "video": {
+          "metadata": {
+            "codec_name": "h264",
+            "profile": "High",
+            "level": 40,
+            "width": 1920,
+            "height": 1080,
+            "pix_fmt": "yuv420p",
+            "extradata_hash": "SHA256:be9ca4391bb0bab5f5371e10f32937dd83d274075fc12f23dcebf6e58bdd89a3"
+          },
+          "packet_count": 644,
+          "packet_sequence_sha256": "d882e9f00165d30ed4600fc0d2d08e78cf04f542e79e7f7db058d66d34e51bcf"
+        },
+        "audio": {
+          "metadata": {
+            "codec_name": "aac",
+            "profile": "LC",
+            "sample_rate": "44100",
+            "channels": 2,
+            "channel_layout": "stereo",
+            "extradata_hash": "SHA256:ba3d722a88cacce18f22962612eda4d50e7a61cd9b7db60694043efed2a61448"
+          },
+          "packet_count": 1109,
+          "packet_sequence_sha256": "980ea16a027acdbad338d85c7bb67c91185f8e6fab8eadb0add178198f9d3451"
+        }
+      }
+    },
+    "451451-A": {
+      "normalizer": "h264-aac-complete-packet-sequences-v1",
+      "streams": {
+        "video": {
+          "metadata": {
+            "codec_name": "h264",
+            "profile": "High",
+            "level": 40,
+            "width": 1920,
+            "height": 1080,
+            "pix_fmt": "yuv420p",
+            "extradata_hash": "SHA256:3e49356c9e262526a604b6c04f900817113db49c61d720274c4a22e4d30b4378"
+          },
+          "packet_count": 494,
+          "packet_sequence_sha256": "cf74b371d6bf53a67d8c96545e1d2a5f1248b7a9d40e410b3cca63996f60d487"
+        },
+        "audio": {
+          "metadata": {
+            "codec_name": "aac",
+            "profile": "LC",
+            "sample_rate": "48000",
+            "channels": 2,
+            "channel_layout": "stereo",
+            "extradata_hash": "SHA256:b65f22439176f7827a0d82a66b34477888f0287450985d8e3dc836d7e32ce79b"
+          },
+          "packet_count": 773,
+          "packet_sequence_sha256": "c927f430f75dd2fb09eb1d293153ab9d76b486773cc0c25757b9d6e5d4e10537"
+        }
+      }
+    },
+    "451451-B": {
+      "normalizer": "h264-aac-complete-packet-sequences-v1",
+      "streams": {
+        "video": {
+          "metadata": {
+            "codec_name": "h264",
+            "profile": "High",
+            "level": 40,
+            "width": 1920,
+            "height": 1080,
+            "pix_fmt": "yuv420p",
+            "extradata_hash": "SHA256:3e49356c9e262526a604b6c04f900817113db49c61d720274c4a22e4d30b4378"
+          },
+          "packet_count": 530,
+          "packet_sequence_sha256": "9a54f8cae73c22ac5c472d3ce8bd8739c416e068521dcfd76b1a45bd8b3e745c"
+        },
+        "audio": {
+          "metadata": {
+            "codec_name": "aac",
+            "profile": "LC",
+            "sample_rate": "48000",
+            "channels": 2,
+            "channel_layout": "stereo",
+            "extradata_hash": "SHA256:b65f22439176f7827a0d82a66b34477888f0287450985d8e3dc836d7e32ce79b"
+          },
+          "packet_count": 830,
+          "packet_sequence_sha256": "6a72b00f1b883d4f534eeec0ef1531199a721a0daa72d26da7c9a3218ec1b905"
+        }
+      }
+    }
+  },
+  "cost": {
+    "candidate_probe_network_bytes_including_recovery": 127699376,
+    "additional_ground_truth_and_neighbor_bytes": 32179772,
+    "candidate_cost_per_highglow_episode_bytes": 28204512,
+    "candidate_cost_per_highglow_episode_MiB": 26.9,
+    "content_verification_requires_reading_whole_candidate": true,
+    "flow_savings_claimed": false
+  },
+  "remaining_feature_work": [
+    "Integrate candidate cache ownership into job lifecycle, rather than downloading from prepare() before workDir exists.",
+    "Freeze verified skip set and classifier/catalog version into resume identity; cover cancellation, failed fetch and same-task retry.",
+    "Validate native Android pipeline with independent Android tester before enabling runtime behavior."
+  ],
+  "highglow_unmarked": [
+    {
+      "episode": 1,
+      "fresh_manifest_url": "https://cdn.yzzy31-play.com/20261005/27119_ececd3cf/3000k/hls/mixed.m3u8",
+      "manifest_sha256": "a5f74b1ba693ff309ef72f7a74e0f5531f65a2f51ae71a8a513e48a201ff307d",
+      "provider_markers": 0,
+      "known_ad_intervals": 4,
+      "content_confirmed": 4,
+      "ad_seconds": 68.26666400000016,
+      "confirmed_regions": [
+        {
+          "region": 2,
+          "start_seconds": 497.37185300000004,
+          "duration_seconds": 16.466665999999975,
+          "reference": "451451-A",
+          "needed_transient_fetch_retry": false
+        },
+        {
+          "region": 4,
+          "start_seconds": 2013.8369439999874,
+          "duration_seconds": 17.66666599999985,
+          "reference": "451451-B",
+          "needed_transient_fetch_retry": false
+        },
+        {
+          "region": 6,
+          "start_seconds": 3631.7271700000065,
+          "duration_seconds": 16.46666600000026,
+          "reference": "451451-A",
+          "needed_transient_fetch_retry": false
+        },
+        {
+          "region": 8,
+          "start_seconds": 4212.674672000018,
+          "duration_seconds": 17.666666000000077,
+          "reference": "451451-B",
+          "needed_transient_fetch_retry": false
+        }
+      ],
+      "ASUS_full_packet_matches": {
+        "creative-A-16.467s": {
+          "video": {
+            "occurrences": 2,
+            "packets_per_occurrence": 494
+          },
+          "audio": {
+            "occurrences": 2,
+            "packets_per_occurrence": 773
+          }
+        },
+        "451451-17.667s": {
+          "video": {
+            "occurrences": 2,
+            "packets_per_occurrence": 530
+          },
+          "audio": {
+            "occurrences": 2,
+            "packets_per_occurrence": 830
+          }
+        }
+      }
+    },
+    {
+      "episode": 2,
+      "fresh_manifest_url": "https://player.yzzyvip-35.com/20261006/18255_7ce6aa19/3000k/hls/mixed.m3u8",
+      "manifest_sha256": "c9f880b359349edb356a73aac2b199cfd1565f655adcf11e2563fb8631a1df41",
+      "provider_markers": 0,
+      "known_ad_intervals": 4,
+      "content_confirmed": 4,
+      "ad_seconds": 68.26666400000022,
+      "confirmed_regions": [
+        {
+          "region": 2,
+          "start_seconds": 499.1653130000002,
+          "duration_seconds": 16.466666000000032,
+          "reference": "451451-A",
+          "needed_transient_fetch_retry": false
+        },
+        {
+          "region": 4,
+          "start_seconds": 2014.7962379999879,
+          "duration_seconds": 17.66666599999985,
+          "reference": "451451-B",
+          "needed_transient_fetch_retry": false
+        },
+        {
+          "region": 6,
+          "start_seconds": 3631.351792000012,
+          "duration_seconds": 16.46666600000026,
+          "reference": "451451-A",
+          "needed_transient_fetch_retry": false
+        },
+        {
+          "region": 8,
+          "start_seconds": 4411.331237000022,
+          "duration_seconds": 17.666666000000077,
+          "reference": "451451-B",
+          "needed_transient_fetch_retry": false
+        }
+      ],
+      "ASUS_full_packet_matches": {
+        "creative-A-16.467s": {
+          "video": {
+            "occurrences": 2,
+            "packets_per_occurrence": 494
+          },
+          "audio": {
+            "occurrences": 2,
+            "packets_per_occurrence": 773
+          }
+        },
+        "451451-17.667s": {
+          "video": {
+            "occurrences": 2,
+            "packets_per_occurrence": 530
+          },
+          "audio": {
+            "occurrences": 2,
+            "packets_per_occurrence": 830
+          }
+        }
+      }
+    },
+    {
+      "episode": 3,
+      "fresh_manifest_url": "https://cdn.yzzy30-play.com/20261013/60342_4a36d9f1/3000k/hls/mixed.m3u8",
+      "manifest_sha256": "ac4ea50d949dc6aad6a7b6bc7a0b06a03e2054ca2b6440d67ea8a0cd1aef848e",
+      "provider_markers": 0,
+      "known_ad_intervals": 4,
+      "content_confirmed": 4,
+      "ad_seconds": 68.26666400000016,
+      "confirmed_regions": [
+        {
+          "region": 2,
+          "start_seconds": 499.4572590000004,
+          "duration_seconds": 16.466665999999975,
+          "reference": "451451-A",
+          "needed_transient_fetch_retry": false
+        },
+        {
+          "region": 4,
+          "start_seconds": 2014.0871939999886,
+          "duration_seconds": 17.66666599999985,
+          "reference": "451451-B",
+          "needed_transient_fetch_retry": false
+        },
+        {
+          "region": 6,
+          "start_seconds": 3630.017114000018,
+          "duration_seconds": 16.46666600000026,
+          "reference": "451451-A",
+          "needed_transient_fetch_retry": true
+        },
+        {
+          "region": 8,
+          "start_seconds": 4266.228153000029,
+          "duration_seconds": 17.666666000000077,
+          "reference": "451451-B",
+          "needed_transient_fetch_retry": false
+        }
+      ],
+      "ASUS_full_packet_matches": {
+        "creative-A-16.467s": {
+          "video": {
+            "occurrences": 2,
+            "packets_per_occurrence": 494
+          },
+          "audio": {
+            "occurrences": 2,
+            "packets_per_occurrence": 773
+          }
+        },
+        "451451-17.667s": {
+          "video": {
+            "occurrences": 2,
+            "packets_per_occurrence": 530
+          },
+          "audio": {
+            "occurrences": 2,
+            "packets_per_occurrence": 830
+          }
+        }
+      }
+    },
+    {
+      "episode": 4,
+      "fresh_manifest_url": "https://cdn.yzzy30-play.com/20261013/60376_6885c00c/3000k/hls/mixed.m3u8",
+      "manifest_sha256": "3a2fc7e0aeb170bd6602d8cd178919868f17a73bb04223febd79fdeec3690e8e",
+      "provider_markers": 0,
+      "known_ad_intervals": 4,
+      "content_confirmed": 4,
+      "ad_seconds": 68.26666400000016,
+      "confirmed_regions": [
+        {
+          "region": 2,
+          "start_seconds": 496.5376920000005,
+          "duration_seconds": 16.466665999999975,
+          "reference": "451451-A",
+          "needed_transient_fetch_retry": false
+        },
+        {
+          "region": 4,
+          "start_seconds": 2015.2133399999902,
+          "duration_seconds": 17.66666599999985,
+          "reference": "451451-B",
+          "needed_transient_fetch_retry": false
+        },
+        {
+          "region": 6,
+          "start_seconds": 3633.6457770000097,
+          "duration_seconds": 16.46666600000026,
+          "reference": "451451-A",
+          "needed_transient_fetch_retry": false
+        },
+        {
+          "region": 8,
+          "start_seconds": 4444.823253000025,
+          "duration_seconds": 17.666666000000077,
+          "reference": "451451-B",
+          "needed_transient_fetch_retry": false
+        }
+      ],
+      "ASUS_full_packet_matches": {
+        "creative-A-16.467s": {
+          "video": {
+            "occurrences": 2,
+            "packets_per_occurrence": 494
+          },
+          "audio": {
+            "occurrences": 2,
+            "packets_per_occurrence": 773
+          }
+        },
+        "451451-17.667s": {
+          "video": {
+            "occurrences": 2,
+            "packets_per_occurrence": 530
+          },
+          "audio": {
+            "occurrences": 2,
+            "packets_per_occurrence": 830
+          }
+        }
+      }
+    }
+  ],
+  "controls": {
+    "unmarked_aikan_E03": {
+      "fresh_manifest_url": "https://bfikuncdn.com/20261012/TXkXyPqF/4092kb/hls/index.m3u8",
+      "manifest_sha256": "0b259bd7c70f38a3a26408a2dae6f8dc0354748b02b8bb16dd7aeb8f9a4db261",
+      "sampled_complete_regions": 6,
+      "reference_matches": 0,
+      "retained_normal_credits_seconds": 28.04,
+      "other_unknown_ad_regions_retained": 5,
+      "normal_ground_truth": "Contact sheet of all 28 seconds shows normal multilingual credits with burned-in ad overlay; retain underlying program.",
+      "other_unknown_ground_truth": "Sample contact sheet shows a different gambling creative (718372.com etc.); no 451451 or 288588 reference match."
+    },
+    "marked_sutong_E01": {
+      "confirmed_ads": 3,
+      "reference": "288588",
+      "network_bytes": 7083276,
+      "cache_reuse_bytes": 14166552
+    }
+  },
+  "verification": {
+    "focused_python_tests": {
+      "passed": 16,
+      "command": "python3 -B scripts/test_probe_hls_ad_candidates.py"
+    },
+    "short_splice_fixtures": {
+      "status": "PASS",
+      "network_bytes": 0,
+      "scope": "Host short E1 boundary fixtures only; no production playlist or original media changed",
+      "first_attempt": {
+        "report": "/tmp/media-dler-continuity-20261019/splice-validation/report.json",
+        "status": "FAIL",
+        "finding": "All retained packet hashes/order/counts, monotonic DTS, no ad-length gap and complete decode passed; strict common AV timestamp shift failed due default MP4 movie timescale 1000 causing sub-millisecond audio start offset quantization."
+      },
+      "verified_attempt": {
+        "report": "/tmp/media-dler-continuity-20261019/splice-validation/attempt-002-movie-timescale720000/report.json",
+        "status": "PASS",
+        "change": "Only explicit ffmpeg -movie_timescale 720000. Same strict checks; no tolerance increases.",
+        "fixtures": 4,
+        "retained_video_packets": 585,
+        "retained_audio_packets": 1161,
+        "max_common_av_timestamp_residual_seconds": 0.0,
+        "all_outputs_complete_decode_without_warning": true
+      },
+      "limitation": "Host short boundary fixtures only; not whole-episode, Android, automated ad learning, or production filtered playlist validation. Explicit movie timescale choice used only in experiment artifacts."
+    },
+    "transient_fetch_error": {
+      "original_report": "/tmp/media-dler-continuity-20261019/line1-E03-probe/report.json",
+      "error": "RemoteDisconnected while fetching E03 region6; left unknown",
+      "recovery": "/tmp/media-dler-continuity-20261019/line1-E03-recovery.json",
+      "result": "One sequential retry downloaded only 6665728 missing bytes and confirmed full451451-A sequence; initial report retained."
+    },
+    "production_or_device_changes": false,
+    "all_ASUS_originals_read_only": true,
+    "complete_episode_or_Android_pipeline_validation": false
+  },
+  "artifacts": {
+    "full_summary": "/tmp/media-dler-continuity-20261019/summary.json",
+    "packet_matches": "/tmp/media-dler-continuity-20261019/original-packet-comparison.json",
+    "ground_truth": "/tmp/media-dler-continuity-20261019/ground-truth.json",
+    "boundaries": "/tmp/media-dler-continuity-20261019/E0001-boundaries.jpg",
+    "normal_control": "/tmp/media-dler-continuity-20261019/line4-E03-candidate-008-contact.jpg"
+  },
+  "reproduce": {
+    "requirements": [
+      "Python 3 standard library",
+      "ffmpeg/ffprobe with H264/AAC and HLS support",
+      "Trusted complete reference MP4s and a complete plain-TS VOD snapshot"
+    ],
+    "command": [
+      "python3",
+      "-B",
+      "scripts/probe-hls-ad-candidates.py",
+      "--manifest",
+      "/path/to/snapshot.m3u8",
+      "--base-url",
+      "https://provider.example/path/index.m3u8",
+      "--work-dir",
+      "/tmp/new-ad-probe-run",
+      "--fetch",
+      "--reference",
+      "confirmed-ad=/path/to/trusted-ad.mp4"
+    ],
+    "interpretation": "reference_content_match confirms complete encoded AV content only. Every region has action=preserve; this host tool never rewrites playlists or originals. Unknown/error is retained."
+  }
+}
