@@ -14,11 +14,18 @@ import java.nio.charset.CodingErrorAction
 import java.security.MessageDigest
 import java.util.Locale
 
-internal data class PreparedHlsResume(val resource: MediaResource, val manifest: String, val identity: String)
+internal data class PreparedHlsResume(
+    val resource: MediaResource,
+    val manifest: String,
+    val identity: String,
+    val skippedAds: Int = 0,
+    val skippedAdSegments: Int = 0,
+    val skippedAdSeconds: Double = 0.0,
+)
 
 /** Runs only for the claimed special-source job, never for queued episodes. */
 internal object SpecialSourceResume {
-    suspend fun prepare(resource: MediaResource): PreparedHlsResume? {
+    suspend fun prepare(resource: MediaResource, skipEightMapleAds: Boolean = false): PreparedHlsResume? {
         val context = currentCoroutineContext()
         return try {
             runInterruptible {
@@ -72,6 +79,8 @@ internal object SpecialSourceResume {
                     manifest = decode(bytes)
                     if (HlsResumeGuard.fingerprint(manifest) == null) return@runInterruptible null
                 }
+                val filtered = if (skipEightMapleAds) EightMapleHlsAds.filter(manifest)
+                    else EightMapleHlsAds.Result(manifest)
                 val digest = MessageDigest.getInstance("SHA-256")
                 fun add(value: ByteArray) {
                     digest.update(ByteBuffer.allocate(4).putInt(value.size).array())
@@ -86,8 +95,13 @@ internal object SpecialSourceResume {
                     add(name.toByteArray(Charsets.UTF_8))
                     add(value.toByteArray(Charsets.UTF_8))
                 }
-                PreparedHlsResume(resource.copy(url = url.toExternalForm()), manifest,
-                    digest.digest().joinToString("") { "%02x".format(it) })
+                if (filtered.skippedAds > 0) {
+                    add(EightMapleHlsAds.IDENTITY_VERSION.toByteArray(Charsets.UTF_8))
+                    add(filtered.manifest.toByteArray(Charsets.UTF_8))
+                }
+                PreparedHlsResume(resource.copy(url = url.toExternalForm()), filtered.manifest,
+                    digest.digest().joinToString("") { "%02x".format(it) },
+                    filtered.skippedAds, filtered.skippedAdSegments, filtered.skippedAdSeconds)
             }
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { context.ensureActive(); null }

@@ -115,6 +115,45 @@ class SpecialSourceResumeTest {
         Unit
     }
 
+    @Test fun `provider ad filtering is opt-in and filtered retry identity is stable and distinct`() = runBlocking {
+        val block = "# ppvod-ad-injected v1\n#EXT-X-DISCONTINUITY\n" +
+            "#EXTINF:4,\nad-a.ts\n#EXTINF:1.76,\nad-b.ts\n#EXT-X-DISCONTINUITY\n"
+        val marked = vod.replace("#EXT-X-ENDLIST", block + "#EXTINF:4,\nlast.ts\n#EXT-X-ENDLIST")
+        server.reply("/marked.m3u8", marked)
+        val resource = MediaResource(server.url("/marked.m3u8"))
+        val disabled = assertNotNull(SpecialSourceResume.prepare(resource))
+        val enabled = assertNotNull(SpecialSourceResume.prepare(resource, skipEightMapleAds = true))
+        val retry = assertNotNull(SpecialSourceResume.prepare(resource, skipEightMapleAds = true))
+        assertEquals(marked, disabled.manifest)
+        assertEquals(0, disabled.skippedAds)
+        assertEquals(0, disabled.skippedAdSegments)
+        assertEquals(0.0, disabled.skippedAdSeconds)
+        assertEquals(1, enabled.skippedAds)
+        assertEquals(2, enabled.skippedAdSegments)
+        assertEquals(5.76, enabled.skippedAdSeconds, 0.000001)
+        assertEquals(marked.replace(block, "#EXT-X-DISCONTINUITY\n"), enabled.manifest)
+        assertNotEquals(disabled.identity, enabled.identity)
+        assertEquals(enabled, retry)
+
+        // A raw-byte change inside removed media still invalidates a previous journal.
+        server.reply("/marked.m3u8", marked.replace("ad-a.ts", "changed-ad-a.ts"))
+        val changed = assertNotNull(SpecialSourceResume.prepare(resource, skipEightMapleAds = true))
+        assertEquals(enabled.manifest, changed.manifest)
+        assertNotEquals(enabled.identity, changed.identity)
+    }
+
+    @Test fun `unmatched or malformed provider markers preserve existing unfiltered identity`() = runBlocking {
+        val malformed = vod.replace("#EXT-X-ENDLIST", "# ppvod-ad-injected v2\n#EXT-X-ENDLIST")
+        listOf(vod, malformed).forEach { manifest ->
+            server.reply("/unchanged.m3u8", manifest)
+            val resource = MediaResource(server.url("/unchanged.m3u8"), mapOf("Referer" to "same"))
+            val disabled = assertNotNull(SpecialSourceResume.prepare(resource))
+            val enabled = assertNotNull(SpecialSourceResume.prepare(resource, skipEightMapleAds = true))
+            assertEquals(disabled, enabled)
+            assertEquals(manifest, enabled.manifest)
+        }
+    }
+
     /** Android's unit-test compiler omits jdk.httpserver, so use a tiny loopback-only HTTP fixture. */
     private class LocalHttpServer {
         val routes = ConcurrentHashMap<String, (Request) -> Response>()

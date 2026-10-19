@@ -77,63 +77,116 @@ class EngineInitializer(private val application: Application) {
         hlsResumeSession: File? = null,
         onLine: (String) -> Unit,
     ) {
+        executeNative { paths, process ->
+            if (!request.hasOption("--cache-dir") || request.getOption("--cache-dir") == null) {
+                request.addOption("--no-cache-dir")
+            }
+            request.addOption("--ffmpeg-location", paths.ffmpeg.absolutePath)
+            request.addOption("--js-runtimes", "quickjs:${paths.quickJs.absolutePath}")
+            if ("libaria2c.so" in request.buildCommand()) {
+                request.addOption("--external-downloader-args", "aria2c:--summary-interval=1")
+                request.addOption("--external-downloader-args", "aria2c:--ca-certificate=${paths.certificate.absolutePath}")
+            }
+            val entry = if (hlsResumeSession == null) listOf(paths.ytdlp.absolutePath) else {
+                val adapter = File(hlsResumeSession.parentFile, "runner.py")
+                application.assets.open("hls_resume.py").use { input ->
+                    adapter.outputStream().use { output -> input.copyTo(output) }
+                }
+                listOf(adapter.absolutePath, "--spec", hlsResumeSession.absolutePath,
+                    "--ytdlp", paths.ytdlp.absolutePath)
+            }
+            process.execute(entry + request.buildCommand(), onLine)
+        }
+    }
+
+    /** Native children share download cancellation and finish before a result can be published. */
+    suspend fun cleanKnownAds(source: File, onStage: (String) -> Unit = {}): AdCleanupResult = withContext(Dispatchers.IO) {
+        val files = AdCleanupFiles.create(source)
+        try {
+            val result = executeNative { paths, process ->
+                check(paths.ffprobe.isFile && paths.ffprobe.canExecute()) { "影片檢查引擎不完整" }
+                application.assets.open("ad_cleanup.py").use { input ->
+                    files.script.outputStream().use { output -> input.copyTo(output) }
+                }
+                application.assets.open("known_ads.json").use { input ->
+                    files.signatures.outputStream().use { output -> input.copyTo(output) }
+                }
+                process.execute(listOf(files.script.absolutePath,
+                    "--input", source.absolutePath, "--output", files.output.absolutePath,
+                    "--result", files.result.absolutePath, "--signatures", files.signatures.absolutePath,
+                    "--ffmpeg", paths.ffmpeg.absolutePath, "--ffprobe", paths.ffprobe.absolutePath)) { line ->
+                    if (line.startsWith("AD_CLEANUP_STAGE ")) {
+                        val stage = line.removePrefix("AD_CLEANUP_STAGE ")
+                        if (stage in setOf("scan", "probe", "remux", "validate")) onStage(stage)
+                    }
+                }
+                files.readResult()
+            }
+            // A cleaned artifact stays with the task's durable publication journal.
+            if (result.removedAds == 0) files.directory.deleteRecursively()
+            result
+        } catch (error: Throwable) {
+            // executeNative has acknowledged native exit before any staged files are removed.
+            files.directory.deleteRecursively()
+            throw error
+        }
+    }
+
+    private data class NativePaths(
+        val python: File,
+        val pythonHome: File,
+        val certificate: File,
+        val ffmpeg: File,
+        val ffprobe: File,
+        val quickJs: File,
+        val ytdlp: File,
+        val environment: Map<String, String>,
+    )
+
+    private fun nativePaths(): NativePaths {
+        // Pinned SDK 0.18.1 layout, derived from public constants and Android context dirs.
+        val base = File(application.noBackupFilesDir, YoutubeDL.baseName)
+        val packages = File(base, "packages")
+        val binaries = File(application.applicationInfo.nativeLibraryDir)
+        val pythonHome = File(packages, "python/usr")
+        val certificate = File(pythonHome, "etc/tls/cert.pem")
+        return NativePaths(
+            File(binaries, "libpython.so"), pythonHome, certificate,
+            File(binaries, "libffmpeg.so"), File(binaries, "libffprobe.so"),
+            File(binaries, "libqjs.so"), File(File(base, YoutubeDL.ytdlpDirName), YoutubeDL.ytdlpBin),
+            mapOf(
+                "LD_LIBRARY_PATH" to listOf("python", "ffmpeg", "aria2c")
+                    .joinToString(":") { File(packages, "$it/usr/lib").absolutePath },
+                "SSL_CERT_FILE" to certificate.absolutePath,
+                "PATH" to listOfNotNull(System.getenv("PATH"), binaries.absolutePath).joinToString(":"),
+                "PYTHONHOME" to pythonHome.absolutePath,
+                "HOME" to pythonHome.absolutePath,
+                "TMPDIR" to application.cacheDir.absolutePath,
+            ),
+        )
+    }
+
+    private suspend fun <T> executeNative(work: (NativePaths, NativeDownloadProcess) -> T): T {
         val initialized = ensureInit()
         currentCoroutineContext().ensureActive()
         check(initialized is EngineState.Ready) {
             "引擎初始化失敗：${(initialized as? EngineState.Failed)?.message.orEmpty()}"
         }
-        // Pinned SDK 0.18.1 layout, derived from its public constants and Android context dirs.
-        // The SDK exposes no runtime/env getters; its private fields are never accessed.
-        val base = File(application.noBackupFilesDir, YoutubeDL.baseName)
-        val packages = File(base, "packages")
-        val binaries = File(application.applicationInfo.nativeLibraryDir)
-        val python = File(binaries, "libpython.so")
-        val pythonHome = File(packages, "python/usr")
-        val certificate = File(pythonHome, "etc/tls/cert.pem")
-        val ffmpeg = File(binaries, "libffmpeg.so")
-        val quickJs = File(binaries, "libqjs.so")
-        val ytdlp = File(File(base, YoutubeDL.ytdlpDirName), YoutubeDL.ytdlpBin)
-        val environment = mapOf(
-            "LD_LIBRARY_PATH" to listOf("python", "ffmpeg", "aria2c")
-                .joinToString(":") { File(packages, "$it/usr/lib").absolutePath },
-            "SSL_CERT_FILE" to certificate.absolutePath,
-            "PATH" to listOfNotNull(System.getenv("PATH"), binaries.absolutePath).joinToString(":"),
-            "PYTHONHOME" to pythonHome.absolutePath,
-            "HOME" to pythonHome.absolutePath,
-            "TMPDIR" to application.cacheDir.absolutePath,
-        )
-        val process = NativeDownloadProcess(python, environment)
+        val paths = nativePaths()
+        val process = NativeDownloadProcess(paths.python, paths.environment)
         // A caller's canceled job must not release the archive while its native writers survive.
         val workerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val execution = workerScope.async {
             runtime.execute {
-                check(python.isFile && python.canExecute() && ytdlp.isFile && pythonHome.isDirectory &&
-                    certificate.isFile && ffmpeg.isFile && quickJs.isFile) {
+                check(paths.python.isFile && paths.python.canExecute() && paths.ytdlp.isFile && paths.pythonHome.isDirectory &&
+                    paths.certificate.isFile && paths.ffmpeg.isFile && paths.quickJs.isFile) {
                     "下載引擎檔案不完整，請重新啟動 App 初始化引擎"
                 }
-                if (!request.hasOption("--cache-dir") || request.getOption("--cache-dir") == null) {
-                    request.addOption("--no-cache-dir")
-                }
-                request.addOption("--ffmpeg-location", ffmpeg.absolutePath)
-                request.addOption("--js-runtimes", "quickjs:${quickJs.absolutePath}")
-                if ("libaria2c.so" in request.buildCommand()) {
-                    request.addOption("--external-downloader-args", "aria2c:--summary-interval=1")
-                    request.addOption("--external-downloader-args", "aria2c:--ca-certificate=${certificate.absolutePath}")
-                }
-                val entry = if (hlsResumeSession == null) listOf(ytdlp.absolutePath) else {
-                    // This adapter belongs to the app, not the updatable engine archive.
-                    val adapter = File(hlsResumeSession.parentFile, "runner.py")
-                    application.assets.open("hls_resume.py").use { input ->
-                        adapter.outputStream().use { output -> input.copyTo(output) }
-                    }
-                    listOf(adapter.absolutePath, "--spec", hlsResumeSession.absolutePath,
-                        "--ytdlp", ytdlp.absolutePath)
-                }
-                process.execute(entry + request.buildCommand(), onLine)
+                work(paths, process)
             }
         }
         try {
-            execution.await()
+            return execution.await()
         } catch (cancelled: CancellationException) {
             process.cancel()
             withContext(NonCancellable) {

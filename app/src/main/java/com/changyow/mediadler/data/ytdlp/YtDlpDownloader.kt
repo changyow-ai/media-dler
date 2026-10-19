@@ -52,10 +52,12 @@ class YtDlpDownloader(
         require(processId.matches(Regex("[A-Za-z0-9_-]+")))
         val originalPlan = DownloadPlanner.plan(request)
         val hls = if (request.item.source.kind == SourceKind.GENERAL) null
-            else SpecialSourceResume.prepare(originalPlan.resource)
+            else SpecialSourceResume.prepare(originalPlan.resource,
+                skipEightMapleAds = request.item.source.kind == SourceKind.EIGHT_MAPLE)
         // Unsupported special sources use a fresh work directory on every attempt.
         // A bounded worker must require foreground continuation if it interrupts one.
         onProgress(DownloadProgress(DownloadPhase.DOWNLOADING,
+            detail = hls?.takeIf { it.skippedAds > 0 }?.let { "已辨識 ${it.skippedAds} 段廣告，下載時略過" },
             canResume = request.item.source.kind == SourceKind.GENERAL || hls != null))
         // Download the exact child whose snapshot we validated, rather than selecting
         // a potentially different variant from the master again on each attempt.
@@ -108,8 +110,27 @@ class YtDlpDownloader(
             val produced = selectOutput(workDir, request.selection)
                 ?: return@withContext Result.failure(IllegalStateException("下載完成但找不到輸出檔"))
 
-            onProgress(DownloadProgress(DownloadPhase.SAVING, detail = "正在儲存完成的媒體"))
-            Result.success(publisher.publish(processId, produced, request))
+            val cleaned = if (request.item.source.kind == SourceKind.EIGHT_MAPLE &&
+                produced.extension.equals("mp4", ignoreCase = true)) {
+                onProgress(DownloadProgress(DownloadPhase.PROCESSING, detail = "正在檢查影片中的已知廣告"))
+                engine.cleanKnownAds(produced) { stage ->
+                    val detail = when (stage) {
+                        "probe" -> "正在確認廣告片段"
+                        "remux" -> "正在移除已辨識廣告"
+                        "validate" -> "正在驗證處理後的影片"
+                        else -> "正在檢查影片中的已知廣告"
+                    }
+                    onProgress(DownloadProgress(DownloadPhase.PROCESSING, detail = detail))
+                }
+            } else AdCleanupResult(produced, 0, 0.0)
+            val saving = when {
+                hls != null && hls.skippedAds > 0 -> "已略過 ${hls.skippedAds} 段廣告" +
+                    (if (cleaned.removedAds > 0) "、另移除 ${cleaned.removedAds} 段廣告" else "") + "，正在儲存影片"
+                cleaned.removedAds > 0 -> "已移除 ${cleaned.removedAds} 段廣告，正在儲存影片"
+                else -> "正在儲存完成的媒體"
+            }
+            onProgress(DownloadProgress(DownloadPhase.SAVING, detail = saving))
+            Result.success(publisher.publish(processId, cleaned.file, request))
         } catch (t: Throwable) {
             if (t is CancellationException) throw t
             Result.failure(t)

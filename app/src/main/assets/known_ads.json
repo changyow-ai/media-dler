@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "signatures": [
+    {
+      "id": "verified-8maple-ad-001",
+      "length": 6827385,
+      "sha256": "9eb906809fd3ff6c5d67246d8eb5a7a81805197a83fb0446571f5680fc183acb",
+      "anchor_offset": 1024,
+      "anchor_hex": "a233366cb9730115adbb5b2008a63d98a63dc88f23c4c8fd3ed109c04240fbca8132df3d6ebc878c46e716f7180518a691d7b6633bfd4bcab633e9a46161076d"
+    }
+  ]
+}
