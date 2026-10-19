@@ -1,81 +1,80 @@
 package com.changyow.mediadler.data.ytdlp
 
 import com.changyow.mediadler.core.download.HlsResumeGuard
+import java.io.File
+import java.io.FileOutputStream
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.double
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 
-/** Only the provider's explicit v1 marker authorizes skipping a complete plain-TS block. */
+/** Job-owned input and frozen result of native, complete-content HLS ad verification. */
 internal object EightMapleHlsAds {
-    const val IDENTITY_VERSION = "eightmaple-provider-ad-filter-v1"
-    private const val MARKER = "# ppvod-ad-injected v1"
-    private const val DISCONTINUITY = "#EXT-X-DISCONTINUITY"
-    private const val MAX_BLOCKS = 16
-    private const val MAX_BLOCK_SEGMENTS = 128
-    private const val MAX_BLOCK_SECONDS = 600.0
+    const val POLICY = "eightmaple-content-v1"
+    const val CATALOG_ASSET = "hls_ad_fingerprints.json"
 
-    data class Result(
-        val manifest: String,
-        val skippedAds: Int = 0,
-        val skippedAdSegments: Int = 0,
-        val skippedAdSeconds: Double = 0.0,
-    )
+    fun policyIdentity(catalog: ByteArray): String = "$POLICY\n${digest(catalog)}"
 
-    /** Any unsupported or malformed block rolls back the entire original snapshot. */
-    fun filter(manifest: String): Result {
-        val unchanged = Result(manifest)
-        if (manifest.length > 1024 * 1024 || HlsResumeGuard.fingerprint(manifest) == null) return unchanged
-        val lines = Regex("[^\\r\\n]*(?:\\r\\n|\\r|\\n|$)").findAll(manifest)
-            .filter { it.value.isNotEmpty() }
-            .map { Line(it.value.trimEnd('\r', '\n'), it.range.first) }.toList()
-        val markers = lines.filter { it.text.trimStart().startsWith('#') &&
-            it.text.contains("ppvod-ad-injected", ignoreCase = true) }
-        if (markers.isEmpty() || markers.size > MAX_BLOCKS || markers.any { it.text != MARKER }) return unchanged
+    fun files(workDir: File): Files = Files(File(workDir, ".resume").apply { mkdirs() })
 
-        val removedRanges = mutableListOf<IntRange>()
-        var index = 0
-        var pendingSegment = false
-        var skippedSegments = 0
-        var skippedSeconds = 0.0
-        while (index < lines.size) {
-            val line = lines[index]
-            if (line.text != MARKER) {
-                val text = line.text.trim()
-                if (text.startsWith("#EXTINF:")) pendingSegment = true
-                else if (text.isNotEmpty() && !text.startsWith('#')) pendingSegment = false
-                index++
-                continue
+    class Files(val directory: File) {
+        val script = File(directory, "hls_ad_filter.py")
+        val catalog = File(directory, "ad-catalog.json")
+        val input = File(directory, "ad-input.json")
+        val plan = File(directory, "ad-plan.json")
+
+        fun writeInput(hls: PreparedHlsResume, catalogBytes: ByteArray, rateLimit: Long? = null) {
+            require(rateLimit == null || rateLimit > 0)
+            atomicWrite(catalog, catalogBytes)
+            val value = buildJsonObject {
+                put("schema", 1)
+                put("url", hls.resource.url)
+                put("manifest", hls.manifest)
+                put("identity", hls.identity)
+                rateLimit?.let { put("rate_limit_bytes_per_second", it) }
+                putJsonObject("headers") {
+                    hls.resource.httpHeaders.forEach { (name, value) -> put(name, value) }
+                }
             }
-            if (pendingSegment || lines.getOrNull(index + 1)?.text != DISCONTINUITY) return unchanged
-            var cursor = index + 2
-            var segments = 0
-            var seconds = 0.0
-            while (lines.getOrNull(cursor)?.text != DISCONTINUITY) {
-                val durationLine = lines.getOrNull(cursor)?.text ?: return unchanged
-                val uri = lines.getOrNull(cursor + 1)?.text?.trim() ?: return unchanged
-                if (!durationLine.startsWith("#EXTINF:") || uri.isEmpty() || uri.startsWith('#')) return unchanged
-                val duration = durationLine.substringAfter(':').substringBefore(',').toDoubleOrNull() ?: return unchanged
-                if (!duration.isFinite() || duration <= 0) return unchanged
-                seconds += duration
-                segments++
-                if (segments > MAX_BLOCK_SEGMENTS || seconds > MAX_BLOCK_SECONDS) return unchanged
-                cursor += 2
-            }
-            if (segments == 0) return unchanged
-            // Keep the closing discontinuity verbatim as the splice into retained media.
-            removedRanges += line.start until lines[cursor].start
-            skippedSegments += segments
-            skippedSeconds += seconds
-            index = cursor + 1
+            atomicWrite(input, value.toString().toByteArray(Charsets.UTF_8))
         }
-        val filtered = buildString {
-            var retainedStart = 0
-            removedRanges.forEach { range ->
-                append(manifest, retainedStart, range.first)
-                retainedStart = range.last + 1
+
+        fun readResult(original: PreparedHlsResume): PreparedHlsResume {
+            check(plan.isFile && plan.length() in 1..4L * 1024 * 1024) { "廣告辨識結果不完整" }
+            val value = Json.parseToJsonElement(plan.readText()).jsonObject
+            check(value["schema"]?.jsonPrimitive?.int == 1 &&
+                value["policy"]?.jsonPrimitive?.content == POLICY &&
+                value["catalog_sha256"]?.jsonPrimitive?.content == digest(catalog.readBytes()) &&
+                value["snapshot_identity"]?.jsonPrimitive?.content == original.identity) { "廣告辨識結果與來源不符" }
+            val manifest = requireNotNull(value["manifest"]).jsonPrimitive.content
+            val identity = requireNotNull(value["identity"]).jsonPrimitive.content
+            val ads = requireNotNull(value["skipped_ads"]).jsonPrimitive.int
+            val segments = requireNotNull(value["skipped_ad_segments"]).jsonPrimitive.int
+            val seconds = requireNotNull(value["skipped_ad_seconds"]).jsonPrimitive.double
+            check(identity.matches(Regex("[0-9a-f]{64}")) && HlsResumeGuard.fingerprint(manifest) != null &&
+                ads in 0..16 && segments >= 0 && seconds.isFinite() && seconds >= 0 &&
+                (ads > 0 && segments > 0 && seconds > 0 ||
+                    ads == 0 && segments == 0 && seconds == 0.0 && manifest == original.manifest)) {
+                "廣告辨識結果無效"
             }
-            append(manifest, retainedStart, manifest.length)
+            return original.copy(manifest = manifest, identity = identity,
+                skippedAds = ads, skippedAdSegments = segments, skippedAdSeconds = seconds, adPlan = plan)
         }
-        if (HlsResumeGuard.fingerprint(filtered) == null) return unchanged
-        return Result(filtered, removedRanges.size, skippedSegments, skippedSeconds)
     }
 
-    private data class Line(val text: String, val start: Int)
+    private fun atomicWrite(destination: File, bytes: ByteArray) {
+        val temporary = File(destination.parentFile, "${destination.name}.tmp")
+        FileOutputStream(temporary).use { output -> output.write(bytes); output.fd.sync() }
+        java.nio.file.Files.move(temporary.toPath(), destination.toPath(),
+            StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+    }
+
+    private fun digest(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256")
+        .digest(bytes).joinToString("") { "%02x".format(it) }
 }

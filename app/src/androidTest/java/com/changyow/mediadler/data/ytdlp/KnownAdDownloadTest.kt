@@ -36,6 +36,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -62,7 +63,11 @@ import org.junit.runner.RunWith
  * HLS-only cases require hlsJoinOneUrl / hlsJoinTwoUrl (localhost .m3u8 URLs) and
  * hlsJoinOneSeconds / hlsJoinTwoSeconds (sum of four retained EXTINF durations).
  * Each playlist contains two retained TS segments, a marked v1 block with seven
- * unavailable ad TS references, a closing discontinuity, and two retained TS segments.
+ * real, fingerprinted ad TS references, a closing discontinuity, and two retained TS segments.
+ * Ads must be fetched for content verification; retained candidate bytes are reused.
+ * New content cases use hlsContentCasesUrl / hlsFullSnapshotUrl / hlsFixtureStateUrl.
+ * Content-case seconds are independently probed retained AV duration, including
+ * audio that can extend beyond the provider's video EXTINF duration.
  * Optional hlsEvidenceDirectory=qa_ad_hls_<UUID> retains exact published MP4 copies
  * under target externalFilesDir for host pull and explicit host removal afterwards.
  * Evidence files are unique and never overwritten; normal test cleanup retains them.
@@ -243,7 +248,7 @@ class KnownAdDownloadTest {
         report("general-gate", published, progress)
     }
 
-    @Test fun markedHlsBothJoinsPublishDecodableAudioVideoWithoutRequestingAdSegments() = runBlocking {
+    @Test fun verifiedMarkedHlsBothJoinsPublishDecodableAudioVideo() = runBlocking {
         val fixtures = prepareHlsFixtures()
         fixtures.forEachIndexed { index, fixture ->
             val id = newTask()
@@ -342,7 +347,7 @@ class KnownAdDownloadTest {
     }
 
     private fun assertHlsProgress(progress: List<DownloadProgress>) {
-        val downloading = progress.first { it.phase == DownloadPhase.DOWNLOADING }
+        val downloading = progress.first { it.phase == DownloadPhase.DOWNLOADING && it.detail == "已辨識 1 段廣告，下載時略過" }
         assertEquals("已辨識 1 段廣告，下載時略過", downloading.detail)
         assertEquals(true, downloading.canResume)
         assertEquals("已略過 1 段廣告，正在儲存影片", progress.first { it.phase == DownloadPhase.SAVING }.detail)
@@ -367,12 +372,275 @@ class KnownAdDownloadTest {
         val state = requireNotNull(hlsState(id)) { "HLS checkpoint/session is missing" }
         assertTrue(state.identity.matches(Regex("[0-9a-f]{64}")))
         assertEquals(expectedIndex, state.index)
-        assertFalse("Provider marker must be removed before native HLS download", state.manifest.contains("ppvod-ad-injected"))
         val uris = state.manifest.lineSequence().map(String::trim).filter { it.isNotEmpty() && !it.startsWith('#') }.toList()
         assertEquals("Only four retained drama segments may reach the native adapter", 4, uris.size)
         assertEquals(4, retainedDurations(state).size)
-        assertEquals(1, state.manifest.lineSequence().count { it.trim() == "#EXT-X-DISCONTINUITY" })
         return state
+    }
+
+    @Test fun fullUnmarkedEpisodeIdentifiesAllFourConfirmedAdsBeforeMediaDownload() = runBlocking {
+        val url = InstrumentationRegistry.getArguments().getString("hlsFullSnapshotUrl")
+        assumeTrue("Full snapshot QA requires hlsFullSnapshotUrl", !url.isNullOrBlank())
+        controlledUrl(url!!, ".m3u8")
+        initializeEngine()
+        val id = newTask()
+        val recognized = CompletableDeferred<Unit>()
+        val barrier = CountDownLatch(1)
+        coroutineScope {
+            val attempt = async(Dispatchers.IO) {
+                withTimeout(DOWNLOAD_TIMEOUT) {
+                    context.appContainer.downloader.download(request(url, SourceKind.EIGHT_MAPLE, id,
+                        mapOf("User-Agent" to "Mozilla/5.0", "Referer" to "https://play.8maple.st/play/wbYC-1-1.html")), id) {
+                        if (it.detail == "已辨識 4 段廣告，下載時略過" && recognized.complete(Unit)) {
+                            check(barrier.await(10, TimeUnit.SECONDS))
+                        }
+                    }.getOrThrow().also(::track)
+                }
+            }
+            try {
+                withTimeout(DOWNLOAD_TIMEOUT) { recognized.await() }
+                val plan = contentPlan(id)
+                assertEquals(4, plan.getInt("skipped_ads"))
+                assertEquals(18, plan.getInt("skipped_ad_segments"))
+                assertEquals(68.266664, plan.getDouble("skipped_ad_seconds"), 0.001)
+                assertFalse(publication(id).exists())
+                savePlanEvidence("full-episode-four-ads", id)
+                attempt.cancel(CancellationException("QA stops after complete native recognition"))
+                barrier.countDown()
+                withTimeout(DOWNLOAD_TIMEOUT) { attempt.join() }
+                assertTrue(attempt.isCancelled)
+            } finally {
+                barrier.countDown()
+                withContext(NonCancellable) { attempt.cancelAndJoin() }
+            }
+        }
+        assertFalse(publication(id).exists())
+        assertTrue(publishedUris.isEmpty())
+    }
+
+    @Test fun verifiedContentSkipsOnlyKnownAdsAndPreservesUnknownMedia() = runBlocking {
+        for (fixture in contentFixtures().filter { it.label !in setOf("candidate-cancel", "checkpoint-cancel") }) {
+            val id = newTask()
+            val progress = CopyOnWriteArrayList<DownloadProgress>()
+            val output = contentDownload(fixture, id, progress::add)
+            saveHlsEvidence(fixture.label, output, inspect(output))
+            savePlanEvidence(fixture.label, id)
+            assertContentResult(fixture, id, output, progress)
+        }
+    }
+
+    @Test fun candidateReadCancellationAndSameTaskRetryNeverPublishPartialPlans() = runBlocking {
+        val fixture = contentFixtures().first { it.label == "candidate-cancel" }
+        val stateUrl = InstrumentationRegistry.getArguments().getString("hlsFixtureStateUrl")
+        assumeTrue("Candidate cancellation QA requires hlsFixtureStateUrl", !stateUrl.isNullOrBlank())
+        val id = newTask()
+        coroutineScope {
+            val attempt = async(Dispatchers.IO) { contentDownload(fixture, id) {} }
+            try {
+                withTimeout(DOWNLOAD_TIMEOUT) {
+                    while (!fixtureJson(stateUrl!!).optBoolean("slow_entered")) delay(50)
+                }
+                attempt.cancel(CancellationException("QA interrupts candidate body"))
+                withTimeout(DOWNLOAD_TIMEOUT) { attempt.join() }
+                assertTrue(attempt.isCancelled)
+            } finally { withContext(NonCancellable) { attempt.cancelAndJoin() } }
+        }
+        assertFalse(publication(id).exists())
+        assertTrue("Interrupted scan must not freeze a partial decision",
+            taskDirectory(id).walkTopDown().none { it.name == "ad-plan.json" })
+        val progress = CopyOnWriteArrayList<DownloadProgress>()
+        val output = contentDownload(fixture, id, progress::add)
+        assertContentResult(fixture, id, output, progress)
+        saveHlsEvidence("candidate-retry", output, inspect(output))
+        savePlanEvidence("candidate-retry", id)
+    }
+
+    @Test fun verifiedContentCheckpointRetryUsesSameFrozenDecision() = runBlocking {
+        val fixture = contentFixtures().first { it.label == "checkpoint-cancel" }
+        val id = newTask()
+        val committed = CompletableDeferred<HlsState>()
+        val barrier = CountDownLatch(1)
+        var removedTestCache = false
+        val preserved = coroutineScope {
+            val attempt = async(Dispatchers.IO) {
+                contentDownload(fixture, id) {
+                    if (!removedTestCache && it.detail == "已辨識 1 段廣告，下載時略過") {
+                        val planFile = taskDirectory(id).walkTopDown().single { f -> f.name == "ad-plan.json" }
+                        val cached = contentPlan(id).getJSONArray("cached_segments")
+                        val entry = (0 until cached.length()).map(cached::getJSONObject)
+                            .single { e -> e.getString("url").endsWith("keep-3.ts") }
+                        val body = File(planFile.parentFile, entry.getString("path")).canonicalFile
+                        assertTrue(body.toPath().startsWith(taskDirectory(id).canonicalFile.toPath()))
+                        assertTrue("Remove only this test's final cached fragment to exercise network fallback", body.delete())
+                        removedTestCache = true
+                    }
+                    val state = hlsState(id)
+                    if (state != null && state.index in 1 until fixture.retained && committed.complete(state)) {
+                        check(barrier.await(10, TimeUnit.SECONDS))
+                    }
+                }
+            }
+            try {
+                val state = withTimeout(DOWNLOAD_TIMEOUT) { committed.await() }
+                attempt.cancel(CancellationException("QA interrupts committed content HLS"))
+                barrier.countDown()
+                withTimeout(DOWNLOAD_TIMEOUT) { attempt.join() }
+                assertTrue(attempt.isCancelled)
+                state
+            } finally {
+                barrier.countDown()
+                withContext(NonCancellable) { attempt.cancelAndJoin() }
+            }
+        }
+        assertFalse(publication(id).exists())
+        val frozen = contentPlan(id).toString()
+        val progress = CopyOnWriteArrayList<DownloadProgress>()
+        val output = contentDownload(fixture, id, progress::add)
+        assertEquals(frozen, contentPlan(id).toString())
+        assertEquals(preserved.identity, requireNotNull(hlsState(id)).identity)
+        assertContentResult(fixture, id, output, progress)
+        saveHlsEvidence("checkpoint-retry", output, inspect(output))
+        savePlanEvidence("checkpoint-retry", id)
+    }
+
+    private suspend fun contentFixtures(): List<ContentFixture> {
+        val url = InstrumentationRegistry.getArguments().getString("hlsContentCasesUrl")
+        assumeTrue("Content HLS QA requires hlsContentCasesUrl", !url.isNullOrBlank())
+        val cases = fixtureJson(url!!).getJSONArray("cases")
+        initializeEngine()
+        return (0 until cases.length()).map { i ->
+            val c = cases.getJSONObject(i)
+            val fixtureUrl = c.getString("url")
+            controlledUrl(fixtureUrl, ".m3u8")
+            ContentFixture(c.getString("label"), fixtureUrl, c.getDouble("seconds"),
+                c.getInt("ads"), c.getInt("retained_segments"))
+        }
+    }
+
+    /** Evidence-only decoder baseline; does not replace any feature assertion. */
+    @Test fun mediaFrameProbeDiagnostics() = runBlocking {
+        val url = InstrumentationRegistry.getArguments().getString("hlsFrameProbeCasesUrl")
+        assumeTrue("Decoder baseline requires hlsFrameProbeCasesUrl", !url.isNullOrBlank())
+        val cases = fixtureJson(url!!).getJSONArray("cases")
+        val result = org.json.JSONArray()
+        for (i in 0 until cases.length()) {
+            val item = cases.getJSONObject(i)
+            val label = item.getString("label")
+            val row = JSONObject().put("label", label)
+            result.put(row)
+            try {
+                val file = if (item.has("url")) {
+                    fetchFixture(fixture(item.getString("url"), item.getString("sha256")), "frame-$i.mp4")
+                    File(privateCopies, "frame-$i.mp4")
+                } else {
+                    val path = item.getString("path")
+                    require(path.startsWith("/sdcard/Download/media-dler/drama/戀愛博士/E0001 ") && path.endsWith(".mp4"))
+                    File(path)
+                }
+                row.put("file_size", file.length())
+                val retriever = MediaMetadataRetriever()
+                try {
+                    retriever.setDataSource(file.absolutePath)
+                    row.put("duration_ms", retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION))
+                    val options = org.json.JSONArray()
+                    row.put("options", options)
+                    for (option in listOf(MediaMetadataRetriever.OPTION_CLOSEST,
+                        MediaMetadataRetriever.OPTION_CLOSEST_SYNC, MediaMetadataRetriever.OPTION_PREVIOUS_SYNC,
+                        MediaMetadataRetriever.OPTION_NEXT_SYNC)) {
+                        val frame = retriever.getFrameAtTime((item.getDouble("at_seconds") * 1_000_000).toLong(), option)
+                        options.put(JSONObject().put("option", option).put("frame_returned", frame != null)
+                            .put("width", frame?.width).put("height", frame?.height))
+                        frame?.recycle()
+                    }
+                    val scaled = retriever.getScaledFrameAtTime((item.getDouble("at_seconds") * 1_000_000).toLong(),
+                        MediaMetadataRetriever.OPTION_CLOSEST, 320, 180)
+                    row.put("scaled_frame_returned", scaled != null)
+                    row.put("scaled_width", scaled?.width).put("scaled_height", scaled?.height)
+                    scaled?.recycle()
+                } finally { retriever.release() }
+            } catch (error: Exception) { row.put("error", error.toString()) }
+        }
+        val body = JSONObject().put("scope", "read-only Android system frame decoder baseline").put("results", result)
+        val name = requireNotNull(InstrumentationRegistry.getArguments().getString("hlsEvidenceDirectory"))
+        require(name.matches(Regex("qa_ad_hls_[0-9a-fA-F-]{36}")))
+        val directory = File(requireNotNull(context.getExternalFilesDir(null)), name).apply { mkdirs() }
+        val copy = File(directory, "frame-probe-${UUID.randomUUID()}.json")
+        check(copy.createNewFile())
+        copy.writeText(body.toString())
+        InstrumentationRegistry.getInstrumentation().sendStatus(0, Bundle().apply {
+            putString("stream", "\nNATIVE_FRAME_PROBE $body\n")
+        })
+    }
+
+    private suspend fun fixtureJson(url: String): JSONObject = withContext(Dispatchers.IO) {
+        controlledUrl(url, ".json")
+        val connection = URL(url).openConnection() as HttpURLConnection
+        connection.connectTimeout = 10_000
+        connection.readTimeout = 10_000
+        try {
+            assertEquals(200, connection.responseCode)
+            val bytes = connection.inputStream.use { it.readBytes() }
+            check(bytes.size <= 1024 * 1024)
+            JSONObject(String(bytes, Charsets.UTF_8))
+        } finally { connection.disconnect() }
+    }
+
+    private suspend fun contentDownload(fixture: ContentFixture, id: String,
+        onProgress: (DownloadProgress) -> Unit): DownloadOutput = try {
+        withTimeout(DOWNLOAD_TIMEOUT) {
+            context.appContainer.downloader.download(request(fixture.url, SourceKind.EIGHT_MAPLE, id), id, onProgress)
+                .getOrThrow().also(::track)
+        }
+    } finally {
+        if (taskDirectory(id).walkTopDown().any { it.isFile && it.name == "ad-plan.json" }) {
+            savePlanEvidence(fixture.label, id)
+        }
+    }
+
+    private fun contentPlan(id: String): JSONObject = JSONObject(taskDirectory(id).walkTopDown()
+        .single { it.isFile && it.name == "ad-plan.json" }.readText())
+
+    private fun assertContentResult(fixture: ContentFixture, id: String, output: DownloadOutput,
+        progress: List<DownloadProgress>) {
+        val plan = contentPlan(id)
+        // Preserve native classification diagnostics even when an assertion fails.
+        savePlanEvidence(fixture.label, id)
+        assertEquals(fixture.ads, plan.getInt("skipped_ads"))
+        val state = requireNotNull(hlsState(id))
+        assertEquals(fixture.retained, state.index)
+        assertEquals(plan.getString("identity"), state.identity)
+        assertEquals(plan.getString("manifest"), state.manifest)
+        assertVerifiedPublication(id, output)
+        val saving = progress.first { it.phase == DownloadPhase.SAVING }
+        if (fixture.ads > 0) assertEquals("已略過 ${fixture.ads} 段廣告，正在儲存影片", saving.detail)
+        else assertFalse(saving.detail.orEmpty().contains("已略過"))
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(context, Uri.parse(output.uri))
+            assertEquals("yes", retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO))
+            assertEquals("yes", retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO))
+            val seconds = requireNotNull(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)).toLong() / 1000.0
+            assertEquals(fixture.seconds, seconds, 0.25)
+            // ASUS Android 9 also returns null for CLOSEST on the independent
+            // original-TS reference. Sync frames decode on all three baselines.
+            // Check both retained ends; host validation checks every AV packet
+            // and fully decodes the exact publication copied from the device.
+            for (position in listOf(0.5, seconds - 0.5)) {
+                val frame = retriever.getFrameAtTime((position * 1_000_000).toLong(),
+                    MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                assertNotNull("Retained video must decode at ${position}s", frame)
+                frame?.recycle()
+            }
+        } finally { retriever.release() }
+    }
+
+    private fun savePlanEvidence(label: String, id: String) {
+        val name = InstrumentationRegistry.getArguments().getString("hlsEvidenceDirectory") ?: return
+        require(name.matches(Regex("qa_ad_hls_[0-9a-fA-F-]{36}")))
+        val directory = File(requireNotNull(context.getExternalFilesDir(null)), name).apply { mkdirs() }
+        val file = File(directory, "${label}_${UUID.randomUUID()}-plan.json")
+        check(file.createNewFile())
+        file.writeText(contentPlan(id).toString())
     }
 
     private fun retainedDurations(state: HlsState) = state.manifest.lineSequence().map(String::trim)
@@ -439,9 +707,9 @@ class KnownAdDownloadTest {
     private fun request(fixture: Fixture, kind: SourceKind, id: String): DownloadRequest =
         request(fixture.url, kind, id)
 
-    private fun request(url: String, kind: SourceKind, id: String): DownloadRequest {
+    private fun request(url: String, kind: SourceKind, id: String, headers: Map<String, String> = emptyMap()): DownloadRequest {
         val format = MediaFormat("qa-direct", "mp4", "QA fixture MP4", null, true, true, false,
-            null, MediaResource(url))
+            null, MediaResource(url, headers))
         return DownloadRequest(MediaItem(
             sourceUrl = url,
             playlistIndex = null,
@@ -550,6 +818,7 @@ class KnownAdDownloadTest {
 
     private data class Fixture(val url: String, val sha256: String)
     private data class HlsFixture(val url: String, val seconds: Double)
+    private data class ContentFixture(val label: String, val url: String, val seconds: Double, val ads: Int, val retained: Int)
     private data class HlsState(val session: File, val identity: String, val manifest: String, val index: Int)
     private data class Fingerprint(val size: Long, val sha256: String)
 

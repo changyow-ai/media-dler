@@ -1,0 +1,106 @@
+{
+  "schema": 1,
+  "policy": "eightmaple-content-v1",
+  "normalizer": "h264-aac-complete-packet-sequences-v1",
+  "signatures": [
+    {
+      "label": "288588",
+      "fingerprint": {
+        "normalizer": "h264-aac-complete-packet-sequences-v1",
+        "streams": {
+          "video": {
+            "metadata": {
+              "codec_name": "h264",
+              "profile": "High",
+              "level": 40,
+              "width": 1920,
+              "height": 1080,
+              "pix_fmt": "yuv420p",
+              "extradata_hash": "SHA256:be9ca4391bb0bab5f5371e10f32937dd83d274075fc12f23dcebf6e58bdd89a3"
+            },
+            "packet_count": 644,
+            "packet_sequence_sha256": "d882e9f00165d30ed4600fc0d2d08e78cf04f542e79e7f7db058d66d34e51bcf"
+          },
+          "audio": {
+            "metadata": {
+              "codec_name": "aac",
+              "profile": "LC",
+              "sample_rate": "44100",
+              "channels": 2,
+              "channel_layout": "stereo",
+              "extradata_hash": "SHA256:ba3d722a88cacce18f22962612eda4d50e7a61cd9b7db60694043efed2a61448"
+            },
+            "packet_count": 1109,
+            "packet_sequence_sha256": "980ea16a027acdbad338d85c7bb67c91185f8e6fab8eadb0add178198f9d3451"
+          }
+        }
+      }
+    },
+    {
+      "label": "451451-A",
+      "fingerprint": {
+        "normalizer": "h264-aac-complete-packet-sequences-v1",
+        "streams": {
+          "video": {
+            "metadata": {
+              "codec_name": "h264",
+              "profile": "High",
+              "level": 40,
+              "width": 1920,
+              "height": 1080,
+              "pix_fmt": "yuv420p",
+              "extradata_hash": "SHA256:3e49356c9e262526a604b6c04f900817113db49c61d720274c4a22e4d30b4378"
+            },
+            "packet_count": 494,
+            "packet_sequence_sha256": "cf74b371d6bf53a67d8c96545e1d2a5f1248b7a9d40e410b3cca63996f60d487"
+          },
+          "audio": {
+            "metadata": {
+              "codec_name": "aac",
+              "profile": "LC",
+              "sample_rate": "48000",
+              "channels": 2,
+              "channel_layout": "stereo",
+              "extradata_hash": "SHA256:b65f22439176f7827a0d82a66b34477888f0287450985d8e3dc836d7e32ce79b"
+            },
+            "packet_count": 773,
+            "packet_sequence_sha256": "c927f430f75dd2fb09eb1d293153ab9d76b486773cc0c25757b9d6e5d4e10537"
+          }
+        }
+      }
+    },
+    {
+      "label": "451451-B",
+      "fingerprint": {
+        "normalizer": "h264-aac-complete-packet-sequences-v1",
+        "streams": {
+          "video": {
+            "metadata": {
+              "codec_name": "h264",
+              "profile": "High",
+              "level": 40,
+              "width": 1920,
+              "height": 1080,
+              "pix_fmt": "yuv420p",
+              "extradata_hash": "SHA256:3e49356c9e262526a604b6c04f900817113db49c61d720274c4a22e4d30b4378"
+            },
+            "packet_count": 530,
+            "packet_sequence_sha256": "9a54f8cae73c22ac5c472d3ce8bd8739c416e068521dcfd76b1a45bd8b3e745c"
+          },
+          "audio": {
+            "metadata": {
+              "codec_name": "aac",
+              "profile": "LC",
+              "sample_rate": "48000",
+              "channels": 2,
+              "channel_layout": "stereo",
+              "extradata_hash": "SHA256:b65f22439176f7827a0d82a66b34477888f0287450985d8e3dc836d7e32ce79b"
+            },
+            "packet_count": 830,
+            "packet_sequence_sha256": "6a72b00f1b883d4f534eeec0ef1531199a721a0daa72d26da7c9a3218ec1b905"
+          }
+        }
+      }
+    }
+  ]
+}

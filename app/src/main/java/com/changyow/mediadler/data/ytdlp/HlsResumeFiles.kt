@@ -18,6 +18,7 @@ internal object HlsResumeFiles {
             put("identity", hls.identity)
             put("url", hls.resource.url)
             put("manifest", hls.manifest)
+            hls.adPlan?.let { put("ad_plan", it.absolutePath) }
         }.toString()
         FileOutputStream(temporary).use { output ->
             output.write(value.toByteArray(Charsets.UTF_8))

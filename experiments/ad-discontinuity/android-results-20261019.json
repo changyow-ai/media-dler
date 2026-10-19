@@ -1,0 +1,256 @@
+{
+  "schema": 1,
+  "date": "2026-10-19",
+  "branch": "experiment/ad-discontinuity",
+  "base_commit": "0a47d082f7b11ec7cfb07f3a9e95f5b626ac98b6",
+  "aye_task": "t-5ed71b1bcfa6316d83a5",
+  "status": "PASS within the recorded scope and transport conditions",
+  "scope": "Production media-dler downloader on ASUS Android 9. Full E1 candidate recognition uses original HTTPS CDN ad URLs; publication checks use bounded actual-source TS fixtures. No whole-episode output or live page extraction claim.",
+  "implementation": {
+    "candidates": "Complete plain-TS VOD regions bounded by discontinuity/start/end; boundaries and provider markers never authorize deletion by themselves.",
+    "decision": "Normalize complete candidate to MP4 without reencoding; require complete ordered H264 AND AAC packet hashes/counts and exact codec metadata to match a trusted signature.",
+    "catalog": [
+      "288588",
+      "451451-A",
+      "451451-B"
+    ],
+    "fallback": "Unknown, unsupported, failed or budget-exhausted candidates remain. Existing MP4 cleanup retains its original scope. No changes to previously downloaded episodes.",
+    "cache_resume": "Job-owned complete-body/hash-verified TS cache, rate-limited including discarded bytes. Reuse retained cache through native HLS adapter. Freeze actual skip set, manifest and policy/catalog identity before checkpoints; retries cannot reclassify a frozen plan.",
+    "fetch_recovery": "At most two transactions for transient truncation/timeout/connection/5xx. Invalid headers,206,4xx,budget,filesystem and cancellation are not retried. Partial bodies never enter cache.",
+    "scan_limits": {
+      "seconds_per_region": 60,
+      "segments_per_region": 128,
+      "candidate_regions": 16,
+      "bytes_per_region": 33554432,
+      "total_network_bytes_per_scan": 134217728
+    }
+  },
+  "build": {
+    "package": "com.changyow.mediadler",
+    "version_name": "0.1.10",
+    "version_code": 11,
+    "artifacts": [
+      {
+        "path": "/tmp/media-dler-ad-content-android-20261019/artifacts/media-dler-content-ads-arm64-release.apk",
+        "size": 123441476,
+        "sha256": "b2240015df0e16cea548f5c2a2bc3ca2cd48d27963207ac44e139511ff7c1c19",
+        "certificate_sha256": "e00634a00db84015f7755b263a52d837ff7d31e229347ba0c068a894af917ce4"
+      },
+      {
+        "path": "/tmp/media-dler-ad-content-android-20261019/artifacts/media-dler-content-ads-test-release-signed.apk",
+        "size": 1090315,
+        "sha256": "601d0c59a339b06aa22aecfe2848760000cfe96d057346699e4e6c73cd2f3dfa",
+        "certificate_sha256": "e00634a00db84015f7755b263a52d837ff7d31e229347ba0c068a894af917ce4"
+      }
+    ],
+    "source_assets_sha256": {
+      "ad_cleanup.py": "62d22adb31d7feaf74b9d8cdb53098cc88d2cd03aadfc779fb7bbcc8aa2b06c9",
+      "known_ads.json": "25b553201d89b91ee59497000ad7e581d44f44cf40ffe478be25f974a96751f1",
+      "hls_resume.py": "0a09e00c313922646a01b6fd79e75c4abea0460d8460b021bd5dfc9c33f71b32",
+      "hls_ad_filter.py": "77506ee090519410a588f2bf373f1176e429fd09e19e2860ddb03244aba8900f",
+      "hls_ad_fingerprints.json": "012f69db615464da85fb10b9e5d51a95e628d8abf018cadbb92d947b7084e1e9"
+    }
+  },
+  "device": {
+    "serial": "J7AXB764Z637WNM",
+    "model": "ASUS_X00TDB",
+    "api": 28,
+    "abi": "arm64-v8a",
+    "installed_release_sha256": "b2240015df0e16cea548f5c2a2bc3ca2cd48d27963207ac44e139511ff7c1c19"
+  },
+  "native_verification": {
+    "strategy": "Reuse unchanged b224 build evidence for full recognition, six publication cases and checkpoint retry; recheck only candidate transport and source-derived credits duration in a separate two-method attempt. Earlier failed attempts remain unchanged.",
+    "full_E1": {
+      "status": "PASS",
+      "ads": 4,
+      "TS_segments": 18,
+      "EXTINF_ad_seconds": 68.26666399999999,
+      "original_segment_indices": [
+        124,
+        125,
+        126,
+        127,
+        503,
+        504,
+        505,
+        506,
+        507,
+        908,
+        909,
+        910,
+        911,
+        1053,
+        1054,
+        1055,
+        1056,
+        1057
+      ],
+      "final_identity": "977aa21453c441e0a6e3584bdcc1e6877ee4c801dd26e8854196f148a347e5f8",
+      "cost": {
+        "network_bytes": 28204512,
+        "cache_reuse_count": 0,
+        "cache_reuse_bytes": 0,
+        "elapsed_seconds": 58.6629977900011
+      },
+      "plan": "/tmp/media-dler-ad-content-android-20261019/release-runtime/attempt-001/native-evidence/qa_ad_hls_16c454b9-155a-443d-ad3a-626aa657c318/full-episode-four-ads_b08f715c-4f14-427c-9fb5-48e869104ede-plan.json",
+      "completion": "Intentionally cancelled after verified plan before main programme download; no publication."
+    },
+    "publications": {
+      "actual_outputs_checked": 10,
+      "distinct_case_labels": [
+        "candidate-retry",
+        "checkpoint-retry",
+        "marked288",
+        "normal-credits",
+        "r02",
+        "r04",
+        "r06",
+        "r08",
+        "unknown-ad"
+      ],
+      "known_ad_cuts": "All four actual E1 boundary fixtures and marked288 remove exactly one verified ad.",
+      "negative_controls": "Unknown different creative and complete normal credits retained, including all underlying AV packets.",
+      "checks": "Native AV metadata, source-derived duration, two endpoint sync frames; host ALL retained AV packet hashes/order/count, strict DTS, one common AV timestamp shift within1ms, full warning-free decode.",
+      "reports": [
+        "/tmp/media-dler-ad-content-android-20261019/validate-release-attempt001/report.json",
+        "/tmp/media-dler-ad-content-android-20261019/validate-candidate-transport/report.json"
+      ],
+      "packet_counts": [
+        {
+          "case": "checkpoint-retry",
+          "video": 348,
+          "audio": 625,
+          "sha256": "443ea8dcc43c9a9d1f41e879b52d77563f5560580e50633eee5a5364950873ac"
+        },
+        {
+          "case": "marked288",
+          "video": 348,
+          "audio": 625,
+          "sha256": "443ea8dcc43c9a9d1f41e879b52d77563f5560580e50633eee5a5364950873ac"
+        },
+        {
+          "case": "normal-credits",
+          "video": 701,
+          "audio": 1222,
+          "sha256": "4ea80577f141d6661d8dcd8ccd7e6137d50895f309dedf594892ec2389872917"
+        },
+        {
+          "case": "r02",
+          "video": 192,
+          "audio": 376,
+          "sha256": "83361b32522a22936a817b926b97738f1a1e550d60a8f5a45b385b381af5aa8b"
+        },
+        {
+          "case": "r04",
+          "video": 144,
+          "audio": 281,
+          "sha256": "cb7084e6b84133a49848747a4b90db1cc1a17f7f50ad0205224b021c2cc777ec"
+        },
+        {
+          "case": "r06",
+          "video": 153,
+          "audio": 299,
+          "sha256": "8b24baec8307597a81e4c23efc735aa7451b17b8b38d2f2633d249e58ebb9d6e"
+        },
+        {
+          "case": "r08",
+          "video": 96,
+          "audio": 205,
+          "sha256": "753cf8e87155c27bd4ff54ad42d75228a2f3b6ecaf9fbdf6a26b9eeadfc3fe5c"
+        },
+        {
+          "case": "unknown-ad",
+          "video": 441,
+          "audio": 758,
+          "sha256": "ecc313383b4c843b8bb98ce918956da37ae3541809df6cf3005c12b91909aa6d"
+        },
+        {
+          "case": "candidate-retry",
+          "video": 192,
+          "audio": 376,
+          "sha256": "83361b32522a22936a817b926b97738f1a1e550d60a8f5a45b385b381af5aa8b"
+        },
+        {
+          "case": "normal-credits",
+          "video": 701,
+          "audio": 1222,
+          "sha256": "4ea80577f141d6661d8dcd8ccd7e6137d50895f309dedf594892ec2389872917"
+        }
+      ]
+    },
+    "candidate_cancel_retry": {
+      "status": "PASS under controlled full-response drain",
+      "initial_cancel": "No publication or frozen partial plan.",
+      "same_id_retry": "One deliberately short HTTP200 retried once, then complete content verified and skipped.",
+      "ad0_requests": 3,
+      "other_ad_TS_requests_each": 1,
+      "normal_TS_requests_each": 1
+    },
+    "checkpoint_cancel_retry": {
+      "status": "PASS",
+      "behavior": "Committed checkpoint and frozen plan/session identity reused; no partial publication or ad refetch; deleted test cache entry falls back to normal network.",
+      "ad_TS_requests_each": 1,
+      "challenged_keep_TS_requests": 3
+    },
+    "independent_results": [
+      "/tmp/media-dler-ad-content-android-20261019/release-runtime/result.json",
+      "/tmp/media-dler-ad-content-android-20261019/candidate-transport-runtime/result.json"
+    ],
+    "final_artifact_contract_validation": "/tmp/media-dler-ad-content-android-20261019/candidate-transport-runtime/attempt-001/contract-validation.json",
+    "health": "NO_ISSUE_OBSERVED; continuous recorded intervals complete in both current-build attempts.",
+    "cleanup": "Owned device evidence/test package/reverse removed and lease released; Main owned server stopped and port23907 verified closed.",
+    "user_state": "No tester writes to original episodes, settings, history or locale. Four original episode sizes remain unchanged; no post-run full-original-content hash claim."
+  },
+  "host_checks": {
+    "app_JVM": {
+      "tests": 170,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "Python": {
+      "run": 61,
+      "passed": 58,
+      "optional_skips": 3
+    },
+    "real_engine_adapter": {
+      "2025.11.12": {
+        "passed": 18
+      },
+      "2026.08.19": {
+        "passed": 18
+      }
+    },
+    "release_and_instrumentation_build": "PASS; build-transport-retry.log",
+    "diff_check": "PASS"
+  },
+  "preserved_failures_and_controls": [
+    {
+      "report": "/tmp/media-dler-ad-content-android-20261019/runtime/result.json",
+      "finding": "Initial native tests exposed transport truncation and Android9 CLOSEST frame option returning null. No whole-run PASS claimed."
+    },
+    {
+      "report": "/tmp/media-dler-ad-content-android-20261019/frame-runtime/result.json",
+      "finding": "Three actual/reference/remux files all return null for CLOSEST, while sync options work. QA uses two endpoint CLOSEST_SYNC checks; host full decoder and packet gates remain mandatory."
+    },
+    {
+      "report": "/tmp/media-dler-ad-content-android-20261019/final-runtime/result.json",
+      "finding": "Earlier build lacked bounded transaction retry; tail fixture expected video EXTINF4.004267 although independent retained AAC ends4.3725. Production fetch retry added; expected AV duration corrected without changing tolerance or trimming."
+    },
+    {
+      "report": "/tmp/media-dler-ad-content-android-20261019/release-runtime/result.json",
+      "finding": "b224 full E1/checkpoint/six publication cases passed. Candidate second full-server-write still arrived short at native reader and was conservatively retained. Normal credits source AAC ends28.374286 versus videoEXTINF28.04. These recorded failures were not changed to PASS."
+    },
+    {
+      "report": "/tmp/media-dler-ad-content-android-20261019/candidate-transport-runtime/result.json",
+      "control": "Same b224 app and601d test APK/unchanged assertions. Only host full-video-response socket close delayed5s; deliberate short response still closes immediately. Credits expected duration derives from pre-integration full AV reference28.374286;0.25s tolerance unchanged. Both native methods and host gates PASS. This does not uniquely identify the adb reverse root cause or prove all HTTP failures recover."
+    }
+  ],
+  "limitations": [
+    "Matches only the three catalogued encoded versions; unseen or reencoded advertisements may remain.",
+    "Only supported unencrypted plain-TS VOD in the EightMaple path; not generic ad detection.",
+    "Full E1 verification reads28204512 candidate bytes (~26.9MiB),58.66s on this ASUS; no first-scan ad traffic saving claim.",
+    "Full first-episode recognition and short native publication boundaries are verified; no complete new episode, Kodi/VLC or UI end-to-end verification.",
+    "Temporary evidence and APK paths are local; durable source, tests and this summary are committed."
+  ]
+}

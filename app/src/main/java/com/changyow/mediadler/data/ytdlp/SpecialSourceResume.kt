@@ -21,11 +21,12 @@ internal data class PreparedHlsResume(
     val skippedAds: Int = 0,
     val skippedAdSegments: Int = 0,
     val skippedAdSeconds: Double = 0.0,
+    val adPlan: java.io.File? = null,
 )
 
 /** Runs only for the claimed special-source job, never for queued episodes. */
 internal object SpecialSourceResume {
-    suspend fun prepare(resource: MediaResource, skipEightMapleAds: Boolean = false): PreparedHlsResume? {
+    suspend fun prepare(resource: MediaResource): PreparedHlsResume? {
         val context = currentCoroutineContext()
         return try {
             runInterruptible {
@@ -79,8 +80,6 @@ internal object SpecialSourceResume {
                     manifest = decode(bytes)
                     if (HlsResumeGuard.fingerprint(manifest) == null) return@runInterruptible null
                 }
-                val filtered = if (skipEightMapleAds) EightMapleHlsAds.filter(manifest)
-                    else EightMapleHlsAds.Result(manifest)
                 val digest = MessageDigest.getInstance("SHA-256")
                 fun add(value: ByteArray) {
                     digest.update(ByteBuffer.allocate(4).putInt(value.size).array())
@@ -95,13 +94,8 @@ internal object SpecialSourceResume {
                     add(name.toByteArray(Charsets.UTF_8))
                     add(value.toByteArray(Charsets.UTF_8))
                 }
-                if (filtered.skippedAds > 0) {
-                    add(EightMapleHlsAds.IDENTITY_VERSION.toByteArray(Charsets.UTF_8))
-                    add(filtered.manifest.toByteArray(Charsets.UTF_8))
-                }
-                PreparedHlsResume(resource.copy(url = url.toExternalForm()), filtered.manifest,
-                    digest.digest().joinToString("") { "%02x".format(it) },
-                    filtered.skippedAds, filtered.skippedAdSegments, filtered.skippedAdSeconds)
+                PreparedHlsResume(resource.copy(url = url.toExternalForm()), manifest,
+                    digest.digest().joinToString("") { "%02x".format(it) })
             }
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { context.ensureActive(); null }

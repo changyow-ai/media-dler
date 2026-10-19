@@ -51,31 +51,46 @@ class YtDlpDownloader(
 
         require(processId.matches(Regex("[A-Za-z0-9_-]+")))
         val originalPlan = DownloadPlanner.plan(request)
-        val hls = if (request.item.source.kind == SourceKind.GENERAL) null
-            else SpecialSourceResume.prepare(originalPlan.resource,
-                skipEightMapleAds = request.item.source.kind == SourceKind.EIGHT_MAPLE)
+        val snapshot = if (request.item.source.kind == SourceKind.GENERAL) null
+            else SpecialSourceResume.prepare(originalPlan.resource)
+        val adPolicy = if (snapshot != null && request.item.source.kind == SourceKind.EIGHT_MAPLE)
+            engine.hlsAdPolicyIdentity() else null
         // Unsupported special sources use a fresh work directory on every attempt.
         // A bounded worker must require foreground continuation if it interrupts one.
         onProgress(DownloadProgress(DownloadPhase.DOWNLOADING,
-            detail = hls?.takeIf { it.skippedAds > 0 }?.let { "已辨識 ${it.skippedAds} 段廣告，下載時略過" },
-            canResume = request.item.source.kind == SourceKind.GENERAL || hls != null))
+            canResume = request.item.source.kind == SourceKind.GENERAL || snapshot != null))
         // Download the exact child whose snapshot we validated, rather than selecting
         // a potentially different variant from the master again on each attempt.
-        val plan = hls?.let { originalPlan.copy(resource = it.resource) } ?: originalPlan
+        val plan = snapshot?.let { originalPlan.copy(resource = it.resource) } ?: originalPlan
         // A different resource/format cannot inherit incompatible partial files. Old attempts
         // remain under this stable task directory until completion or explicit deletion.
         val resume = if (request.item.source.kind == SourceKind.GENERAL) ""
-            else hls?.let { "hls-checkpoint-v1\n${it.identity}" } ?: UUID.randomUUID().toString()
+            else snapshot?.let { "hls-checkpoint-v1\n${it.identity}" +
+                (adPolicy?.let { policy -> "\n$policy" } ?: "") } ?: UUID.randomUUID().toString()
         val identity = plan.resource.url + "\n" + plan.formatArguments.joinToString("\n") +
             if (resume.isEmpty()) "" else "\n$resume"
         val fingerprint = MessageDigest.getInstance("SHA-256").digest(identity.toByteArray())
             .joinToString("") { "%02x".format(it) }
         val workDir = File(File(workRoot, processId), fingerprint).apply { mkdirs() }
         try {
-            val hlsSession = hls?.let { HlsResumeFiles.writeSession(workDir, it) }
-            // Rate changes apply on the next start/manual retry. Keep this out of the
-            // resource fingerprint so changing the cap never discards resumable data.
+            // The same cap covers candidate traffic and the remaining download. A cap
+            // change on retry does not alter the frozen media/checkpoint identity.
             val rateLimit = settingsRepository.settings.first().downloadRateLimitBytesPerSecond
+            val hls = if (adPolicy != null) {
+                onProgress(DownloadProgress(DownloadPhase.DOWNLOADING,
+                    detail = "正在驗證廣告候選片段", canResume = true))
+                engine.prepareHlsAds(workDir, requireNotNull(snapshot), rateLimit) { line ->
+                    val detail = if (line.startsWith("HLS_AD_CANDIDATE "))
+                        "正在驗證廣告候選片段（${line.removePrefix("HLS_AD_CANDIDATE ").replace(' ', '/')}）"
+                    else "正在驗證廣告候選片段"
+                    onProgress(DownloadProgress(DownloadPhase.DOWNLOADING, detail = detail, canResume = true))
+                }
+            } else snapshot
+            hls?.takeIf { it.skippedAds > 0 }?.let {
+                onProgress(DownloadProgress(DownloadPhase.DOWNLOADING,
+                    detail = "已辨識 ${it.skippedAds} 段廣告，下載時略過", canResume = true))
+            }
+            val hlsSession = hls?.let { HlsResumeFiles.writeSession(workDir, it) }
             val ytRequest = plan.toYoutubeDLRequest(rateLimit).apply {
                 addOption("-o", File(workDir, "media.%(ext)s").absolutePath)
                 addOption("--no-mtime")

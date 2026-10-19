@@ -9,6 +9,7 @@ import inspect
 import json
 import math
 import os
+import shutil
 from pathlib import Path
 import re
 import sys
@@ -127,8 +128,76 @@ class CheckpointStore:
                 if (parsed.scheme not in ('http', 'https') or not parsed.hostname
                         or parsed.username is not None or parsed.fragment):
                     raise ResumeError('Invalid HLS segment URL')
+        self.fragment_urls = [urljoin(self.url, line.strip()) for line in self.manifest.splitlines()
+                              if line.strip() and not line.strip().startswith('#')]
+        self.cached_segments = {}
+        if spec.get('ad_plan') is not None:
+            self._load_ad_plan(spec['ad_plan'], spec_path.parent)
         self.index = None
         self.end = None
+
+    def _load_ad_plan(self, value, resume_root):
+        if not isinstance(value, str):
+            raise ResumeError('Invalid frozen HLS ad plan path')
+        path = Path(value)
+        if (not path.is_absolute() or path.parent != resume_root or path.is_symlink()
+                or resume_root.is_symlink()):
+            raise ResumeError('HLS ad plan must belong to this resume directory')
+        # Optional dependency: ordinary checkpoint sessions keep their old path.
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from hls_ad_filter import FilterError, MAX_TOTAL_BYTES, cache_path, validate_plan
+        try:
+            plan = validate_plan(json.loads(path.read_text(encoding='utf-8')))
+            if plan['identity'] != self.identity or plan['manifest'] != self.manifest:
+                raise ResumeError('Frozen HLS ad plan does not match this session')
+            expected = set(self.fragment_urls)
+            for entry in plan['cached_segments']:
+                cache_path(resume_root, entry)
+                if entry['url'] not in expected or entry['url'] in self.cached_segments:
+                    raise ResumeError('Unexpected frozen HLS cached URL')
+                self.cached_segments[entry['url']] = entry
+            if sum(entry['size'] for entry in self.cached_segments.values()) > MAX_TOTAL_BYTES:
+                raise ResumeError('Frozen HLS cache exceeds byte budget')
+        except (OSError, ValueError, KeyError, TypeError, FilterError):
+            raise ResumeError('Invalid frozen HLS ad plan or cache metadata') from None
+        self.cache_root = resume_root
+
+    def copy_cached_fragment(self, ctx, frag_url):
+        if not self.cached_segments:
+            return False
+        index = ctx.get('fragment_index')
+        if (type(index) is not int or not 1 <= index <= len(self.fragment_urls)
+                or self.fragment_urls[index - 1] != frag_url):
+            raise ResumeError('Cached HLS fragment index does not match frozen plan')
+        entry = self.cached_segments.get(frag_url)
+        if entry is None:
+            return False
+        from hls_ad_filter import FilterError, valid_cached
+        try:
+            source = valid_cached(self.cache_root, entry)
+        except FilterError:
+            raise ResumeError('Unsafe frozen HLS cache path') from None
+        # Cache is optional, whereas the frozen skip set and checkpoint identity
+        # are mandatory. A missing/corrupt retained segment uses normal download.
+        if source is None:
+            return False
+        destination = Path('%s-Frag%d' % (ctx['tmpfilename'], index))
+        if destination.parent.resolve() != self.root or destination.is_symlink():
+            raise ResumeError('Unsafe cached HLS fragment output')
+        descriptor, temporary = tempfile.mkstemp(prefix=destination.name + '.cache-', dir=self.root)
+        try:
+            with os.fdopen(descriptor, 'wb') as target, source.open('rb') as origin:
+                shutil.copyfileobj(origin, target)
+                target.flush()
+                os.fsync(target.fileno())
+            os.replace(temporary, destination)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+        # yt-dlp owns and deletes this disposable copy, never the durable cache.
+        ctx['fragment_filename_sanitized'] = str(destination)
+        ctx['frag_resume_len'] = 0
+        return True
 
     def _record(self, index, start, end):
         return {'schema': 1, 'identity': self.identity, 'filename': self.filename.name,
@@ -210,9 +279,15 @@ class CheckpointStore:
 
 def check_private_api(hls_class, fragment_class):
     """Fail closed on a different downloader protocol before modifying files."""
-    if hls_class._append_fragment is not fragment_class._append_fragment:
-        raise ResumeError('Bundled yt-dlp overrides the HLS append protocol')
+    if (hls_class._append_fragment is not fragment_class._append_fragment
+            or hls_class._download_fragment is not fragment_class._download_fragment):
+        raise ResumeError('Bundled yt-dlp overrides the HLS fragment protocol')
     checks = [
+        (fragment_class._start_frag_download, ('self', 'ctx', 'info_dict'),
+         ('fragment_index', 'complete_frags_downloaded_bytes', 'total_frags'), ('add_progress_hook', 'ProgressCalculator')),
+        (fragment_class._hook_progress, ('self', 'status', 'info_dict'), ('info_dict',), ('_progress_hooks',)),
+        (fragment_class._download_fragment, ('self', 'ctx', 'frag_url', 'info_dict', 'headers', 'request_data'),
+         ('tmpfilename', 'fragment_index', 'fragment_filename_sanitized'), ('download', 'temp_name', 'filesize_or_none')),
         (hls_class.real_download, ('self', 'filename', 'info_dict'),
          ('hls_media_playlist_data', 'format_index', 'fragment_index'),
          ('_prepare_and_start_frag_download', 'download_and_append_fragments', 'urljoin')),
@@ -248,6 +323,7 @@ def install_adapter(store):
     check_private_api(HlsFD, FragmentFD)
     original_download = HlsFD.real_download
     original_append = HlsFD._append_fragment
+    original_fragment = HlsFD._download_fragment
 
     def real_download(self, filename, info_dict):
         if (info_dict.get('url') != store.url or info_dict.get('format_index') is not None
@@ -273,8 +349,28 @@ def install_adapter(store):
             raise ResumeError('Unexpected HLS output context')
         return store.append(ctx, content, lambda context, data: original_append(self, context, data))
 
+    def download_fragment(self, ctx, frag_url, info_dict, headers=None, request_data=None):
+        active = getattr(self, '_media_dler_checkpoint', None)
+        if (active is store and Path(ctx['tmpfilename']).absolute() == store.part
+                and request_data is None and store.copy_cached_fragment(ctx, frag_url)):
+            # Native HLS keeps a second fragment index inside its HTTP progress
+            # closure. Advance that state exactly once, just as a real download
+            # completion does, before any later cache/network fragment arrives.
+            intended = ctx['fragment_index']
+            filename = ctx['fragment_filename_sanitized']
+            size = os.path.getsize(filename)
+            fragment_info = {'url': frag_url, 'http_headers': headers or info_dict.get('http_headers'),
+                             'request_data': None, 'ctx_id': ctx.get('ctx_id'), 'frag_resume_len': 0}
+            ctx['dl']._hook_progress({'status': 'finished', 'downloaded_bytes': size, 'total_bytes': size,
+                                      'filename': filename, 'ctx_id': ctx.get('ctx_id')}, fragment_info)
+            if ctx['fragment_index'] != intended:
+                raise ResumeError('Cached HLS completion changed the expected fragment index')
+            return True
+        return original_fragment(self, ctx, frag_url, info_dict, headers, request_data)
+
     HlsFD.real_download = real_download
     HlsFD._append_fragment = append_fragment
+    HlsFD._download_fragment = download_fragment
 
 
 def main(argv=None):

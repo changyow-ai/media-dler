@@ -1,115 +1,93 @@
 package com.changyow.mediadler.data.ytdlp
 
-import com.changyow.mediadler.core.download.HlsResumeGuard
+import com.changyow.mediadler.core.model.MediaResource
+import java.nio.file.Files
 import kotlin.test.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import org.junit.After
 import org.junit.Test
 
 class EightMapleHlsAdsTest {
-    private val header = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:6\n#EXT-X-MEDIA-SEQUENCE:0\n"
-    private val closing = "#EXT-X-DISCONTINUITY\n"
-    private val end = "#EXT-X-ENDLIST\n"
+    private val root = Files.createTempDirectory("hls-ad-plan-").toFile()
+    private val files = EightMapleHlsAds.files(root)
+    private val catalog = "verified-catalog".toByteArray()
+    private val manifest = "#EXTM3U\n#EXT-X-TARGETDURATION:5\n#EXTINF:4,\na.ts\n#EXT-X-ENDLIST\n"
+    private val original = PreparedHlsResume(MediaResource("https://media.example/index.m3u8",
+        mapOf("Referer" to "https://page.example/")), manifest, "1".repeat(64))
 
-    @Test fun `observed shape removes two marked blocks and preserves all 758 retained URI positions`() {
-        val original = buildString {
-            append(header)
-            repeat(758) { index ->
-                if (index == 75 || index == 495) append(block("ad-$index"))
-                if (index == 200) append(closing) // A drama discontinuity is not an ad marker.
-                append(segment("drama/$index.ts"))
-            }
-            append(end)
-        }
-        assertEquals(772, uris(original).size)
-        val filtered = EightMapleHlsAds.filter(original)
-        assertEquals(2, filtered.skippedAds)
-        assertEquals(14, filtered.skippedAdSegments)
-        assertEquals(51.52, filtered.skippedAdSeconds, 0.000001)
-        assertEquals((0 until 758).map { "drama/$it.ts" }, uris(filtered.manifest))
-        assertEquals(original.replace(block("ad-75"), closing).replace(block("ad-495"), closing), filtered.manifest)
-        assertEquals(3, filtered.manifest.lineSequence().count { it == "#EXT-X-DISCONTINUITY" })
-        assertNotNull(HlsResumeGuard.fingerprint(filtered.manifest))
-        assertUnchanged(filtered.manifest)
+    @After fun cleanup() { root.deleteRecursively() }
+
+    @Test fun `catalog changes isolate work directory identity even with no matches`() {
+        val policy = EightMapleHlsAds.policyIdentity(catalog)
+        assertEquals(policy, EightMapleHlsAds.policyIdentity(catalog.copyOf()))
+        assertNotEquals(policy, EightMapleHlsAds.policyIdentity(catalog + 1))
+        assertTrue(policy.startsWith("eightmaple-content-v1\n"))
     }
 
-    @Test fun `v1 supports arbitrary positive pair counts without duration or URL heuristics`() {
-        val original = header + segment("before.ts") + block("anything", listOf(0.125, 8.0, 71.3)) +
-            segment("after.ts") + end
-        val filtered = EightMapleHlsAds.filter(original)
-        assertEquals(1, filtered.skippedAds)
-        assertEquals(3, filtered.skippedAdSegments)
-        assertEquals(79.425, filtered.skippedAdSeconds, 0.000001)
-        assertEquals(listOf("before.ts", "after.ts"), uris(filtered.manifest))
+    @Test fun `input retains original snapshot and headers without overwriting frozen decisions`() {
+        files.plan.writeText("existing frozen decision")
+        files.writeInput(original, catalog, 32768)
+        val input = Json.parseToJsonElement(files.input.readText()).jsonObject
+        assertEquals(manifest, input.getValue("manifest").jsonPrimitive.content)
+        assertEquals(original.identity, input.getValue("identity").jsonPrimitive.content)
+        assertEquals("32768", input.getValue("rate_limit_bytes_per_second").jsonPrimitive.content)
+        assertEquals("https://page.example/", input.getValue("headers").jsonObject.getValue("Referer").jsonPrimitive.content)
+        assertEquals("existing frozen decision", files.plan.readText())
+        assertContentEquals(catalog, files.catalog.readBytes())
     }
 
-    @Test fun `retained lines whitespace comments and CRLF endings are preserved verbatim`() {
-        val original = (header + "# ordinary comment\n\n" + segment("before.ts") + block("ad") +
-            "# comment after splice\n" + segment("after.ts") + end).replace("\n", "\r\n")
-        val filtered = EightMapleHlsAds.filter(original)
-        assertEquals(1, filtered.skippedAds)
-        assertEquals(original.replace(block("ad").replace("\n", "\r\n"), closing.replace("\n", "\r\n")), filtered.manifest)
+    @Test fun `validated no match still uses policy specific final identity and cache plan`() {
+        files.writeInput(original, catalog)
+        writePlan()
+        val prepared = files.readResult(original)
+        assertEquals(manifest, prepared.manifest)
+        assertEquals(0, prepared.skippedAds)
+        assertEquals(files.plan, prepared.adPlan)
+        assertNotEquals(original.identity, prepared.identity)
+        val session = HlsResumeFiles.writeSession(root, prepared)
+        val value = Json.parseToJsonElement(session.readText()).jsonObject
+        assertEquals(prepared.identity, value.getValue("identity").jsonPrimitive.content)
+        assertEquals(files.plan.absolutePath, value.getValue("ad_plan").jsonPrimitive.content)
     }
 
-    @Test fun `malformed later block rolls back the entire original rather than partially cutting`() {
-        val malformed = block("later").replace("#EXT-X-DISCONTINUITY\n#EXTINF", "#EXTINF")
-        val original = header + segment("before.ts") + block("first") + segment("middle.ts") +
-            malformed + segment("after.ts") + end
-        assertNotNull(HlsResumeGuard.fingerprint(original))
-        assertUnchanged(original)
-    }
-
-    @Test fun `unknown versions nested markers missing close empty blocks and no retained media stay unchanged`() {
-        val ordinary = header + segment("before.ts") + block("ad") + segment("after.ts") + end
-        val withoutClose = header + segment("before.ts") + block("ad").removeSuffix(closing) + end
-        val cases = listOf(
-            ordinary.replace("# ppvod-ad-injected v1", "# ppvod-ad-injected v2"),
-            ordinary.replace("# ppvod-ad-injected v1", "#ppvod-ad-injected v1"),
-            ordinary.replace("# ppvod-ad-injected v1", "# ppvod-ad-injected v1 "),
-            ordinary.replace("#EXTINF:4.0,\nad/0.ts", "# ppvod-ad-injected v1\n#EXTINF:4.0,\nad/0.ts"),
-            withoutClose,
-            header + segment("before.ts") + "# ppvod-ad-injected v1\n" + closing + closing + segment("after.ts") + end,
-            header + block("only-media") + end,
+    @Test fun `invalid plan metadata cannot select a filtered manifest or checkpoint`() {
+        files.writeInput(original, catalog)
+        val changes = listOf(
+            "schema" to "2", "snapshot_identity" to "bad", "catalog_sha256" to "bad",
+            "policy" to "marker-only", "identity" to "invalid", "manifest" to manifest.replace("#EXT-X-ENDLIST\n", ""),
         )
-        cases.forEach(::assertUnchanged)
+        changes.forEach { (field, value) ->
+            writePlan(field, value)
+            assertFails("Invalid $field must reject plan") { files.readResult(original) }
+        }
+        writePlan("manifest", manifest.replace("a.ts", "different.ts"))
+        assertFails("No-match result cannot change retained media") { files.readResult(original) }
     }
 
-    @Test fun `unsupported features anywhere or extra tags inside a block prevent every cut`() {
-        val original = header + segment("before.ts") + block("first") + segment("middle.ts") + block("second") + end
-        listOf(
-            original.replace("#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-MAP:URI=\"init.mp4\""),
-            original.replace("#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-KEY:METHOD=AES-128,URI=\"key\""),
-            original.replace("#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-BYTERANGE:100@0"),
-            original.replace("#EXTINF:4.0,\nsecond/0.ts", "# harmless extra tag\n#EXTINF:4.0,\nsecond/0.ts"),
-            original.replace("#EXT-X-ENDLIST\n", ""),
-        ).forEach(::assertUnchanged)
+    @Test fun `ordinary HLS session has no ad plan and never rewrites checkpoint`() {
+        val checkpoint = java.io.File(files.directory, "checkpoint.json").apply { writeText("committed") }
+        val session = HlsResumeFiles.writeSession(root, original)
+        assertFalse(Json.parseToJsonElement(session.readText()).jsonObject.containsKey("ad_plan"))
+        assertEquals("committed", checkpoint.readText())
     }
 
-    @Test fun `unmarked discontinuities and unknown comments never authorize removal`() {
-        val original = header + "# ads maybe\n" + segment("first.ts") + closing + segment("second.ts") + end
-        assertUnchanged(original)
+    private fun writePlan(field: String? = null, replacement: String = "") {
+        val value = buildJsonObject {
+            put("schema", if (field == "schema") replacement.toInt() else 1)
+            put("policy", if (field == "policy") replacement else EightMapleHlsAds.POLICY)
+            put("catalog_sha256", if (field == "catalog_sha256") replacement else
+                EightMapleHlsAds.policyIdentity(catalog).substringAfter('\n'))
+            put("snapshot_identity", if (field == "snapshot_identity") replacement else original.identity)
+            put("identity", if (field == "identity") replacement else "2".repeat(64))
+            put("manifest", if (field == "manifest") replacement else manifest)
+            put("skipped_ads", 0)
+            put("skipped_ad_segments", 0)
+            put("skipped_ad_seconds", 0.0)
+        }
+        files.plan.writeText(value.toString())
     }
-
-    @Test fun `bounded block counts segment counts and durations fall back unchanged`() {
-        val retained = segment("ordinary.ts")
-        assertUnchanged(header + retained + (0 until 17).joinToString("") { block("ad$it", listOf(1.0)) } + end)
-        assertUnchanged(header + retained + block("too-many", List(129) { 1.0 }) + end)
-        assertUnchanged(header + retained + block("too-long", listOf(400.0, 201.0)) + end)
-    }
-
-    private fun assertUnchanged(original: String) {
-        val filtered = EightMapleHlsAds.filter(original)
-        assertEquals(original, filtered.manifest)
-        assertEquals(0, filtered.skippedAds)
-        assertEquals(0, filtered.skippedAdSegments)
-        assertEquals(0.0, filtered.skippedAdSeconds)
-    }
-
-    private fun block(id: String, durations: List<Double> = List(6) { 4.0 } + 1.76) = buildString {
-        append("# ppvod-ad-injected v1\n")
-        append(closing)
-        durations.forEachIndexed { index, duration -> append(segment("$id/$index.ts", duration)) }
-        append(closing)
-    }
-
-    private fun segment(uri: String, duration: Double = 4.170833) = "#EXTINF:$duration,\n$uri\n"
-    private fun uris(manifest: String) = manifest.lineSequence().filter { it.isNotBlank() && !it.startsWith('#') }.toList()
 }

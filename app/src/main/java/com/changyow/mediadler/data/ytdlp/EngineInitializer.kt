@@ -99,6 +99,34 @@ class EngineInitializer(private val application: Application) {
         }
     }
 
+    /** Changes to the classifier or catalog must never inherit a marker-only checkpoint. */
+    internal fun hlsAdPolicyIdentity(): String = application.assets.open(EightMapleHlsAds.CATALOG_ASSET)
+        .use { EightMapleHlsAds.policyIdentity(it.readBytes()) }
+
+    internal suspend fun prepareHlsAds(
+        workDir: File,
+        original: PreparedHlsResume,
+        rateLimit: Long?,
+        onStage: (String) -> Unit,
+    ): PreparedHlsResume = withContext(Dispatchers.IO) {
+        val files = EightMapleHlsAds.files(workDir)
+        val catalog = application.assets.open(EightMapleHlsAds.CATALOG_ASSET).use { it.readBytes() }
+        files.writeInput(original, catalog, rateLimit)
+        executeNative { paths, process ->
+            check(paths.ffprobe.isFile && paths.ffprobe.canExecute()) { "影片檢查引擎不完整" }
+            application.assets.open("hls_ad_filter.py").use { input ->
+                files.script.outputStream().use { output -> input.copyTo(output) }
+            }
+            process.execute(listOf(files.script.absolutePath,
+                "--input", files.input.absolutePath, "--catalog", files.catalog.absolutePath,
+                "--plan", files.plan.absolutePath,
+                "--ffmpeg", paths.ffmpeg.absolutePath, "--ffprobe", paths.ffprobe.absolutePath)) { line ->
+                if (line.startsWith("HLS_AD_STAGE ") || line.startsWith("HLS_AD_CANDIDATE ")) onStage(line)
+            }
+            files.readResult(original)
+        }
+    }
+
     /** Native children share download cancellation and finish before a result can be published. */
     suspend fun cleanKnownAds(source: File, onStage: (String) -> Unit = {}): AdCleanupResult = withContext(Dispatchers.IO) {
         val files = AdCleanupFiles.create(source)
