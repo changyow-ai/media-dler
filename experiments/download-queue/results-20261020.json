@@ -1,0 +1,145 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "source_commit": "51ae980e6773c3253e26b4e1334c39d95902ef6d",
+  "branch": "experiment/ad-multisignal",
+  "tasks": {
+    "source_failure": "t-72b21045dba80041f89c",
+    "pause_resume": "t-da75420ecc1c34b7f98f",
+    "download_now": "t-afaf834174a1717aa04f"
+  },
+  "implementation_status": "Source, pause/resume and priority code committed; independent runtime acceptance not complete.",
+  "baseline_observations": {
+    "build_version": "0.1.10/code11",
+    "apk_sha256": "b2240015df0e16cea548f5c2a2bc3ca2cd48d27963207ac44e139511ff7c1c19",
+    "internet": "ASUS Wi-Fi simultaneously INTERNET+VALIDATED; device example.com and both source pages returned HTTP200.",
+    "first_task": {
+      "programme": "全民星攻略 20231228",
+      "line": "幕雲線路",
+      "page": "https://play.8maple.st/play/Aj1C-3-202.html",
+      "app_state": "Repeatedly returns to waiting for network recovery while online."
+    },
+    "second_task": {
+      "programme": "全民星攻略 20260827",
+      "line": "無界線路",
+      "page": "https://play.8maple.st/play/Aj1C-2-628.html",
+      "app_state": "Position2 behind first task; no independent native failure established."
+    },
+    "device_curl_differential": [
+      {
+        "source": "幕雲",
+        "manifest_and_first_fragment": "curl7, connection refused at sd7.taopianplay1.com:43333, before TCP/TLS, HTTP000"
+      },
+      {
+        "source": "無界",
+        "manifest_and_first_fragment": "curl60, self-signed certificate, remoteIP182.173.0.181, HTTP000"
+      }
+    ],
+    "differential_scope": "Device system curl evidence, not the App native exception. Host manifest and fragment probes succeeded except one transient DNS failure that succeeded on targeted recheck. No404/410 established."
+  },
+  "source_policy": {
+    "global_wait": "Only retryable connection failures while the network monitor is currently offline park the FIFO. One bounded500ms observation allows a late offline callback.",
+    "online_failure": "Fail only that item, preserve its partial files and selected source, expose source-specific explanation and original reason, then continue queued work.",
+    "HTTP404_410": "Explain missing/expired link only for explicit matching responses.",
+    "TLS": "Expose certificate validation failure; no TLS verification bypass.",
+    "cancel_storage_processing": "Existing cancellation, storage/persistence gates and background window cancellation semantics retained."
+  },
+  "pause_priority": {
+    "manual_pause": "Durable PAUSED item state, excluded from automatic recovery until explicitly resumed.",
+    "priority": "Selected queued/paused item first, interrupted active item second, all remaining relative order stable. Native exit/ack precedes new writer.",
+    "processing": "Do not interrupt publication/processing; prioritize the next item after it completes.",
+    "checkpoint": "Persist reuseResolvedRequest through interruption and process recreation; explicit failed/canceled retry still resolves a fresh page.",
+    "unsupported_resume": "Show that continuing restarts when the source reports no resume support."
+  },
+  "build": {
+    "package": "com.changyow.mediadler",
+    "version_name": "0.1.11",
+    "version_code": 12,
+    "abi": "arm64-v8a",
+    "certificate_sha256": "e00634a00db84015f7755b263a52d837ff7d31e229347ba0c068a894af917ce4",
+    "main_session_id": "01a15325-6581-7d93-9571-1f2b2faea12c",
+    "branch": "experiment/ad-multisignal",
+    "head_at_build": "c213cbdbf4b97027f8ecb444c127ee3ae50ca9d0",
+    "production_sources_sha256": {
+      "app/build.gradle.kts": "51332a02a6753daabcdf0fa085c492447be1bd20ed30aa2be2580f0c3fd1c61a",
+      "app/src/main/java/com/changyow/mediadler/data/ytdlp/YtDlpDownloader.kt": "a232007382569be6ddf284d8f65b1cbe824aa3f05e1b0a728d261fe4617f75a2",
+      "app/src/main/java/com/changyow/mediadler/download/DownloadQueue.kt": "271f04347f30b9403a3d5274427f96e82ebf7e716539ecf42be983e6d2b85913",
+      "app/src/main/java/com/changyow/mediadler/download/DownloadRecovery.kt": "a5ff4200d4609fb6cef867d06cfa94e0e9b88a7406139da18d8a6f9190a1bcc4",
+      "app/src/main/java/com/changyow/mediadler/download/DownloadRunner.kt": "fb73f2942ae6abd3f1aaad9adc7dc8bddd5fbaa7632ab8f9507ab4c45594699f",
+      "app/src/main/java/com/changyow/mediadler/download/Notifications.kt": "b95bd6b5ad1551daae53d9851be8bc6c7fc365c67fc57c7f3e4b1e8eeffe3287",
+      "app/src/main/java/com/changyow/mediadler/ui/home/HomeScreen.kt": "8f78fd740413290555a523585634204e87ffa946b91f3d967eeadc3b0c0e3a41",
+      "app/src/main/java/com/changyow/mediadler/ui/home/HomeViewModel.kt": "ffe90809f6fc2a62ff92ca4e789849b54adcb14830e87a16b0b7a548ed06f54d",
+      "core/src/main/kotlin/com/changyow/mediadler/core/download/DownloadFailurePolicy.kt": "c4ebd665cdc14505b54b79bc2e9fd73ff30a8a7e32d4c47d7aac9030b7dfc7f9",
+      "core/src/main/kotlin/com/changyow/mediadler/core/model/Download.kt": "56a0e295d977fda00293c2aefb74ff12a5e50cb03c72405c4b146361137114e0",
+      "core/src/main/kotlin/com/changyow/mediadler/core/model/QueuedDownload.kt": "f1635f0ebc93a1000eacaac54e236637b8ee1c4355e5dcb6618c8b976a4d5546"
+    },
+    "APKs": [
+      {
+        "path": "/tmp/media-dler-source-diagnosis-20261020/builds/final-001/media-dler-0.1.11-arm64-release.apk",
+        "bytes": 123486436,
+        "sha256": "d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3"
+      },
+      {
+        "path": "/tmp/media-dler-source-diagnosis-20261020/builds/final-001/media-dler-queue-features-androidTest.apk",
+        "bytes": 880385,
+        "sha256": "9d80edf9d165486d42bc07e9cd0d71d5fb19fce863458875296f22c3d3e4e967"
+      }
+    ],
+    "tests": {
+      "core": {
+        "tests": 195,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "app": {
+        "tests": 196,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "QA_helper_source": {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/android/features/FeatureQueueProbeTest.kt",
+      "sha256": "1f9103a7bd7f3a15f1e360b073ff57431309cceefe96126759e04b3b67395ba2"
+    },
+    "build_log": "/tmp/media-dler-source-diagnosis-20261020/final-release-test-build-attempt-002.log",
+    "build_result": "BUILD SUCCESSFUL; release and test APK signatures verified identical"
+  },
+  "verification": {
+    "jvm_tests": {
+      "core": 195,
+      "app": 196,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "release_and_test_build": "BUILD SUCCESSFUL; both signed with same release certificate.",
+    "independent_review": "Astra/max reviewed integration; checkpoint-recreation and overpromising-toast findings corrected.",
+    "native_feature_test": "SETUP_BLOCKED before install: secure Android keyguard plus old user Gimy native download still active. No new APK installed, no user download canceled or force-stopped, lease released.",
+    "next": "User must normally unlock ASUS; then same independent tester resumes fresh attempt, revalidates safe deployment boundary and verifies all3features.",
+    "agent": "/root/asus_source_wait_test",
+    "device": "J7AXB764Z637WNM",
+    "main_session_id": "01a15325-6581-7d93-9571-1f2b2faea12c"
+  },
+  "raw_reports": [
+    {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/android/attempt-001/result.json",
+      "sha256": "4c09b4a9c58e8fd75c6076494d1b49c13cef203af58b88d1de4c997f2c34cabc"
+    },
+    {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/android/cdn-differential/attempt-001/probe-results.json",
+      "sha256": "e7cc5f08e7f36101a13a3794160e165346e68461f3ab602c35bc927a7f0c059a"
+    },
+    {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-001/result.json",
+      "sha256": "27aeeac7140f16173ebf35ff819ded1ce201170414348827f9efa7ae4f8d98e0"
+    }
+  ],
+  "build_attempts": [
+    "Initial packageRelease failed in IncrementalSplitterRunnable; its diagnostic rerun succeeded, with logs preserved.",
+    "Temporary QA helper first compile had a missing parenthesis, fixed only in /tmp; subsequent release/test build succeeded."
+  ],
+  "data_preservation": "No main-app uninstall, data clear, global snapshot restore, original media editing, or user task cancellation.",
+  "control": "experiments/ad-multisignal/star-control-results-20261020.json"
+}
