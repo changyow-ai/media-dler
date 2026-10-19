@@ -19,10 +19,13 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -42,19 +45,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -76,6 +84,13 @@ import com.changyow.mediadler.core.model.TranscribeModel
 import com.changyow.mediadler.core.model.VideoQuality
 import com.changyow.mediadler.ui.common.ScreenHeader
 import com.changyow.mediadler.util.NetworkStatus
+import kotlinx.coroutines.launch
+
+private enum class SettingsCategory(val label: String) {
+    DOWNLOAD("下載"),
+    SHARING("區網分享"),
+    TRANSCRIPTION("語音轉文字"),
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,6 +112,12 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
         },
     )
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val pager = rememberPagerState { SettingsCategory.entries.size }
+    val scope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
+    LaunchedEffect(pager.currentPage) {
+        focusManager.clearFocus()
+    }
     val engineStatus by viewModel.engineStatus.collectAsStateWithLifecycle()
     val updating by viewModel.updating.collectAsStateWithLifecycle()
     val modelState by viewModel.modelState.collectAsStateWithLifecycle()
@@ -130,291 +151,315 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
 
     Scaffold(
         topBar = {
-            if (onBack != null) TopAppBar(
-                title = { Text("設定") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
-            ) else ScreenHeader(title = "設定", subtitle = "偏好與工具")
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            SettingSection("分享模式") {
-                ChoiceChips(
-                    options = ShareMode.entries,
-                    selected = settings.shareMode,
-                    label = { if (it == ShareMode.ONE_TAP) "一鍵下載" else "彈窗選擇" },
-                    onSelect = { mode -> viewModel.update { it.copy(shareMode = mode) } },
-                )
-                SwitchSetting(
-                    label = "多項時自動全部下載（一鍵模式）",
-                    checked = settings.downloadAllWhenMultiple,
-                    onChange = { value -> viewModel.update { it.copy(downloadAllWhenMultiple = value) } },
-                )
-            }
-
-            SettingSection("預設下載") {
-                ChoiceChips(
-                    options = MediaKind.entries,
-                    selected = settings.defaultMediaKind,
-                    label = { if (it == MediaKind.VIDEO) "影片" else "音訊" },
-                    onSelect = { kind -> viewModel.update { it.copy(defaultMediaKind = kind) } },
-                )
-                DropdownSetting(
-                    label = "預設畫質",
-                    options = VideoQuality.entries,
-                    selected = settings.defaultVideoQuality,
-                    optionLabel = ::qualityLabel,
-                    onSelect = { quality -> viewModel.update { it.copy(defaultVideoQuality = quality) } },
-                )
-                DropdownSetting(
-                    label = "音訊格式",
-                    options = AudioFormat.entries,
-                    selected = settings.audioFormat,
-                    optionLabel = { it.ext.uppercase() },
-                    onSelect = { format -> viewModel.update { it.copy(audioFormat = format) } },
-                )
-            }
-
-            SettingSection("下載速限") {
-                DownloadRateSetting(
-                    value = settings.downloadRateLimitBytesPerSecond,
-                    onChange = { rate -> viewModel.update { it.copy(downloadRateLimitBytesPerSecond = rate) } },
-                )
-            }
-
-            SettingSection("背景下載") {
-                Text(
-                    if (ignoresBatteryOptimizations) "已排除系統電池最佳化" else "尚未排除系統電池最佳化",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text(
-                    "未插電、螢幕關閉後，系統省電可能暫停下載。允許排除電池最佳化，" +
-                        "可讓下載在休眠時繼續；下載期間會較耗電，完成後停止背景工作。" +
-                        "部分手機還需在系統的 app 電池設定中允許背景執行。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                OutlinedButton(onClick = { openDownloadBatterySettings(context) }) {
-                    Text(if (ignoresBatteryOptimizations) "管理電池設定" else "允許背景下載")
-                }
-            }
-
-            SettingSection("儲存位置") {
-                if (supportsDownloads) ChoiceChips(
-                    options = StorageMode.entries,
-                    selected = settings.storageMode,
-                    label = { if (it == StorageMode.DOWNLOADS) "Downloads" else "自選資料夾" },
-                    onSelect = { mode ->
-                        if (mode == StorageMode.SAF) {
-                            safLauncher.launch(null)
-                        } else {
-                            viewModel.update { it.copy(storageMode = StorageMode.DOWNLOADS) }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                if (onBack != null) TopAppBar(
+                    title = { Text("設定") },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                         }
                     },
-                )
-                if (!supportsDownloads) {
-                    Text(
-                        "Android 9 需先選擇儲存資料夾；建議選擇 Download/media-dler。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                if (supportsDownloads && settings.storageMode == StorageMode.DOWNLOADS) {
-                    Text(
-                        "Download/media-dler/",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    Text(
-                        settings.safTreeUri ?: "尚未選擇資料夾",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    OutlinedButton(onClick = { safLauncher.launch(null) }) { Text("選擇資料夾") }
+                ) else ScreenHeader(title = "設定", subtitle = "偏好與工具")
+                ScrollableTabRow(
+                    selectedTabIndex = pager.currentPage,
+                    modifier = Modifier.widthIn(max = 760.dp).fillMaxWidth(),
+                    edgePadding = 20.dp,
+                    containerColor = MaterialTheme.colorScheme.background,
+                ) {
+                    SettingsCategory.entries.forEachIndexed { index, category ->
+                        Tab(
+                            selected = pager.currentPage == index,
+                            onClick = { scope.launch { pager.animateScrollToPage(index) } },
+                            modifier = Modifier.heightIn(min = 48.dp),
+                            text = { Text(category.label) },
+                            selectedContentColor = MaterialTheme.colorScheme.primary,
+                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
+        },
+    ) { padding ->
+        HorizontalPager(
+            state = pager,
+            // All three bounded pages stay composed: switching categories must not discard an
+            // unsaved SFTP draft or cancel its save coroutine. Passwords remain in memory only.
+            beyondViewportPageCount = SettingsCategory.entries.lastIndex,
+            key = { SettingsCategory.entries[it].name },
+            modifier = Modifier.padding(padding).fillMaxSize().imePadding(),
+            verticalAlignment = Alignment.Top,
+        ) { page ->
+            when (SettingsCategory.entries[page]) {
+                SettingsCategory.DOWNLOAD -> SettingsPage {
+                    SettingSection("分享模式") {
+                        ChoiceChips(
+                            options = ShareMode.entries,
+                            selected = settings.shareMode,
+                            label = { if (it == ShareMode.ONE_TAP) "一鍵下載" else "彈窗選擇" },
+                            onSelect = { mode -> viewModel.update { it.copy(shareMode = mode) } },
+                        )
+                        SwitchSetting(
+                            label = "多項時自動全部下載（一鍵模式）",
+                            checked = settings.downloadAllWhenMultiple,
+                            onChange = { value -> viewModel.update { it.copy(downloadAllWhenMultiple = value) } },
+                        )
+                    }
 
-            SettingSection("區網分享") {
-                SharingSettings(container.sharingController)
-            }
+                    SettingSection("預設下載") {
+                        ChoiceChips(
+                            options = MediaKind.entries,
+                            selected = settings.defaultMediaKind,
+                            label = { if (it == MediaKind.VIDEO) "影片" else "音訊" },
+                            onSelect = { kind -> viewModel.update { it.copy(defaultMediaKind = kind) } },
+                        )
+                        DropdownSetting(
+                            label = "預設畫質",
+                            options = VideoQuality.entries,
+                            selected = settings.defaultVideoQuality,
+                            optionLabel = ::qualityLabel,
+                            onSelect = { quality -> viewModel.update { it.copy(defaultVideoQuality = quality) } },
+                        )
+                        DropdownSetting(
+                            label = "音訊格式",
+                            options = AudioFormat.entries,
+                            selected = settings.audioFormat,
+                            optionLabel = { it.ext.uppercase() },
+                            onSelect = { format -> viewModel.update { it.copy(audioFormat = format) } },
+                        )
+                    }
 
-            SettingSection("下載引擎") {
-                Text(
-                    engineStatus,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                SwitchSetting(
-                    label = "啟動時自動更新 yt-dlp",
-                    checked = settings.autoUpdateYtDlpOnStartup,
-                    onChange = { value -> viewModel.update { it.copy(autoUpdateYtDlpOnStartup = value) } },
-                )
-                OutlinedButton(onClick = { viewModel.updateEngine() }, enabled = !updating) {
-                    Text(if (updating) "更新中…" else "更新 yt-dlp")
-                }
-            }
+                    SettingSection("下載速限") {
+                        DownloadRateSetting(
+                            value = settings.downloadRateLimitBytesPerSecond,
+                            onChange = { rate -> viewModel.update { it.copy(downloadRateLimitBytesPerSecond = rate) } },
+                        )
+                    }
 
-            SettingSection("語音轉文字") {
-                ChoiceChips(
-                    options = TranscribeEngine.entries,
-                    selected = settings.transcribeEngine,
-                    label = { if (it == TranscribeEngine.ON_DEVICE) "裝置端" else "雲端" },
-                    onSelect = { e -> viewModel.update { it.copy(transcribeEngine = e) } },
-                )
-                DropdownSetting(
-                    label = "轉錄語言",
-                    options = TranscribeLanguage.entries,
-                    selected = settings.transcribeLanguage,
-                    optionLabel = { it.label },
-                    onSelect = { lang -> viewModel.update { it.copy(transcribeLanguage = lang) } },
-                )
-                Text(
-                    "鎖定主要語言可避免短片頭被誤判；夾雜的其他語言仍會照原文輸出。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-
-                if (settings.transcribeEngine == TranscribeEngine.ON_DEVICE) {
-                    DropdownSetting(
-                        label = "模型",
-                        options = TranscribeModel.entries,
-                        selected = settings.transcribeModel,
-                        optionLabel = { m ->
-                            if (m == TranscribeModel.SENSE_VOICE) "${m.label} ・建議" else m.label
-                        },
-                        onSelect = { m -> viewModel.update { it.copy(transcribeModel = m) } },
-                    )
-                    Text(
-                        transcribeModelHint(settings.transcribeModel),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    when (val state = modelState) {
-                        is SettingsViewModel.ModelState.Absent -> {
-                            Text(
-                                "尚未下載 · 約 ${formatBytes(state.approxBytes)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            OutlinedButton(onClick = requestModelDownload) { Text("下載模型") }
-                        }
-                        is SettingsViewModel.ModelState.Downloading -> {
-                            LinearProgressIndicator(
-                                progress = { state.progress },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            Text(
-                                "下載中… ${(state.progress * 100).toInt()}%",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        is SettingsViewModel.ModelState.Present -> {
-                            Text(
-                                "已下載 · ${formatBytes(state.bytes)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            OutlinedButton(onClick = { viewModel.deleteModel() }) { Text("刪除模型") }
-                        }
-                        is SettingsViewModel.ModelState.Failed -> {
-                            Text(
-                                "下載失敗：${state.message}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                            OutlinedButton(onClick = requestModelDownload) { Text("重試下載") }
+                    SettingSection("背景下載") {
+                        Text(
+                            if (ignoresBatteryOptimizations) "已排除系統電池最佳化" else "尚未排除系統電池最佳化",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            "未插電、螢幕關閉後，系統省電可能暫停下載。允許排除電池最佳化，" +
+                                "可讓下載在休眠時繼續；下載期間會較耗電，完成後停止背景工作。" +
+                                "部分手機還需在系統的 app 電池設定中允許背景執行。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        OutlinedButton(onClick = { openDownloadBatterySettings(context) }) {
+                            Text(if (ignoresBatteryOptimizations) "管理電池設定" else "允許背景下載")
                         }
                     }
-                } else {
-                    Text(
-                        "僅支援 OpenRouter（/audio/transcriptions，JSON + base64）。其他 OpenAI 相容服務" +
-                            "（OpenAI、Groq…）用 multipart，不適用。金鑰只存在本機，不會內建於 App 或上傳。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    TextFieldSetting(
-                        label = "API 位址（base URL）",
-                        value = settings.cloud.baseUrl,
-                        placeholder = "https://openrouter.ai/api/v1",
-                        onValueChange = { v ->
-                            viewModel.update { it.copy(cloud = it.cloud.copy(baseUrl = v.trim())) }
-                        },
-                    )
-                    TextFieldSetting(
-                        label = "模型名稱",
-                        value = settings.cloud.model,
-                        placeholder = "openai/whisper-large-v3-turbo",
-                        onValueChange = { v ->
-                            viewModel.update { it.copy(cloud = it.cloud.copy(model = v.trim())) }
-                        },
-                    )
-                    TextFieldSetting(
-                        label = "API 金鑰",
-                        value = settings.cloud.apiKey,
-                        placeholder = "貼上你的金鑰",
-                        isPassword = true,
-                        onValueChange = { v ->
-                            viewModel.update { it.copy(cloud = it.cloud.copy(apiKey = v.trim())) }
-                        },
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(
-                            "壓縮音訊上傳（省頻寬）",
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        IconButton(onClick = { showCloudAudioHelp = true }) {
-                            Icon(Icons.Outlined.Info, contentDescription = "音訊上傳說明")
-                        }
-                        Switch(
-                            checked = settings.cloud.compressAudio,
-                            onCheckedChange = { v ->
-                                viewModel.update { it.copy(cloud = it.cloud.copy(compressAudio = v)) }
+
+                    SettingSection("儲存位置") {
+                        if (supportsDownloads) ChoiceChips(
+                            options = StorageMode.entries,
+                            selected = settings.storageMode,
+                            label = { if (it == StorageMode.DOWNLOADS) "Downloads" else "自選資料夾" },
+                            onSelect = { mode ->
+                                if (mode == StorageMode.SAF) {
+                                    safLauncher.launch(null)
+                                } else {
+                                    viewModel.update { it.copy(storageMode = StorageMode.DOWNLOADS) }
+                                }
                             },
                         )
-                    }
-                    Text(
-                        if (settings.cloud.compressAudio) {
-                            "目前：m4a／AAC（體積小、上傳快，長音檔較穩；略影響準度）"
+                        if (!supportsDownloads) {
+                            Text(
+                                "Android 9 需先選擇儲存資料夾；建議選擇 Download/media-dler。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        if (supportsDownloads && settings.storageMode == StorageMode.DOWNLOADS) {
+                            Text(
+                                "Download/media-dler/",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         } else {
-                            "目前：WAV（品質最佳、體積大，採短分窗避免逾時）"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    if (!settings.cloud.isConfigured) {
+                            Text(
+                                settings.safTreeUri ?: "尚未選擇資料夾",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            OutlinedButton(onClick = { safLauncher.launch(null) }) { Text("選擇資料夾") }
+                        }
+                    }
+
+                    SettingSection("下載引擎") {
                         Text(
-                            "填妥位址、模型與金鑰後才能使用雲端引擎。",
+                            engineStatus,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        SwitchSetting(
+                            label = "啟動時自動更新 yt-dlp",
+                            checked = settings.autoUpdateYtDlpOnStartup,
+                            onChange = { value -> viewModel.update { it.copy(autoUpdateYtDlpOnStartup = value) } },
+                        )
+                        OutlinedButton(onClick = { viewModel.updateEngine() }, enabled = !updating) {
+                            Text(if (updating) "更新中…" else "更新 yt-dlp")
+                        }
                     }
                 }
+                SettingsCategory.SHARING -> SettingsPage {
+                    SettingSection("區網分享") {
+                        SharingSettings(container.sharingController)
+                    }
+                }
+                SettingsCategory.TRANSCRIPTION -> SettingsPage {
+                    SettingSection("語音轉文字") {
+                        ChoiceChips(
+                            options = TranscribeEngine.entries,
+                            selected = settings.transcribeEngine,
+                            label = { if (it == TranscribeEngine.ON_DEVICE) "裝置端" else "雲端" },
+                            onSelect = { e -> viewModel.update { it.copy(transcribeEngine = e) } },
+                        )
+                        DropdownSetting(
+                            label = "轉錄語言",
+                            options = TranscribeLanguage.entries,
+                            selected = settings.transcribeLanguage,
+                            optionLabel = { it.label },
+                            onSelect = { lang -> viewModel.update { it.copy(transcribeLanguage = lang) } },
+                        )
+                        Text(
+                            "鎖定主要語言可避免短片頭被誤判；夾雜的其他語言仍會照原文輸出。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
 
-                Text(
-                    "暫存檔為下載的音訊／字幕與分享進來的檔案複本，可安全清除。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                OutlinedButton(onClick = { viewModel.clearTempFiles() }) { Text("清除暫存檔") }
+                        if (settings.transcribeEngine == TranscribeEngine.ON_DEVICE) {
+                            DropdownSetting(
+                                label = "模型",
+                                options = TranscribeModel.entries,
+                                selected = settings.transcribeModel,
+                                optionLabel = { m ->
+                                    if (m == TranscribeModel.SENSE_VOICE) "${m.label} ・建議" else m.label
+                                },
+                                onSelect = { m -> viewModel.update { it.copy(transcribeModel = m) } },
+                            )
+                            Text(
+                                transcribeModelHint(settings.transcribeModel),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            when (val state = modelState) {
+                                is SettingsViewModel.ModelState.Absent -> {
+                                    Text(
+                                        "尚未下載 · 約 ${formatBytes(state.approxBytes)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    OutlinedButton(onClick = requestModelDownload) { Text("下載模型") }
+                                }
+                                is SettingsViewModel.ModelState.Downloading -> {
+                                    LinearProgressIndicator(
+                                        progress = { state.progress },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    Text(
+                                        "下載中… ${(state.progress * 100).toInt()}%",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                is SettingsViewModel.ModelState.Present -> {
+                                    Text(
+                                        "已下載 · ${formatBytes(state.bytes)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    OutlinedButton(onClick = { viewModel.deleteModel() }) { Text("刪除模型") }
+                                }
+                                is SettingsViewModel.ModelState.Failed -> {
+                                    Text(
+                                        "下載失敗：${state.message}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                    OutlinedButton(onClick = requestModelDownload) { Text("重試下載") }
+                                }
+                            }
+                        } else {
+                            Text(
+                                "僅支援 OpenRouter（/audio/transcriptions，JSON + base64）。其他 OpenAI 相容服務" +
+                                    "（OpenAI、Groq…）用 multipart，不適用。金鑰只存在本機，不會內建於 App 或上傳。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            TextFieldSetting(
+                                label = "API 位址（base URL）",
+                                value = settings.cloud.baseUrl,
+                                placeholder = "https://openrouter.ai/api/v1",
+                                onValueChange = { v ->
+                                    viewModel.update { it.copy(cloud = it.cloud.copy(baseUrl = v.trim())) }
+                                },
+                            )
+                            TextFieldSetting(
+                                label = "模型名稱",
+                                value = settings.cloud.model,
+                                placeholder = "openai/whisper-large-v3-turbo",
+                                onValueChange = { v ->
+                                    viewModel.update { it.copy(cloud = it.cloud.copy(model = v.trim())) }
+                                },
+                            )
+                            TextFieldSetting(
+                                label = "API 金鑰",
+                                value = settings.cloud.apiKey,
+                                placeholder = "貼上你的金鑰",
+                                isPassword = true,
+                                onValueChange = { v ->
+                                    viewModel.update { it.copy(cloud = it.cloud.copy(apiKey = v.trim())) }
+                                },
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
+                                    "壓縮音訊上傳（省頻寬）",
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                )
+                                IconButton(onClick = { showCloudAudioHelp = true }) {
+                                    Icon(Icons.Outlined.Info, contentDescription = "音訊上傳說明")
+                                }
+                                Switch(
+                                    checked = settings.cloud.compressAudio,
+                                    onCheckedChange = { v ->
+                                        viewModel.update { it.copy(cloud = it.cloud.copy(compressAudio = v)) }
+                                    },
+                                )
+                            }
+                            Text(
+                                if (settings.cloud.compressAudio) {
+                                    "目前：m4a／AAC（體積小、上傳快，長音檔較穩；略影響準度）"
+                                } else {
+                                    "目前：WAV（品質最佳、體積大，採短分窗避免逾時）"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            if (!settings.cloud.isConfigured) {
+                                Text(
+                                    "填妥位址、模型與金鑰後才能使用雲端引擎。",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        }
+
+                        Text(
+                            "暫存檔為下載的音訊／字幕與分享進來的檔案複本，可安全清除。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        OutlinedButton(onClick = { viewModel.clearTempFiles() }) { Text("清除暫存檔") }
+                    }
+                }
             }
         }
     }
@@ -504,6 +549,18 @@ private fun transcribeModelHint(model: TranscribeModel): String = when (model) {
     TranscribeModel.PARAFORMER -> "Paraformer · 純中文準、速度快；但無標點"
     TranscribeModel.QWEN3 -> "Qwen3-ASR · 實驗：品質高，但模型大（~900MB）、中階機記憶體可能不足而失敗"
 } + "（離線；不附帶於 App，需下載）"
+
+@Composable
+private fun SettingsPage(content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        content = content,
+    )
+}
 
 @Composable
 private fun SettingSection(title: String, content: @Composable ColumnScope.() -> Unit) {
