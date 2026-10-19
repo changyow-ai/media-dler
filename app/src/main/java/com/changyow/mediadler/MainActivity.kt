@@ -39,6 +39,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         if (appContainer.downloadQueue.hasQueued()) com.changyow.mediadler.download.DownloadService.start(this)
+        appContainer.sharingController.resume(this)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

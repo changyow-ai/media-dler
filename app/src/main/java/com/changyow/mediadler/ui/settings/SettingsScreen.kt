@@ -603,7 +603,7 @@ private fun <T> ChoiceChips(
 }
 
 @Composable
-private fun <T> DropdownSetting(
+internal fun <T> DropdownSetting(
     label: String,
     options: List<T>,
     selected: T,

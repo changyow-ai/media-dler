@@ -13,6 +13,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.changyow.mediadler.sharing.SharingController
+import com.changyow.mediadler.core.sharing.SharingIdleTimeout
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 
@@ -28,6 +29,15 @@ internal fun SharingSettings(controller: SharingController) {
     var message by remember { mutableStateOf<String?>(null) }
     Text("分享目前下載資料夾與子目錄，其他裝置可唯讀存取。請連上相同的 Wi-Fi 或有線區網。",
         style = MaterialTheme.typography.bodySmall)
+    DropdownSetting(
+        label = "閒置自動關閉",
+        options = SharingIdleTimeout.entries,
+        selected = state.idleTimeout,
+        optionLabel = { it.label },
+        onSelect = { controller.setIdleTimeout(context, it) },
+    )
+    Text("UPnP 與 SFTP 共用計時。連續沒有讀取檔案時，兩種分享會一起關閉；讀取會重新計時，搜尋裝置、瀏覽目錄與保持連線不會。變更此設定會重新計時。",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text("UPnP／DLNA")

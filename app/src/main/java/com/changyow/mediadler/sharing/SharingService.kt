@@ -7,6 +7,7 @@ import android.net.*
 import android.net.wifi.WifiManager
 import android.os.IBinder
 import android.os.PowerManager
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
@@ -15,6 +16,7 @@ import com.changyow.mediadler.R
 import com.changyow.mediadler.appContainer
 import com.changyow.mediadler.core.model.DownloadStatus
 import com.changyow.mediadler.core.sharing.SftpServer
+import com.changyow.mediadler.core.sharing.SharingActivity
 import com.changyow.mediadler.core.sharing.UpnpServer
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -27,6 +29,7 @@ import java.net.InetAddress
 
 class SharingService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val commandReady = CompletableDeferred<Unit>()
     private val updates = Channel<Unit>(Channel.CONFLATED)
     private val servers = Mutex()
     private val controller get() = appContainer.sharingController
@@ -37,8 +40,11 @@ class SharingService : Service() {
     private var startId = 0
     private var multicast: WifiManager.MulticastLock? = null
     private var wake: PowerManager.WakeLock? = null
+    private var wifiWake: WifiManager.WifiLock? = null
     private lateinit var connectivity: ConnectivityManager
     private var callbackRegistered = false
+    private val activity = SharingActivity(SystemClock::elapsedRealtime) { revision, timestamp -> controller.recordRead(revision, timestamp) }
+    private var sessionRevision = -1L
     private val callback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) { updates.trySend(Unit) }
         override fun onLost(network: Network) { updates.trySend(Unit) }
@@ -61,15 +67,26 @@ class SharingService : Service() {
         } catch (failure: Exception) { controller.stopped("無法監看區域網路：${failure.message}") }
         wake = getSystemService(PowerManager::class.java).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "media-dler:sharing")
             .apply { setReferenceCounted(false) }
+        @Suppress("DEPRECATION") // Preserve screen-off radio protection on Android 9/11.
+        val wifiLock = runCatching {
+            applicationContext.getSystemService(WifiManager::class.java)
+                ?.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "media-dler:sharing-wifi")
+                ?.apply { setReferenceCounted(false) }
+        }.onFailure { Log.w("SharingService", "Unable to create sharing Wi-Fi lock", it) }.getOrNull()
+        wifiWake = wifiLock
         scope.launch {
+            // A cold notification STOP must clear recovery before any listener can open.
+            commandReady.await()
             for (ignored in updates) {
-                try { servers.withLock { reconcile() } }
+                try { servers.withLock { reconcile(); stopIfIdle() } }
                 catch (failure: CancellationException) { throw failure }
                 catch (failure: Exception) { servers.withLock { closeServers() }; controller.stopped("分享失敗：${failure.message}") }
                 getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification())
                 if (!controller.state.value.let { it.upnpEnabled || it.sftpEnabled }) {
                     servers.withLock { closeServers() }
-                    withContext(Dispatchers.Main) { stopSelfResult(startId) }
+                    withContext(Dispatchers.Main) {
+                        if (!controller.state.value.let { it.upnpEnabled || it.sftpEnabled }) stopSelfResult(startId)
+                    }
                 }
             }
         }
@@ -82,9 +99,27 @@ class SharingService : Service() {
                 .distinctUntilChanged().collect { servers.withLock { upnp?.contentChanged() } }
         }
         scope.launch {
+            commandReady.await()
             while (isActive) {
-                if (controller.state.value.let { it.upnpEnabled || it.sftpEnabled }) wake?.acquire(10 * 60_000L)
+                wake?.let { lock ->
+                    synchronized(lock) {
+                        if (isActive && controller.state.value.let { it.upnpEnabled || it.sftpEnabled }) lock.acquire(10 * 60_000L)
+                    }
+                }
+                wifiWake?.let { lock ->
+                    synchronized(lock) {
+                        if (isActive && controller.state.value.let { it.upnpEnabled || it.sftpEnabled } && !lock.isHeld) {
+                            runCatching { lock.acquire() }.onFailure { Log.w("SharingService", "Unable to acquire sharing Wi-Fi lock", it) }
+                        }
+                    }
+                }
                 delay(4 * 60_000L)
+            }
+        }
+        scope.launch {
+            while (isActive) {
+                delay(60_000)
+                updates.trySend(Unit)
             }
         }
     }
@@ -92,28 +127,41 @@ class SharingService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, id: Int): Int {
         startId = id
         if (intent?.action == ACTION_STOP) controller.stopped()
+        commandReady.complete(Unit)
         updates.trySend(Unit)
-        return START_NOT_STICKY
+        return if (controller.shouldRestart()) START_STICKY else START_NOT_STICKY
     }
 
     private suspend fun reconcile() {
         val wanted = controller.state.value
+        if (sessionRevision != wanted.sessionRevision) {
+            val previousActivity = controller.activityStartMillis(wanted.sessionRevision) ?: return
+            activity.reset(previousActivity, wanted.sessionRevision)
+            sessionRevision = wanted.sessionRevision
+        }
+        if (stopIfIdle()) return
+        if (!wanted.let { it.upnpEnabled || it.sftpEnabled }) {
+            closeServers()
+            if (wanted.upnpStatus == "停止中…") controller.report(true, "已停止", expectedRevision = wanted.sessionRevision)
+            if (wanted.sftpStatus == "停止中…") controller.report(false, "已停止", expectedRevision = wanted.sessionRevision)
+            return
+        }
         val settings = appContainer.settingsRepository.settings.first()
         val address = localAddress()
         val next = listOf(address?.hostAddress, settings.storageMode, settings.safTreeUri)
         if (configuration != next) { closeServers(); configuration = next }
         if (!wanted.upnpEnabled) {
             upnp?.close(); upnp = null; releaseMulticast()
-            if (wanted.upnpStatus == "停止中…") controller.report(true, "已停止")
+            if (wanted.upnpStatus == "停止中…") controller.report(true, "已停止", expectedRevision = wanted.sessionRevision)
         }
         if (!wanted.sftpEnabled || credentialRevision != wanted.credentialRevision) { sftp?.close(); sftp = null }
-        if (!wanted.sftpEnabled && wanted.sftpStatus == "停止中…") controller.report(false, "已停止")
+        if (!wanted.sftpEnabled && wanted.sftpStatus == "停止中…") controller.report(false, "已停止", expectedRevision = wanted.sessionRevision)
         if (address == null) {
-            if (wanted.upnpEnabled) controller.report(true, "等待 Wi-Fi 或乙太網路")
-            if (wanted.sftpEnabled) controller.report(false, "等待 Wi-Fi 或乙太網路")
+            if (wanted.upnpEnabled) controller.report(true, "等待 Wi-Fi 或乙太網路", expectedRevision = wanted.sessionRevision)
+            if (wanted.sftpEnabled) controller.report(false, "等待 Wi-Fi 或乙太網路", expectedRevision = wanted.sessionRevision)
             return
         }
-        val files = AndroidSharedFiles(this, settings)
+        val files = activity.track(AndroidSharedFiles(this, settings))
         if (wanted.upnpEnabled && upnp == null) {
             try {
                 files.list("/") // Fail before advertising a revoked/unreadable root.
@@ -122,12 +170,13 @@ class SharingService : Service() {
                 val started = UpnpServer(files, address, controller.deviceId)
                 started.start()
                 upnp = started
-                controller.report(true, "執行中 · ${address.hostAddress}:${started.httpPort}")
+                Log.i("SharingService", "UPnP listening on ${address.hostAddress}:${started.httpPort}")
+                controller.report(true, "執行中 · ${address.hostAddress}:${started.httpPort}", expectedRevision = wanted.sessionRevision)
             } catch (failure: LinkageError) {
                 releaseMulticast()
                 Log.e("SharingService", "UPnP initialization failed", failure)
-                controller.report(true, "啟動失敗：協定套件無法初始化", true)
-            } catch (failure: Exception) { releaseMulticast(); controller.report(true, "啟動失敗：${failure.message}", true) }
+                controller.report(true, "啟動失敗：協定套件無法初始化", true, wanted.sessionRevision)
+            } catch (failure: Exception) { releaseMulticast(); controller.report(true, "啟動失敗：${failure.message}", true, wanted.sessionRevision) }
         }
         if (wanted.sftpEnabled && sftp == null) {
             try {
@@ -137,12 +186,23 @@ class SharingService : Service() {
                 started.start()
                 sftp = started
                 credentialRevision = wanted.credentialRevision
-                controller.report(false, "sftp://${wanted.username}@${address.hostAddress}:${wanted.port}")
+                Log.i("SharingService", "SFTP listening on ${address.hostAddress}:${wanted.port}")
+                controller.report(false, "sftp://${wanted.username}@${address.hostAddress}:${wanted.port}", expectedRevision = wanted.sessionRevision)
             } catch (failure: LinkageError) {
                 Log.e("SharingService", "SFTP initialization failed", failure)
-                controller.report(false, "啟動失敗：協定套件無法初始化", true)
-            } catch (failure: Exception) { controller.report(false, "啟動失敗：${failure.message}", true) }
+                controller.report(false, "啟動失敗：協定套件無法初始化", true, wanted.sessionRevision)
+            } catch (failure: Exception) { controller.report(false, "啟動失敗：${failure.message}", true, wanted.sessionRevision) }
         }
+        upnp?.let { controller.report(true, "執行中 · ${address.hostAddress}:${it.httpPort}", expectedRevision = wanted.sessionRevision) }
+        sftp?.let { controller.report(false, "sftp://${wanted.username}@${address.hostAddress}:${wanted.port}", expectedRevision = wanted.sessionRevision) }
+    }
+
+    private fun stopIfIdle(): Boolean {
+        val state = controller.state.value
+        if (state.sessionRevision != sessionRevision || !state.let { it.upnpEnabled || it.sftpEnabled }) return false
+        if (!activity.expireIfIdle(state.idleTimeout.millis) { controller.stopIfIdle(state) }) return false
+        closeServers()
+        return true
     }
 
     @Suppress("DEPRECATION")
@@ -177,7 +237,13 @@ class SharingService : Service() {
         if (callbackRegistered) runCatching { connectivity.unregisterNetworkCallback(callback) }
         updates.close()
         scope.cancel()
-        wake?.let { if (it.isHeld) it.release() }
+        wake?.let { lock -> synchronized(lock) { if (lock.isHeld) lock.release() } }
+        wifiWake?.let { lock ->
+            synchronized(lock) {
+                runCatching { if (lock.isHeld) lock.release() }
+                    .onFailure { Log.w("SharingService", "Unable to release sharing Wi-Fi lock", it) }
+            }
+        }
         controller.serviceDestroyed()
         // Service shutdown must not block the main thread on protocol worker joins.
         Thread({ runBlocking { servers.withLock { closeServers() } } }, "sharing-stop").start()
