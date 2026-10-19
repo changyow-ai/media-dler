@@ -1,0 +1,301 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "aye_task": "t-4c0f1359b08a9b4097ee",
+  "baseline_commit": "93fcc9d0faf36fffdeb44eb94a726aa9e7647caf",
+  "programme": "全民星攻略 20261015",
+  "source_line": "速通線路 (confirmed from actual ASUS completed-task UI)",
+  "source_expectation": "User expects prior tag-based ad removal; exact tag/removed count is not exposed by current UI and was not independently confirmed.",
+  "policy": "weighted-v3-layout-development",
+  "threshold": 55,
+  "windows": {
+    "seconds": 40,
+    "stride_seconds": 20,
+    "cases": 141,
+    "candidate_boundaries": "Hypothetical test boundaries; no claim these are original HLS discontinuities.",
+    "coverage": {
+      "video_interval_seconds": [
+        0.063,
+        2816.8230000000003
+      ],
+      "case_count": 141,
+      "window_union_seconds": [
+        0,
+        2816.8230000000003
+      ],
+      "gaps": [],
+      "covers_entire_video_interval": true
+    }
+  },
+  "result": {
+    "flag_count": 0,
+    "maximum_score": 38.039993819100985,
+    "maximum_case_id": "control-1980",
+    "maximum_window_seconds": [
+      1980,
+      2020
+    ],
+    "OCR_samples": 702,
+    "OCR_failures": 0,
+    "unexpected_decode_missing": 0,
+    "all_actions": "preserve"
+  },
+  "source": {
+    "path": "/tmp/media-dler-source-diagnosis-20261020/star-20261015-original.mp4",
+    "sha256": "2281742717e059f066f9dc431849e76bc1fa67212e861e8863ed5d788a91fafd",
+    "size": 405080559,
+    "mtime_ns": 1792428988877400435
+  },
+  "source_unchanged": true,
+  "runtime": {
+    "started_unix_seconds": 1792429236.493119,
+    "finished_unix_seconds": 1792429825.710059,
+    "elapsed_seconds": 589.2169399261475,
+    "cases_completed": 141,
+    "subprocess_calls": 2664,
+    "subprocess_failures": 0,
+    "max_concurrent_subprocesses_measured": 3
+  },
+  "protocol": {
+    "schema": 1,
+    "frozen_before_extraction": true,
+    "purpose": "whole-video expected-negative control, expectation is not verified truth",
+    "window_seconds": 40,
+    "stride_seconds": 20,
+    "tail_policy": "last window min(40, video_end-start); merge if under2s, no omitted tail",
+    "contexts_seconds": 2,
+    "max_concurrent_subprocesses": 3,
+    "boundaries_semantics": "hypothetical test candidate boundaries only; no claim original HLS discontinuities",
+    "coverage": {
+      "video_interval_seconds": [
+        0.063,
+        2816.8230000000003
+      ],
+      "case_count": 141,
+      "window_union_seconds": [
+        0,
+        2816.8230000000003
+      ],
+      "gaps": [],
+      "covers_entire_video_interval": true
+    },
+    "case_input_sha256": "8006841cca92ba283cd7c629a383c43d1c7cc6a62dd3a655a1900ca4bb2ae231",
+    "source_before": {
+      "created_unix_seconds": 1792429198.471275,
+      "commit": "93fcc9d0faf36fffdeb44eb94a726aa9e7647caf",
+      "source": {
+        "path": "/tmp/media-dler-source-diagnosis-20261020/star-20261015-original.mp4",
+        "sha256": "2281742717e059f066f9dc431849e76bc1fa67212e861e8863ed5d788a91fafd",
+        "size": 405080559,
+        "mtime_ns": 1792428988877400435
+      },
+      "scripts": [
+        {
+          "path": "/Users/apple/Projects/fun-tools/media-dler/scripts/probe-hls-ad-features.py",
+          "sha256": "cc4f069b469fc94fc3ae035b1d4ff861035813a938edbc8b1a9cb1bf8dd13b21",
+          "size": 28103
+        },
+        {
+          "path": "/Users/apple/Projects/fun-tools/media-dler/scripts/score-hls-ad-features.py",
+          "sha256": "7777aa29ca75cf050df83aa92d4774a77d6d1aede4d955d7f68f0a58b9056532",
+          "size": 20548
+        },
+        {
+          "path": "/Users/apple/Projects/fun-tools/media-dler/scripts/ocr-image-vision.swift",
+          "sha256": "90ee01ed1daaf7ce44f6bafeda8888317c25f2404d3ba47a79569ce2cf62250b",
+          "size": 1941
+        },
+        {
+          "path": "/tmp/media-dler-ad-multisignal-20261019/vision-ocr",
+          "sha256": "f1d5d28f3e2187f59ebabeb11980b6c670db5e49ab01886b1989ca0612f68aef",
+          "size": 43768
+        }
+      ]
+    },
+    "probe_policy": "experimental-v1",
+    "probe_settings": {
+      "version": "experimental-v1",
+      "candidate_max_seconds": 60,
+      "context_seconds": 2,
+      "rgb_width": 64,
+      "rgb_height": 36,
+      "visual_max_samples": 30,
+      "video_frame_mode": "native_fps_mode_passthrough",
+      "rgb_pixel_format": "rgb24",
+      "decode_seek_lookback_seconds": 10,
+      "decode_input_tail_seconds": 2,
+      "decode_window_policy": "bounded_relative_input_seek_copyts_absolute_presentation_trim_showinfo_then_reset_pts_no_output_time_trim",
+      "decode_presentation_clock": "preserve_original_pts_trim_at_format_start_time_plus_requested_start",
+      "decode_trim_interval": "half_open_absolute_start_end_not_duration_from_first_kept_frame",
+      "color_bins_per_channel": 8,
+      "black_max_channel": 16,
+      "near_static_mae": 0.00392156862745098,
+      "native_window_seconds": 1,
+      "native_percentile": 0.9,
+      "bridge_join_factor": 4,
+      "bridge_join_floor": 0.00784313725490196,
+      "bridge_seam_factor": 4,
+      "bridge_seam_join_floor": 0.00392156862745098,
+      "bridge_seam_floor": 0.01568627450980392,
+      "bridge_min_native_p90": 0.00392156862745098,
+      "audio_rate": 8000,
+      "audio_channels": 1,
+      "audio_sample_format": "s16le",
+      "audio_numerical_peak_floor": 1,
+      "style_min_gain_db": 6,
+      "style_min_flat_color": 0.35,
+      "ocr_candidate_fractions": [
+        0.1,
+        0.5,
+        0.9
+      ],
+      "ocr_context_fractions": [
+        0.5
+      ],
+      "ocr_sample_interval": "requested_av_window_intersection_with_video_presentation_interval",
+      "ocr_fraction_target_selection": "nearest_decoded_native_frame_timestamp_distinct_actual_times",
+      "ocr_png_extraction": "same_bounded_decode_window_and_trim_select_exact_native_frame_index",
+      "missing_video_duration_fallback": "conservatively_require_video_through_requested_window_end",
+      "missing_video_start_fallback": "conservatively_require_video_across_requested_window",
+      "ocr_min_confidence": 0.8,
+      "ocr_min_distinct_times": 2,
+      "tesseract_language": "eng",
+      "tesseract_psm": 11,
+      "ocr_max_width": 1920,
+      "ocr_max_png_bytes": 33554432,
+      "max_native_frames": 14401,
+      "subprocess_timeout_seconds": 90,
+      "ocr_timeout_seconds": 30,
+      "requested_duration_tolerance_seconds": 0.1,
+      "coverage_tolerance_seconds": 0.15
+    },
+    "score_policy": "weighted-v3-layout-development",
+    "score_settings": {
+      "version": "weighted-v3-layout-development",
+      "weights": {
+        "S": 40,
+        "A": 25,
+        "P": 25
+      },
+      "threshold": 55,
+      "scene_return_max": 20,
+      "scene_cut_max": 5,
+      "scene_temporal_max": 15,
+      "scene_seam_floor": 0.00392156862745098,
+      "scene_cut_scale": 0.01568627450980392,
+      "scene_contrast_quality_policy": "clamp_min_original_seam_over_cut_scale_multiplies_return_and_temporal",
+      "scene_info_scale": 0.00392156862745098,
+      "scene_native_multiplier": 4,
+      "scene_join_floor": 0.00784313725490196,
+      "audio_gain_full_db": 12,
+      "audio_peak_floor": 1,
+      "ocr_expected_frames": 3,
+      "ocr_confidence_power": 0.5,
+      "domain_share": 0.65,
+      "semantic_share": 0.35,
+      "outside_domain_novelty_factor": 0.5,
+      "fuzzy_similarity_deadzone": 0.5,
+      "programme_negative_max": 40,
+      "layout_height_scale": 0.12,
+      "layout_central_rect": [
+        0.2,
+        0.25,
+        0.8,
+        0.75
+      ],
+      "layout_max": 50,
+      "content_cap": 60,
+      "positive_raw_cap": 125,
+      "overlay_negative_max": 20,
+      "overlay_edge_height": 0.2,
+      "commercial_semantic_power": 2,
+      "geometry_policy": "finite_nonbool_positive_size_clip_to_unit_image_then_measure",
+      "commercial_union_policy": "integral_of_max_observation_weight_over_rectangle_union",
+      "content_formula": "C=min(60,P+50*sum_distinct_frame_Lt/3)",
+      "overlay_formula": "O=20*sum_distinct_frame(pt*et*(1-Lt))/3",
+      "final_formula": "clamp_0_100(S+A+C-O-programme_negative)",
+      "max_text_characters": 512,
+      "max_latin_words": 64,
+      "max_word_characters": 40,
+      "max_chinese_windows_per_term": 128,
+      "max_observations_per_frame": 64,
+      "missing_cue_policy": "zero_no_renormalization_no_evidence_veto",
+      "score_interpretation": "uncalibrated_developmental_evidence_score_not_probability"
+    },
+    "score_lexicon": {
+      "promotion_latin": [
+        "register",
+        "registration",
+        "deposit",
+        "bonus",
+        "casino",
+        "slot",
+        "slots",
+        "gambling",
+        "game",
+        "games",
+        "betting",
+        "bet",
+        "rebate",
+        "signup"
+      ],
+      "promotion_chinese": [
+        "注册",
+        "註冊",
+        "充值",
+        "投注",
+        "博彩",
+        "棋牌",
+        "奖金",
+        "獎金",
+        "中奖",
+        "中獎",
+        "大奖",
+        "大獎",
+        "娱乐城",
+        "遊戲",
+        "游戏"
+      ],
+      "programme_latin": [
+        "cast",
+        "elenco",
+        "traducao",
+        "dublagem",
+        "starring",
+        "screenplay"
+      ],
+      "programme_chinese": [
+        "配音",
+        "演員",
+        "演员",
+        "字幕製作",
+        "字幕制作"
+      ]
+    },
+    "ocr_command": "/tmp/media-dler-ad-multisignal-20261019/vision-ocr",
+    "commands": [
+      "python3 /tmp/media-dler-source-diagnosis-20261020/control/prepare.py",
+      "python3 /tmp/media-dler-source-diagnosis-20261020/control/run-control.py",
+      "python3 /Users/apple/Projects/fun-tools/media-dler/scripts/score-hls-ad-features.py --report /tmp/media-dler-source-diagnosis-20261020/control/raw/report.json --work-dir /tmp/media-dler-source-diagnosis-20261020/control/scored"
+    ],
+    "preservation": "all source media and reports preserved; action always preserve"
+  },
+  "raw_paths": {
+    "protocol": "/tmp/media-dler-source-diagnosis-20261020/control/protocol.json",
+    "cases": "/tmp/media-dler-source-diagnosis-20261020/control/cases.json",
+    "raw_report": "/tmp/media-dler-source-diagnosis-20261020/control/raw/report.json",
+    "scored_report": "/tmp/media-dler-source-diagnosis-20261020/control/scored/report.json",
+    "narrow_scoring_csv": "/tmp/media-dler-source-diagnosis-20261020/control/scoring-narrow.csv",
+    "flags_directory": "/tmp/media-dler-source-diagnosis-20261020/control/flags",
+    "source_before": "/tmp/media-dler-source-diagnosis-20261020/control/source-before.json"
+  },
+  "raw_report_sha256": "4d71e777522f486bb32e220d613282350255ffb96a717c0f532747d3c1aff50c",
+  "scored_report_sha256": "6d28f67ff5097ab8a88a74875c45d73db64b423a130c1bdaf7d29f210c46efc6",
+  "csv_file": "experiments/ad-multisignal/star-control-scores-20261020.csv",
+  "limitations": [
+    "No window reached the fixed threshold; this does not prove absence of every advertisement.",
+    "The feature decoder covered the video interval, while OCR sampled three times per overlapping window.",
+    "Overlapping windows of one expected-clean recording are not 141 independent negative videos.",
+    "No weights, thresholds, text lexicon, or media were changed in response to this control."
+  ]
+}
