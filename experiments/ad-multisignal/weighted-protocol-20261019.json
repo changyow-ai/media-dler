@@ -1,0 +1,169 @@
+{
+  "schema": 1,
+  "frozen_at_UTC": "2026-10-19T12:55:01.245954+00:00",
+  "policy": "weighted-v2.1-development",
+  "branch": "experiment/ad-multisignal",
+  "host_v1_checkpoint": "65026b2",
+  "app_baseline_commit": "d4f53bd14c98fd116a3386d79d94720727385f5c",
+  "user_requirement": "加權的方式，而不是一定要有或相同",
+  "settings": {
+    "version": "weighted-v2.1-development",
+    "weights": {
+      "S": 40,
+      "A": 25,
+      "P": 25,
+      "V": 10
+    },
+    "threshold": 55,
+    "scene_return_max": 20,
+    "scene_cut_max": 5,
+    "scene_temporal_max": 15,
+    "scene_seam_floor": 0.00392156862745098,
+    "scene_cut_scale": 0.01568627450980392,
+    "scene_contrast_quality_policy": "clamp_min_original_seam_over_cut_scale_multiplies_return_and_temporal",
+    "scene_info_scale": 0.00392156862745098,
+    "scene_native_multiplier": 4,
+    "scene_join_floor": 0.00784313725490196,
+    "audio_gain_full_db": 12,
+    "audio_peak_floor": 1,
+    "ocr_expected_frames": 3,
+    "ocr_confidence_power": 0.5,
+    "domain_share": 0.65,
+    "semantic_share": 0.35,
+    "outside_domain_novelty_factor": 0.5,
+    "fuzzy_similarity_deadzone": 0.5,
+    "programme_negative_max": 40,
+    "text_color_discount_max": 3,
+    "max_text_characters": 512,
+    "max_latin_words": 64,
+    "max_word_characters": 40,
+    "max_chinese_windows_per_term": 128,
+    "max_observations_per_frame": 64,
+    "missing_cue_policy": "zero_no_renormalization_no_evidence_veto",
+    "score_interpretation": "uncalibrated_developmental_evidence_score_not_probability"
+  },
+  "lexicon": {
+    "promotion_latin": [
+      "register",
+      "registration",
+      "deposit",
+      "bonus",
+      "casino",
+      "slot",
+      "slots",
+      "gambling",
+      "game",
+      "games",
+      "betting",
+      "bet",
+      "rebate",
+      "signup"
+    ],
+    "promotion_chinese": [
+      "注册",
+      "註冊",
+      "充值",
+      "投注",
+      "博彩",
+      "棋牌",
+      "奖金",
+      "獎金",
+      "中奖",
+      "中獎",
+      "大奖",
+      "大獎",
+      "娱乐城",
+      "遊戲",
+      "游戏"
+    ],
+    "programme_latin": [
+      "cast",
+      "elenco",
+      "traducao",
+      "dublagem",
+      "starring",
+      "screenplay"
+    ],
+    "programme_chinese": [
+      "配音",
+      "演員",
+      "演员",
+      "字幕製作",
+      "字幕制作"
+    ]
+  },
+  "patterns": {
+    "domain": "(?<![a-z0-9.-])(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,24}(?![a-z0-9.-])",
+    "latin": "[a-z]+",
+    "chinese": "[\\u3400-\\u9fff]+"
+  },
+  "source_SHA256": {
+    "scripts/score-hls-ad-features.py": "3f38a90b360fe73029d51712f654d9058d808b2a960da48496e9b29b5a755da9",
+    "scripts/test_score_hls_ad_features.py": "b08b3a0d23c2e0f57bae4ade1c4e2ea775ef2b6328ca1376340c36016a365c04",
+    "scripts/probe-hls-ad-features.py": "cc4f069b469fc94fc3ae035b1d4ff861035813a938edbc8b1a9cb1bf8dd13b21",
+    "scripts/ocr-image-vision.swift": "90ee01ed1daaf7ce44f6bafeda8888317c25f2404d3ba47a79569ce2cf62250b",
+    "experiments/ad-multisignal/cases-20261019.json": "9b971fb445d341e4eff74c5e0e43f08f72048ede3fd10f422047f5d0be26adba",
+    "experiments/ad-multisignal/challenges-weighted-20261019.json": "05010497bb8d99ff4d2e037a51e09b06293d2a4f7cc051361f405791a5242bd8"
+  },
+  "feature_reports": [
+    {
+      "path": "/tmp/media-dler-ad-multisignal-20261019/attempt-003/report.json",
+      "sha256": "b07a326603d3a8c16380c8c1f2bcf2bd590dbfa6857a60477a5d3c58886ce549",
+      "case_ids": [
+        "e1-ad-02",
+        "e1-ad-04",
+        "e1-ad-06",
+        "e1-ad-08",
+        "unseen-phone-ad",
+        "normal-credits-with-domain",
+        "normal-shot-reverse-shot",
+        "normal-continuous-dialogue",
+        "normal-scene-transition",
+        "normal-loud",
+        "normal-banner-overlay",
+        "heldout-288588-family"
+      ]
+    },
+    {
+      "path": "/tmp/media-dler-ad-multisignal-20261019/weighted-challenge-features/report.json",
+      "sha256": "3d7fc04f5f6aafa1db01da821461c3b737ef6cf42c63fcfa993f4356bfb3ebcc",
+      "case_ids": [
+        "normal-exact-two-hardcuts",
+        "normal-dynamic-hardcuts-loud-banner"
+      ]
+    }
+  ],
+  "scorer_input": {
+    "path": "/tmp/media-dler-ad-multisignal-20261019/weighted-input-features.json",
+    "sha256": "d8a946caf6a1a591008f5449c0d685afd1ec91315b2ef368175a22854a060efc",
+    "case_count": 14,
+    "merge": "Keep first report metadata; concatenate cases of the two feature reports; add evaluation_note. No extracted-feature or truth changes."
+  },
+  "development_scope": "Weights/maps declared before weightedscore evaluation; original12are reuseddevelopment, oldfamilychallenge no longer heldout. Two new targetednormalcontrols are not independentprogramme/family evidence. No score/threshold tuning after this freeze.",
+  "cue_absence_caps": {
+    "no_S": 57,
+    "no_A": 72,
+    "no_P": 75,
+    "no_V": 90,
+    "all_positive_with_max_programme_negative": 57,
+    "threshold": 55
+  },
+  "score_interpretation": "Developmental evidence points, not probability; allactions preserve. Missingcue0, no globalrenormalization, no mandatoryadcue or exactdomain/wordmatch. Only verifiedcandidate-source integrity gates publishing a candidate decision.",
+  "reproduce": [
+    "Extract local features usingprobe-hls-ad-features.py for each listedcaseJSON andsameOCRprovider; merge cases as recorded.",
+    "python3 -B scripts/score-hls-ad-features.py --report /tmp/media-dler-ad-multisignal-20261019/weighted-input-features.json --work-dir /tmp/media-dler-ad-multisignal-20261019/weighted-v2-1-attempt-001"
+  ],
+  "focused_tests": {
+    "passed": 15,
+    "command": "python3 scripts/test_score_hls_ad_features.py",
+    "source": "independenttask_executor run, plusexisting18extractor tests remainvalid"
+  },
+  "previous_weighted_attempt": {
+    "directory": "/tmp/media-dler-ad-multisignal-20261019/weighted-v2-attempt-001",
+    "source_tests_protocol_and_report_retained": true,
+    "bug": "Identical zero original/joinedseams yielded20 returnpoints without any insertiontransition.",
+    "correction": "Scale return AND temporal strength continuously by originalcutcontrast; allzerooriginalseams nowS0. Otherfamilies canstillflag57withoutS.",
+    "weights_threshold_lexicon_and_other_maps_unchanged": true,
+    "basis": "Independent mathematical review and15syntheticregression tests; not fourteen-case outcome tuning."
+  }
+}

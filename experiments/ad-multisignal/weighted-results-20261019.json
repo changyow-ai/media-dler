@@ -1,0 +1,790 @@
+{
+  "schema": 1,
+  "date": "2026-10-19",
+  "branch": "experiment/ad-multisignal",
+  "aye_task": "t-6eeb87276e861a4c6966",
+  "host_v1_commit": "65026b2",
+  "app_baseline_commit": "d4f53bd14c98fd116a3386d79d94720727385f5c",
+  "policy": "weighted-v2.1-development",
+  "status": "WEIGHTED_SHADOW_EXPERIMENT_COMPLETE; NOT_APPROVED_FOR_AUTOMATIC_REMOVAL",
+  "user_requirement": "加權的方式，而不是一定要有或相同",
+  "protocol": "experiments/ad-multisignal/weighted-protocol-20261019.json",
+  "raw_report": "/tmp/media-dler-ad-multisignal-20261019/weighted-v2-1-attempt-001/report.json",
+  "raw_report_sha256": "c7670b8bee62c8bea1571baa327565a5cf3f98b2c2f2b2ce9d8a55ca9e897665",
+  "review_csv": "/tmp/media-dler-ad-multisignal-20261019/weighted-v2-1-attempt-001/review.csv",
+  "weights": {
+    "S": 40,
+    "A": 25,
+    "P": 25,
+    "V": 10
+  },
+  "threshold": 55,
+  "score_interpretation": "Uncalibrated evidence points, not advertisement probability. No advertisingcue, keyword, same domain or fingerprint is mandatory. Verifiedsource integrity is required to interpret a candidate.",
+  "metrics": {
+    "exact_baseline": {
+      "ad_cases": 6,
+      "flagged_ads": 5,
+      "unflagged_ads": 1,
+      "retain_cases": 8,
+      "false_flags_on_retain_cases": 0,
+      "flagged_ids": [
+        "e1-ad-02",
+        "e1-ad-04",
+        "e1-ad-06",
+        "e1-ad-08",
+        "heldout-288588-family"
+      ]
+    },
+    "weighted": {
+      "ad_cases": 6,
+      "flagged_ads": 5,
+      "unflagged_ads": 1,
+      "retain_cases": 8,
+      "false_flags_on_retain_cases": 1,
+      "flagged_ids": [
+        "e1-ad-02",
+        "e1-ad-04",
+        "e1-ad-06",
+        "unseen-phone-ad",
+        "heldout-288588-family",
+        "normal-dynamic-hardcuts-loud-banner"
+      ]
+    },
+    "exact_or_weighted": {
+      "ad_cases": 6,
+      "flagged_ads": 6,
+      "unflagged_ads": 0,
+      "retain_cases": 8,
+      "false_flags_on_retain_cases": 1,
+      "flagged_ids": [
+        "e1-ad-02",
+        "e1-ad-04",
+        "e1-ad-06",
+        "e1-ad-08",
+        "unseen-phone-ad",
+        "heldout-288588-family",
+        "normal-dynamic-hardcuts-loud-banner"
+      ]
+    }
+  },
+  "findings": {
+    "uncatalogued_phone_creative_score": 72.91969795733078,
+    "EOF_ad_score": 15.169354439760468,
+    "false_flag_id": "normal-dynamic-hardcuts-loud-banner",
+    "false_flag_score": 65.4365972668997,
+    "nearby_real_ad_score": 66.22645440186395,
+    "normal_credits_score": 19.80215632190667,
+    "conclusion": "Soft weighting adds useful candidates including an uncatalogued creative, but a deliberately constructed dynamic programme with louder audio and promotional overlay also crosses55. Do not tune threshold tofit these14examples or claim unknown-ad automaticremoval solved.",
+    "next_needed_evidence": "Whether B still contains the continuing programme beneath an advertising overlay; current programme-negative evidence is OCR-based and does not solve this."
+  },
+  "verification": {
+    "extractor_focused_tests": 18,
+    "weighted_focused_tests": 15,
+    "weighted_test_command": "python3 scripts/test_score_hls_ad_features.py",
+    "test_evidence": "Independent task_executor runs; rawfeaturephysicalclock alsocheckedagainstffprobe.",
+    "frozen_source_input_settings_match": true,
+    "valid_feature_cases": 14,
+    "feature_errors": "Only intended EOFafterabsence; allpresented roles OCR anddecode valid.",
+    "independent_review": "Astra/max reviewed v2 formulation, bindings, matrix, labels-isolation and no mandatorycue; GOhostranking/NOautomaticremoval. Identifiedzeroseam S20 defect corrected asv2.1 with focusedregression; final14decisions unchanged, primaryverified.",
+    "no_required_cue_maximums": {
+      "no_S": 57,
+      "no_A": 72,
+      "no_P": 75,
+      "no_V": 90,
+      "all_positive_with_max_programme_negative": 57,
+      "threshold": 55
+    },
+    "original_input_files_size_mtime_unchanged": 21,
+    "new_transformed_challenge_input_sha_verified": true,
+    "actual_source_media_removed_or_edited": false,
+    "app_code_changed": false,
+    "Android_runtime_test": "Not applicable: hostanalysis/scoring only; ASUS stayspreviousverifiedexactfingerprintbuild.",
+    "every_action": "preserve"
+  },
+  "preserved_attempts": {
+    "v1_AND_checkpoint": "65026b2; valid12cases, no additionaldetection because Pwasrequired.",
+    "weighted_v2_original": "/tmp/media-dler-ad-multisignal-20261019/weighted-v2-attempt-001",
+    "weighted_v2_1_correction": "Allzerooriginal/joinedseams previouslygave20returnpoints; continuouslyscaledscenecontributionsbyoriginaljumpstrength. Weights,threshold,lexicon,othermapsandcasesunchanged. Source/tests/protocol/originalresultsretained. No score-driven thresholdretuning."
+  },
+  "limitations": [
+    "All12originalcases are reuseddevelopment, includingoriginal288588familychallenge; no independentpositivegeneralizationclaim.",
+    "Fouradcreativefamilies produce6positiveoccurrences; repeatedA/Bnotindependent.",
+    "Eightretaincasesincludeconstructedcandidateboundaries, loud/banner transformations; targetednormalcontrolscomefromsamedrama/source, not realworldfalse-positive-rate estimates.",
+    "The two new controls bracket actualnativehardcuts202.723500 and208.979756. TheiroriginalMAEseams.230/.148 were verified, correctingv1coarse-windowcoveragegap.",
+    "A two-secondnormalcontext and whole-windowPCM RMS do not prove perceptualloudness or dialogue/actioncontinuity.",
+    "Same-overlay cues remain correlated beyond the smalltext/color discount. No underlyingprogramme detector or dedicated-vs-overlay semantic classifier.",
+    "The55threshold and40/25/25/10 weights are development hypotheses, not calibrated confidence.",
+    "No genericautoremoval, newAndroidOCR integration, fullnewepisode filteredoutput or Kodi/VLC/UIverification."
+  ],
+  "cases": [
+    {
+      "id": "e1-ad-02",
+      "truth": "ad",
+      "creative_family": "451451-A",
+      "evaluation_role": "reused_v1_development",
+      "exact_baseline_flag": true,
+      "weighted_flag": true,
+      "score": 77.54545951581036,
+      "contributions": {
+        "S": 36.58021689657698,
+        "A": 22.163257674338087,
+        "P": 18.314354736561967,
+        "V": 0.6966145833333335
+      },
+      "programme_negative": 0.0,
+      "correlation_discount": 0.20898437500000003,
+      "coverage": {
+        "S": {
+          "seams": 3,
+          "expected": 3,
+          "native_baselines": 2,
+          "native_expected": 2
+        },
+        "A": {
+          "available": 2,
+          "expected": 2
+        },
+        "P": {
+          "available": 3,
+          "expected": 3,
+          "outside_available": 2,
+          "outside_expected": 2
+        },
+        "V": {
+          "available": 1,
+          "expected": 1
+        }
+      },
+      "missing_reasons": {
+        "S": [],
+        "A": [],
+        "P": [],
+        "V": []
+      },
+      "decision": "experimental_ad_candidate",
+      "action": "preserve"
+    },
+    {
+      "id": "e1-ad-04",
+      "truth": "ad",
+      "creative_family": "451451-B",
+      "evaluation_role": "reused_v1_development",
+      "exact_baseline_flag": true,
+      "weighted_flag": true,
+      "score": 66.22645440186395,
+      "contributions": {
+        "S": 33.89020627617722,
+        "A": 17.166893685926254,
+        "P": 14.663495064760468,
+        "V": 0.72265625
+      },
+      "programme_negative": 0.0,
+      "correlation_discount": 0.216796875,
+      "coverage": {
+        "S": {
+          "seams": 3,
+          "expected": 3,
+          "native_baselines": 2,
+          "native_expected": 2
+        },
+        "A": {
+          "available": 2,
+          "expected": 2
+        },
+        "P": {
+          "available": 3,
+          "expected": 3,
+          "outside_available": 2,
+          "outside_expected": 2
+        },
+        "V": {
+          "available": 1,
+          "expected": 1
+        }
+      },
+      "missing_reasons": {
+        "S": [],
+        "A": [],
+        "P": [],
+        "V": []
+      },
+      "decision": "experimental_ad_candidate",
+      "action": "preserve"
+    },
+    {
+      "id": "e1-ad-06",
+      "truth": "ad",
+      "creative_family": "451451-A",
+      "evaluation_role": "reused_v1_development",
+      "exact_baseline_flag": true,
+      "weighted_flag": true,
+      "score": 62.46482712518954,
+      "contributions": {
+        "S": 24.563412576812734,
+        "A": 19.099429603481504,
+        "P": 18.314354736561967,
+        "V": 0.6966145833333335
+      },
+      "programme_negative": 0.0,
+      "correlation_discount": 0.20898437500000003,
+      "coverage": {
+        "S": {
+          "seams": 3,
+          "expected": 3,
+          "native_baselines": 2,
+          "native_expected": 2
+        },
+        "A": {
+          "available": 2,
+          "expected": 2
+        },
+        "P": {
+          "available": 3,
+          "expected": 3,
+          "outside_available": 2,
+          "outside_expected": 2
+        },
+        "V": {
+          "available": 1,
+          "expected": 1
+        }
+      },
+      "missing_reasons": {
+        "S": [],
+        "A": [],
+        "P": [],
+        "V": []
+      },
+      "decision": "experimental_ad_candidate",
+      "action": "preserve"
+    },
+    {
+      "id": "e1-ad-08",
+      "truth": "ad",
+      "creative_family": "451451-B",
+      "evaluation_role": "reused_v1_development",
+      "exact_baseline_flag": true,
+      "weighted_flag": false,
+      "score": 15.169354439760468,
+      "contributions": {
+        "S": 0.0,
+        "A": 0.0,
+        "P": 14.663495064760468,
+        "V": 0.72265625
+      },
+      "programme_negative": 0.0,
+      "correlation_discount": 0.216796875,
+      "coverage": {
+        "S": {
+          "seams": 0,
+          "expected": 3
+        },
+        "A": {
+          "available": 0,
+          "expected": 2
+        },
+        "P": {
+          "available": 3,
+          "expected": 3,
+          "outside_available": 1,
+          "outside_expected": 2
+        },
+        "V": {
+          "available": 1,
+          "expected": 1
+        }
+      },
+      "missing_reasons": {
+        "S": [
+          "joined_edge_mae",
+          "start_seam_mae",
+          "end_seam_mae",
+          "after_context"
+        ],
+        "A": [
+          "before:missing_audio_context_or_numerical_floor",
+          "after:missing_audio_context_or_numerical_floor"
+        ],
+        "P": [
+          "missing_after_ocr_context"
+        ],
+        "V": []
+      },
+      "decision": "unknown",
+      "action": "preserve"
+    },
+    {
+      "id": "unseen-phone-ad",
+      "truth": "ad",
+      "creative_family": "unseen-phone-collage",
+      "evaluation_role": "reused_v1_development",
+      "exact_baseline_flag": false,
+      "weighted_flag": true,
+      "score": 72.91969795733078,
+      "contributions": {
+        "S": 34.940551590517785,
+        "A": 25.0,
+        "P": 11.993252269590783,
+        "V": 1.4084201388888888
+      },
+      "programme_negative": 0.0,
+      "correlation_discount": 0.4225260416666667,
+      "coverage": {
+        "S": {
+          "seams": 3,
+          "expected": 3,
+          "native_baselines": 2,
+          "native_expected": 2
+        },
+        "A": {
+          "available": 2,
+          "expected": 2
+        },
+        "P": {
+          "available": 3,
+          "expected": 3,
+          "outside_available": 2,
+          "outside_expected": 2
+        },
+        "V": {
+          "available": 1,
+          "expected": 1
+        }
+      },
+      "missing_reasons": {
+        "S": [],
+        "A": [],
+        "P": [],
+        "V": []
+      },
+      "decision": "experimental_ad_candidate",
+      "action": "preserve"
+    },
+    {
+      "id": "normal-credits-with-domain",
+      "truth": "mixed_programme_overlay",
+      "creative_family": "programme-credits",
+      "evaluation_role": "reused_v1_development",
+      "exact_baseline_flag": false,
+      "weighted_flag": false,
+      "score": 19.80215632190667,
+      "contributions": {
+        "S": 12.932190507266593,
+        "A": 0.0,
+        "P": 12.47257794592938,
+        "V": 9.227430555555555
+      },
+      "programme_negative": 13.333333333333332,
+      "correlation_discount": 1.4967093535115257,
+      "coverage": {
+        "S": {
+          "seams": 3,
+          "expected": 3,
+          "native_baselines": 2,
+          "native_expected": 2
+        },
+        "A": {
+          "available": 0,
+          "expected": 2
+        },
+        "P": {
+          "available": 3,
+          "expected": 3,
+          "outside_available": 2,
+          "outside_expected": 2
+        },
+        "V": {
+          "available": 1,
+          "expected": 1
+        }
+      },
+      "missing_reasons": {
+        "S": [],
+        "A": [
+          "before:missing_audio_context_or_numerical_floor",
+          "after:missing_audio_context_or_numerical_floor"
+        ],
+        "P": [],
+        "V": []
+      },
+      "decision": "unknown",
+      "action": "preserve"
+    },
+    {
+      "id": "normal-shot-reverse-shot",
+      "truth": "normal",
+      "creative_family": "e1-normal-office",
+      "evaluation_role": "reused_v1_development",
+      "exact_baseline_flag": false,
+      "weighted_flag": false,
+      "score": 4.151187969282258,
+      "contributions": {
+        "S": 0.4692640977513699,
+        "A": 0.16412873264199979,
+        "P": 0.0,
+        "V": 3.517795138888889
+      },
+      "programme_negative": 0.0,
+      "correlation_discount": 0.0,
+      "coverage": {
+        "S": {
+          "seams": 3,
+          "expected": 3,
+          "native_baselines": 2,
+          "native_expected": 2
+        },
+        "A": {
+          "available": 2,
+          "expected": 2
+        },
+        "P": {
+          "available": 3,
+          "expected": 3,
+          "outside_available": 2,
+          "outside_expected": 2
+        },
+        "V": {
+          "available": 1,
+          "expected": 1
+        }
+      },
+      "missing_reasons": {
+        "S": [],
+        "A": [],
+        "P": [],
+        "V": []
+      },
+      "decision": "unknown",
+      "action": "preserve"
+    },
+    {
+      "id": "normal-continuous-dialogue",
+      "truth": "normal",
+      "creative_family": "e1-normal-dialogue",
+      "evaluation_role": "reused_v1_development",
+      "exact_baseline_flag": false,
+      "weighted_flag": false,
+      "score": 6.674539387868229,
+      "contributions": {
+        "S": 0.769591471201561,
+        "A": 0.0,
+        "P": 0.0,
+        "V": 5.904947916666668
+      },
+      "programme_negative": 0.0,
+      "correlation_discount": 0.0,
+      "coverage": {
+        "S": {
+          "seams": 3,
+          "expected": 3,
+          "native_baselines": 2,
+          "native_expected": 2
+        },
+        "A": {
+          "available": 2,
+          "expected": 2
+        },
+        "P": {
+          "available": 3,
+          "expected": 3,
+          "outside_available": 2,
+          "outside_expected": 2
+        },
+        "V": {
+          "available": 1,
+          "expected": 1
+        }
+      },
+      "missing_reasons": {
+        "S": [],
+        "A": [],
+        "P": [],
+        "V": []
+      },
+      "decision": "unknown",
+      "action": "preserve"
+    },
+    {
+      "id": "normal-scene-transition",
+      "truth": "normal",
+      "creative_family": "e1-normal-scene-transition",
+      "evaluation_role": "reused_v1_development",
+      "exact_baseline_flag": false,
+      "weighted_flag": false,
+      "score": 8.593150588097581,
+      "contributions": {
+        "S": 0.5180637825420249,
+        "A": 0.0,
+        "P": 0.0,
+        "V": 8.075086805555555
+      },
+      "programme_negative": 0.0,
+      "correlation_discount": 0.0,
+      "coverage": {
+        "S": {
+          "seams": 3,
+          "expected": 3,
+          "native_baselines": 2,
+          "native_expected": 2
+        },
+        "A": {
+          "available": 2,
+          "expected": 2
+        },
+        "P": {
+          "available": 3,
+          "expected": 3,
+          "outside_available": 2,
+          "outside_expected": 2
+        },
+        "V": {
+          "available": 1,
+          "expected": 1
+        }
+      },
+      "missing_reasons": {
+        "S": [],
+        "A": [],
+        "P": [],
+        "V": []
+      },
+      "decision": "unknown",
+      "action": "preserve"
+    },
+    {
+      "id": "normal-loud",
+      "truth": "normal",
+      "creative_family": "e1-normal-dialogue",
+      "evaluation_role": "reused_v1_development",
+      "exact_baseline_flag": false,
+      "weighted_flag": false,
+      "score": 27.27143908910874,
+      "contributions": {
+        "S": 0.8355759909447424,
+        "A": 20.537425598164,
+        "P": 0.0,
+        "V": 5.8984375
+      },
+      "programme_negative": 0.0,
+      "correlation_discount": 0.0,
+      "coverage": {
+        "S": {
+          "seams": 3,
+          "expected": 3,
+          "native_baselines": 2,
+          "native_expected": 2
+        },
+        "A": {
+          "available": 2,
+          "expected": 2
+        },
+        "P": {
+          "available": 3,
+          "expected": 3,
+          "outside_available": 2,
+          "outside_expected": 2
+        },
+        "V": {
+          "available": 1,
+          "expected": 1
+        }
+      },
+      "missing_reasons": {
+        "S": [],
+        "A": [],
+        "P": [],
+        "V": []
+      },
+      "decision": "unknown",
+      "action": "preserve"
+    },
+    {
+      "id": "normal-banner-overlay",
+      "truth": "mixed_programme_overlay",
+      "creative_family": "e1-normal-dialogue",
+      "evaluation_role": "reused_v1_development",
+      "exact_baseline_flag": false,
+      "weighted_flag": false,
+      "score": 37.49822367971955,
+      "contributions": {
+        "S": 8.540975415830662,
+        "A": 0.0,
+        "P": 25.0,
+        "V": 5.653211805555555
+      },
+      "programme_negative": 0.0,
+      "correlation_discount": 1.6959635416666667,
+      "coverage": {
+        "S": {
+          "seams": 3,
+          "expected": 3,
+          "native_baselines": 2,
+          "native_expected": 2
+        },
+        "A": {
+          "available": 2,
+          "expected": 2
+        },
+        "P": {
+          "available": 3,
+          "expected": 3,
+          "outside_available": 2,
+          "outside_expected": 2
+        },
+        "V": {
+          "available": 1,
+          "expected": 1
+        }
+      },
+      "missing_reasons": {
+        "S": [],
+        "A": [],
+        "P": [],
+        "V": []
+      },
+      "decision": "unknown",
+      "action": "preserve"
+    },
+    {
+      "id": "heldout-288588-family",
+      "truth": "ad",
+      "creative_family": "288588",
+      "evaluation_role": "reused_v1_development",
+      "exact_baseline_flag": true,
+      "weighted_flag": true,
+      "score": 63.49400059969871,
+      "contributions": {
+        "S": 18.965454267787777,
+        "A": 24.672876665291394,
+        "P": 19.37715404161954,
+        "V": 0.68359375
+      },
+      "programme_negative": 0.0,
+      "correlation_discount": 0.205078125,
+      "coverage": {
+        "S": {
+          "seams": 3,
+          "expected": 3,
+          "native_baselines": 2,
+          "native_expected": 2
+        },
+        "A": {
+          "available": 2,
+          "expected": 2
+        },
+        "P": {
+          "available": 3,
+          "expected": 3,
+          "outside_available": 2,
+          "outside_expected": 2
+        },
+        "V": {
+          "available": 1,
+          "expected": 1
+        }
+      },
+      "missing_reasons": {
+        "S": [],
+        "A": [],
+        "P": [],
+        "V": []
+      },
+      "decision": "experimental_ad_candidate",
+      "action": "preserve"
+    },
+    {
+      "id": "normal-exact-two-hardcuts",
+      "truth": "normal",
+      "creative_family": "e1-normal-office",
+      "evaluation_role": "targeted_new_negative_not_independent",
+      "exact_baseline_flag": false,
+      "weighted_flag": false,
+      "score": 19.03793352860033,
+      "contributions": {
+        "S": 15.252030382698392,
+        "A": 0.2594274514574962,
+        "P": 0.0,
+        "V": 3.526475694444444
+      },
+      "programme_negative": 0.0,
+      "correlation_discount": 0.0,
+      "coverage": {
+        "S": {
+          "seams": 3,
+          "expected": 3,
+          "native_baselines": 2,
+          "native_expected": 2
+        },
+        "A": {
+          "available": 2,
+          "expected": 2
+        },
+        "P": {
+          "available": 3,
+          "expected": 3,
+          "outside_available": 2,
+          "outside_expected": 2
+        },
+        "V": {
+          "available": 1,
+          "expected": 1
+        }
+      },
+      "missing_reasons": {
+        "S": [],
+        "A": [],
+        "P": [],
+        "V": []
+      },
+      "decision": "unknown",
+      "action": "preserve"
+    },
+    {
+      "id": "normal-dynamic-hardcuts-loud-banner",
+      "truth": "mixed_programme_overlay",
+      "creative_family": "e1-normal-office",
+      "evaluation_role": "targeted_new_negative_not_independent",
+      "exact_baseline_flag": false,
+      "weighted_flag": true,
+      "score": 65.4365972668997,
+      "contributions": {
+        "S": 16.700530149451147,
+        "A": 23.223718940893978,
+        "P": 22.559223176554568,
+        "V": 4.21875
+      },
+      "programme_negative": 0.0,
+      "correlation_discount": 1.265625,
+      "coverage": {
+        "S": {
+          "seams": 3,
+          "expected": 3,
+          "native_baselines": 2,
+          "native_expected": 2
+        },
+        "A": {
+          "available": 2,
+          "expected": 2
+        },
+        "P": {
+          "available": 3,
+          "expected": 3,
+          "outside_available": 2,
+          "outside_expected": 2
+        },
+        "V": {
+          "available": 1,
+          "expected": 1
+        }
+      },
+      "missing_reasons": {
+        "S": [],
+        "A": [],
+        "P": [],
+        "V": []
+      },
+      "decision": "experimental_ad_candidate",
+      "action": "preserve"
+    }
+  ]
+}
