@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+enum class DownloadNowResult { READY, PREEMPTING, AFTER_PROCESSING, REJECTED }
+
 /** Durable FIFO. The database transaction is the authority; flows are its UI projection. */
 class DownloadQueue(
     private val store: DownloadQueueStore,
@@ -28,11 +30,19 @@ class DownloadQueue(
             when {
                 record.deleteRequested -> {
                     deleted += record.task.id
-                    record.copy(task = record.task.copy(status = DownloadStatus.CANCELED, cancelRequested = false))
+                    record.copy(task = record.task.copy(status = DownloadStatus.CANCELED, cancelRequested = false, interruption = null))
                 }
                 record.task.status == DownloadStatus.COMPLETED -> { completed += record.task.id; record }
-                record.task.cancelRequested -> record.copy(task = record.task.copy(status = DownloadStatus.CANCELED, cancelRequested = false))
-                record.task.status.isActive -> record.copy(task = record.task.copy(status = DownloadStatus.QUEUED, progress = -1f, progressDetail = "等待恢復下載"), attempt = record.attempt + 1)
+                record.task.cancelRequested -> record.copy(task = record.task.copy(status = DownloadStatus.CANCELED, cancelRequested = false, interruption = null))
+                record.task.interruption != null -> record.copy(
+                    task = record.task.copy(
+                        status = if (record.task.interruption == ItemInterruption.MANUAL_PAUSE)
+                            DownloadStatus.PAUSED else DownloadStatus.QUEUED,
+                        interruption = null,
+                    ),
+                    reuseResolvedRequest = true, attempt = record.attempt + 1,
+                )
+                record.task.status.isActive -> record.copy(task = record.task.copy(status = DownloadStatus.QUEUED, progress = -1f, progressDetail = "等待恢復下載"), attempt = record.attempt + 1, reuseResolvedRequest = true)
                 else -> record
             }
         } }
@@ -74,7 +84,7 @@ class DownloadQueue(
         return ids
     }
 
-    /** Only automatic continuation reuses a resolved URL, preserving HLS checkpoint identity. */
+    /** Automatic continuation and explicit item resume preserve HLS checkpoint identity. */
     fun claimNext(preferResolved: Boolean = false): DownloadClaim? {
         var claim: DownloadClaim? = null
         mutate { records ->
@@ -83,10 +93,11 @@ class DownloadQueue(
                 ?: return@mutate records
             val attempt = next.attempt + 1
             claim = DownloadClaim(next.task.id, attempt, next.spec,
-                resolvedRequest = next.resolvedRequest.takeIf { preferResolved })
-            records.map { if (it.task.id != next.task.id) it else it.copy(attempt = attempt,
+                resolvedRequest = next.resolvedRequest.takeIf { preferResolved || next.reuseResolvedRequest })
+            records.map { if (it.task.id != next.task.id) it else it.copy(attempt = attempt, reuseResolvedRequest = false,
                 task = it.task.copy(status = if (it.spec is QueuedSpec.Page) DownloadStatus.EXTRACTING else DownloadStatus.DOWNLOADING,
-                    progress = -1f, progressDetail = null, errorMessage = null)) }
+                    progress = if (next.reuseResolvedRequest) it.task.progress else -1f,
+                    progressDetail = null, errorMessage = null)) }
         }
         return claim
     }
@@ -95,6 +106,79 @@ class DownloadQueue(
     fun pauseReason(): QueuePause? = _tasks.value.firstNotNullOfOrNull { it.queuePause }
     fun activeCount(): Int = _tasks.value.count { it.status.isActive }
     fun get(id: String): DownloadTask? = _tasks.value.firstOrNull { it.id == id }
+
+    /** Active work changes state only after its native process acknowledges the stop. */
+    fun pauseTask(id: String): Boolean {
+        var accepted = false
+        mutate { records -> records.map { record ->
+            if (record.task.id != id || record.deleteRequested || record.task.cancelRequested ||
+                record.task.status !in setOf(DownloadStatus.QUEUED, DownloadStatus.PAUSED,
+                    DownloadStatus.EXTRACTING, DownloadStatus.DOWNLOADING)) record else {
+                accepted = true
+                record.copy(reuseResolvedRequest = true, task = record.task.copy(
+                    status = if (record.task.status.isActive) record.task.status else DownloadStatus.PAUSED,
+                    interruption = ItemInterruption.MANUAL_PAUSE.takeIf { record.task.status.isActive },
+                ))
+            }
+        } }
+        return accepted
+    }
+
+    fun resumeTask(id: String): Boolean {
+        var resumed = false
+        mutate { records -> records.map { record ->
+            if (record.task.id != id || record.deleteRequested || record.task.cancelRequested ||
+                record.task.status != DownloadStatus.PAUSED) record else {
+                resumed = true
+                record.copy(reuseResolvedRequest = true, task = record.task.copy(
+                    status = DownloadStatus.QUEUED, interruption = null,
+                ))
+            }
+        } }
+        return resumed
+    }
+
+    /** Prioritize one item atomically; the running item retains its claim until native exit. */
+    fun downloadNow(id: String): DownloadNowResult {
+        var result = DownloadNowResult.REJECTED
+        mutate { records ->
+            val target = records.firstOrNull { it.task.id == id && !it.deleteRequested && !it.task.cancelRequested }
+                ?: return@mutate records
+            if (target.task.status.isActive) {
+                result = DownloadNowResult.READY
+                return@mutate records
+            }
+            if (target.task.status !in setOf(DownloadStatus.QUEUED, DownloadStatus.PAUSED)) return@mutate records
+            val active = records.firstOrNull { it.task.status.isActive }
+            result = when (active?.task?.status) {
+                null -> DownloadNowResult.READY
+                DownloadStatus.PROCESSING -> DownloadNowResult.AFTER_PROCESSING
+                else -> DownloadNowResult.PREEMPTING
+            }
+            val pending = records.filter { !it.task.status.isTerminal && !it.deleteRequested }
+                .sortedBy { it.task.queuePosition }
+            val order = listOfNotNull(target, active?.takeIf { !it.deleteRequested }) +
+                pending.filter { it.task.id != id && it.task.id != active?.task?.id }
+            // Fresh ordinals avoid collisions with SQLite's immediate UNIQUE constraint.
+            val start = (records.maxOfOrNull { it.task.queuePosition } ?: 0L) + 1
+            val positions = order.mapIndexed { index, record -> record.task.id to start + index }.toMap()
+            records.map { record ->
+                val position = positions[record.task.id] ?: return@map record
+                when (record.task.id) {
+                    id -> record.copy(reuseResolvedRequest = true, task = record.task.copy(
+                        queuePosition = position, status = DownloadStatus.QUEUED, interruption = null))
+                    active?.task?.id -> record.copy(
+                        reuseResolvedRequest = true,
+                        task = record.task.copy(queuePosition = position,
+                            interruption = if (record.task.status == DownloadStatus.PROCESSING || record.task.cancelRequested)
+                                record.task.interruption else record.task.interruption ?: ItemInterruption.PRIORITY_REQUEUE),
+                    )
+                    else -> record.copy(task = record.task.copy(queuePosition = position))
+                }
+            }.sortedBy { it.task.queuePosition }
+        }
+        return result
+    }
 
     /** Record metadata never changes an already selected output destination or existing public file. */
     fun editMetadata(id: String, metadata: EpisodeMetadata): Boolean {
@@ -141,6 +225,7 @@ class DownloadQueue(
         it.copy(task = it.task.copy(
             status = if (progress.phase == DownloadPhase.DOWNLOADING) DownloadStatus.DOWNLOADING else DownloadStatus.PROCESSING,
             progress = progress.fraction, progressDetail = progress.detail,
+            canResume = progress.canResume ?: it.task.canResume,
         ))
     }
 
@@ -168,7 +253,8 @@ class DownloadQueue(
         mutate { records ->
             val stronger = records.any { it.task.queuePause?.kind in setOf(QueuePauseKind.SYSTEM, QueuePauseKind.STORAGE) }
             records.map {
-                if (it.task.id != claim.id || it.attempt != claim.attempt || !it.task.status.isActive || it.task.cancelRequested) it
+                if (it.task.id != claim.id || it.attempt != claim.attempt || !it.task.status.isActive || it.task.cancelRequested ||
+                    it.task.interruption != null || it.deleteRequested) it
                 else {
                     parked = true
                     it.copy(task = it.task.copy(status = DownloadStatus.QUEUED,
@@ -225,11 +311,26 @@ class DownloadQueue(
             if (record.task.id != claim.id || record.attempt != claim.attempt || !record.task.status.isActive) record
             else if (record.deleteRequested) {
                 delete = true
-                record.copy(task = record.task.copy(status = DownloadStatus.CANCELED, cancelRequested = false))
+                record.copy(task = record.task.copy(status = DownloadStatus.CANCELED, cancelRequested = false, interruption = null))
             }
-            else record.copy(task = record.task.copy(
-                status = if (record.task.cancelRequested) DownloadStatus.CANCELED else if (interrupted) DownloadStatus.QUEUED else DownloadStatus.FAILED,
-                cancelRequested = false, progressDetail = if (interrupted) record.task.queuePause?.message ?: "等待恢復下載" else null))
+            else {
+                val intent = record.task.interruption
+                record.copy(
+                    reuseResolvedRequest = record.reuseResolvedRequest || intent != null,
+                    task = record.task.copy(
+                        status = when {
+                            record.task.cancelRequested -> DownloadStatus.CANCELED
+                            intent == ItemInterruption.MANUAL_PAUSE -> DownloadStatus.PAUSED
+                            intent == ItemInterruption.PRIORITY_REQUEUE -> DownloadStatus.QUEUED
+                            interrupted -> DownloadStatus.QUEUED
+                            else -> DownloadStatus.FAILED
+                        },
+                        cancelRequested = false, interruption = null,
+                        progressDetail = if (intent != null) record.task.progressDetail
+                            else if (interrupted) record.task.queuePause?.message ?: "等待恢復下載" else null,
+                    ),
+                )
+            }
         } }
         if (delete) finishDeletion(claim.id)
     }
@@ -247,8 +348,9 @@ class DownloadQueue(
                 retried++
                 // Invalidate before any worker can claim the manual retry with preferResolved.
                 it.copy(resolvedRequest = if (it.spec is QueuedSpec.Page) null else it.resolvedRequest,
+                    reuseResolvedRequest = false,
                     task = it.task.copy(status = DownloadStatus.QUEUED, progress = -1f, errorMessage = null,
-                    progressDetail = null, cancelRequested = false, queuePause = null))
+                    progressDetail = null, cancelRequested = false, queuePause = null, interruption = null))
             }
         } }
         return retried
@@ -281,7 +383,8 @@ class DownloadQueue(
         mutate { records -> records.filterNot { it.task.id == id && it.deleteRequested && !it.task.status.isActive } }
     }
     private fun update(claim: DownloadClaim, change: (QueuedDownload) -> QueuedDownload) = mutate { records -> records.map {
-        if (it.task.id == claim.id && it.attempt == claim.attempt && it.task.status.isActive && !it.task.cancelRequested) change(it) else it
+        if (it.task.id == claim.id && it.attempt == claim.attempt && it.task.status.isActive && !it.task.cancelRequested &&
+            it.task.interruption == null && !it.deleteRequested) change(it) else it
     } }
     private fun mutate(change: (List<QueuedDownload>) -> List<QueuedDownload>) = synchronized(lock) {
         _tasks.value = store.transact { transferDeletedPause(change(it)) }

@@ -620,6 +620,232 @@ class DownloadQueueTest {
         assertEquals(request, fixture.diskRecords().single().resolvedRequest)
     }
 
+    @Test fun queuedPauseSurvivesRestartAndOnlyExplicitResumeMakesItClaimable() {
+        val fixture = fixture()
+        val ids = fixture.queue.submitRequests(List(2) { genericRequest() })
+        val partial = fixture.partialFile(ids.first())
+        assertTrue(fixture.queue.pauseTask(ids.first()))
+        assertTrue(fixture.queue.pauseTask(ids.first()))
+        val reopened = fixture.reopen()
+        assertEquals(DownloadStatus.PAUSED, reopened.get(ids.first())?.status)
+        assertEquals(ids.last(), reopened.claimNext()?.id)
+        assertTrue(reopened.resumeTask(ids.first()))
+        assertFalse(reopened.resumeTask(ids.first()))
+        assertEquals(DownloadStatus.QUEUED, reopened.get(ids.first())?.status)
+        assertEquals("resumable bytes", partial.readText())
+    }
+
+    @Test fun activePauseWaitsForNativeExitRejectsLateProgressAndResumesTheCachedSource() {
+        for (recreate in listOf(false, true)) {
+            val fixture = fixture()
+            val page = episode(1)
+            val id = fixture.queue.submitPages(listOf(page), FormatSelection.BestVideo).single()
+            val claim = assertNotNull(fixture.queue.claimNext())
+            val request = genericRequest()
+            fixture.queue.resolved(claim, request)
+            fixture.queue.setProgress(claim, DownloadProgress(DownloadPhase.DOWNLOADING, .4f, "partial", canResume = true))
+            fixture.queue.setProgress(claim, DownloadProgress(DownloadPhase.DOWNLOADING, .45f, "partial"))
+            val partial = fixture.partialFile(id)
+            assertTrue(fixture.queue.pauseTask(id))
+            assertTrue(fixture.queue.pauseTask(id))
+            assertEquals(DownloadStatus.DOWNLOADING, fixture.queue.get(id)?.status)
+            assertEquals(ItemInterruption.MANUAL_PAUSE, fixture.queue.get(id)?.interruption)
+            val stopped = fixture.diskRecords()
+            fixture.queue.setProgress(claim, DownloadProgress(DownloadPhase.PROCESSING, 1f))
+            fixture.queue.processing(claim)
+            fixture.queue.resolved(claim, genericRequest())
+            assertFalse(fixture.queue.parkNetwork(claim))
+            assertFalse(fixture.queue.complete(claim, "content://late", "video/mp4"))
+            assertEquals(stopped, fixture.diskRecords())
+            assertNull(fixture.queue.claimNext())
+            val queue = if (recreate) fixture.reopen() else fixture.queue.also { it.acknowledgeStop(claim) }
+            assertEquals(DownloadStatus.PAUSED, queue.get(id)?.status)
+            assertEquals(.45f, queue.get(id)?.progress)
+            assertEquals(true, queue.get(id)?.canResume)
+            assertNull(queue.get(id)?.interruption)
+            assertTrue(queue.resumeTask(id))
+            val resumed = assertNotNull(queue.claimNext(preferResolved = false))
+            assertEquals(id, resumed.id)
+            assertTrue(resumed.attempt > claim.attempt)
+            assertEquals(request, resumed.resolvedRequest)
+            queue.setProgress(claim, .99f)
+            assertEquals(.45f, queue.get(id)?.progress)
+            assertEquals("resumable bytes", partial.readText())
+        }
+    }
+
+    @Test fun processDeathAfterResumedClaimStillReusesTheOriginalTemporarySource() {
+        val fixture = fixture()
+        val page = episode(1)
+        val id = fixture.queue.submitPages(listOf(page), FormatSelection.BestVideo).single()
+        val original = assertNotNull(fixture.queue.claimNext())
+        val request = genericRequest()
+        fixture.queue.resolved(original, request)
+        fixture.queue.setProgress(original, .4f)
+        val partial = fixture.partialFile(id)
+        assertTrue(fixture.queue.pauseTask(id))
+        fixture.queue.acknowledgeStop(original)
+        assertTrue(fixture.queue.resumeTask(id))
+        val resumed = assertNotNull(fixture.queue.claimNext(preferResolved = false))
+        assertEquals(request, resumed.resolvedRequest)
+        assertFalse(fixture.diskRecords().single().reuseResolvedRequest)
+
+        val recreated = fixture.reopen()
+        val recovered = assertNotNull(recreated.claimNext(preferResolved = false))
+        assertEquals(id, recovered.id)
+        assertTrue(recovered.attempt > resumed.attempt)
+        assertEquals(request, recovered.resolvedRequest)
+        assertEquals(fixture.queue.workDirectory(id), recreated.workDirectory(recovered.id))
+        assertEquals("resumable bytes", partial.readText())
+    }
+
+    @Test fun downloadNowAtomicallyPlacesTargetThenInterruptedActiveThenTheStableRemainder() {
+        for (recreate in listOf(false, true)) {
+            val fixture = fixture()
+            val ids = fixture.queue.submitRequests(List(5) { genericRequest() })
+            val history = assertNotNull(fixture.queue.claimNext())
+            fixture.queue.complete(history, "content://history", "video/mp4")
+            val completed = fixture.diskRecords().first()
+            val active = assertNotNull(fixture.queue.claimNext())
+            val request = genericRequest()
+            fixture.queue.resolved(active, request)
+            fixture.queue.setProgress(active, .3f)
+            val partial = fixture.partialFile(active.id)
+            assertTrue(fixture.queue.pauseTask(ids[3]))
+            val transactions = fixture.store.transactionCount
+            assertEquals(DownloadNowResult.PREEMPTING, fixture.queue.downloadNow(ids[3]))
+            assertEquals(transactions + 1, fixture.store.transactionCount)
+            val order = listOf(ids[3], ids[1], ids[2], ids[4])
+            assertEquals(order, fixture.queue.tasks.value.filterNot { it.status.isTerminal }.map { it.id })
+            assertEquals(completed, fixture.diskRecords().first())
+            assertEquals(DownloadStatus.QUEUED, fixture.queue.get(ids[3])?.status)
+            assertEquals(ItemInterruption.PRIORITY_REQUEUE, fixture.queue.get(active.id)?.interruption)
+            assertEquals(DownloadStatus.DOWNLOADING, fixture.queue.get(active.id)?.status)
+            assertNull(fixture.queue.claimNext())
+            assertEquals(DownloadNowResult.PREEMPTING, fixture.queue.downloadNow(ids[3]))
+            val queue = if (recreate) fixture.reopen() else fixture.queue.also { it.acknowledgeStop(active) }
+            assertEquals(order, queue.tasks.value.filterNot { it.status.isTerminal }.map { it.id })
+            assertEquals(.3f, queue.get(active.id)?.progress)
+            val chosen = assertNotNull(queue.claimNext())
+            assertEquals(ids[3], chosen.id)
+            queue.complete(chosen, "content://chosen", "video/mp4")
+            val resumed = assertNotNull(queue.claimNext(preferResolved = false))
+            assertEquals(active.id, resumed.id)
+            assertEquals(request, resumed.resolvedRequest)
+            assertTrue(resumed.attempt > active.attempt)
+            assertEquals("resumable bytes", partial.readText())
+            assertEquals(ids.size, queue.tasks.value.map { it.id }.distinct().size)
+        }
+    }
+
+    @Test fun processingRejectsPauseAndFinishesBeforeTheDownloadNowTarget() {
+        val fixture = fixture()
+        val ids = fixture.queue.submitRequests(List(3) { genericRequest() })
+        val active = assertNotNull(fixture.queue.claimNext())
+        fixture.queue.processing(active)
+        assertFalse(fixture.queue.pauseTask(active.id))
+        assertEquals(DownloadNowResult.READY, fixture.queue.downloadNow(active.id))
+        assertEquals(DownloadNowResult.AFTER_PROCESSING, fixture.queue.downloadNow(ids.last()))
+        assertNull(fixture.queue.get(active.id)?.interruption)
+        assertNull(fixture.queue.claimNext())
+        assertTrue(fixture.queue.complete(active, "content://saved", "video/mp4"))
+        assertEquals(ids.last(), fixture.queue.claimNext()?.id)
+    }
+
+    @Test fun downloadNowResumesOnlyTheSelectedPausedTaskAndPreservesGlobalGates() {
+        for (kind in listOf(QueuePauseKind.STORAGE, QueuePauseKind.SYSTEM)) {
+            val fixture = fixture()
+            val ids = fixture.queue.submitRequests(List(3) { genericRequest() })
+            ids.take(2).forEach { assertTrue(fixture.queue.pauseTask(it)) }
+            fixture.queue.pause(QueuePause(kind, "explicit resume required"), ids.last())
+            assertEquals(DownloadNowResult.READY, fixture.queue.downloadNow(ids[1]))
+            assertEquals(DownloadStatus.PAUSED, fixture.queue.get(ids.first())?.status)
+            assertEquals(DownloadStatus.QUEUED, fixture.queue.get(ids[1])?.status)
+            assertEquals(kind, fixture.queue.pauseReason()?.kind)
+            assertNull(fixture.queue.claimNext())
+            assertTrue(fixture.queue.resumeTask(ids.first()))
+            assertEquals(kind, fixture.queue.pauseReason()?.kind)
+        }
+    }
+
+    @Test fun cancelAndDeleteWinOverPendingPauseOrPriorityOnAcknowledgementAndRestart() {
+        for (intent in ItemInterruption.entries) for (delete in listOf(false, true)) for (recreate in listOf(false, true)) {
+            val fixture = fixture()
+            val ids = fixture.queue.submitRequests(List(2) { genericRequest() })
+            val active = assertNotNull(fixture.queue.claimNext())
+            val partial = fixture.partialFile(active.id)
+            if (intent == ItemInterruption.MANUAL_PAUSE) fixture.queue.pauseTask(active.id)
+            else fixture.queue.downloadNow(ids.last())
+            if (delete) fixture.queue.remove(active.id) else fixture.queue.cancel(active.id)
+            assertFalse(fixture.queue.pauseTask(active.id))
+            val queue = if (recreate) fixture.reopen() else fixture.queue.also { it.acknowledgeStop(active, interrupted = true) }
+            if (delete) {
+                assertNull(queue.get(active.id))
+                assertFalse(partial.exists())
+            } else {
+                assertEquals(DownloadStatus.CANCELED, queue.get(active.id)?.status)
+                assertNull(queue.get(active.id)?.interruption)
+                assertEquals("resumable bytes", partial.readText())
+            }
+            assertEquals(ids.last(), queue.claimNext()?.id)
+        }
+    }
+
+    @Test fun manualPauseTakesPrecedenceOverPriorityRequeue() {
+        for (pauseFirst in listOf(false, true)) {
+            val fixture = fixture()
+            val ids = fixture.queue.submitRequests(List(2) { genericRequest() })
+            val active = assertNotNull(fixture.queue.claimNext())
+            if (pauseFirst) fixture.queue.pauseTask(active.id)
+            fixture.queue.downloadNow(ids.last())
+            if (!pauseFirst) fixture.queue.pauseTask(active.id)
+            fixture.queue.acknowledgeStop(active, interrupted = true)
+            assertEquals(DownloadStatus.PAUSED, fixture.queue.get(active.id)?.status)
+            assertEquals(ids.last(), fixture.queue.claimNext()?.id)
+        }
+    }
+
+    @Test fun rejectedAndFailedItemCommandsCannotPartiallyChangeTheQueue() {
+        val fixture = fixture()
+        val ids = fixture.queue.submitRequests(List(2) { genericRequest() })
+        assertFalse(fixture.queue.pauseTask("missing"))
+        assertFalse(fixture.queue.resumeTask("missing"))
+        assertEquals(DownloadNowResult.REJECTED, fixture.queue.downloadNow("missing"))
+        val active = assertNotNull(fixture.queue.claimNext())
+        val before = fixture.diskRecords()
+        for (readFailure in listOf(false, true)) for (command in listOf<() -> Any>(
+            { fixture.queue.pauseTask(active.id) }, { fixture.queue.downloadNow(ids.last()) },
+        )) {
+            if (readFailure) fixture.store.failNextRead = true else fixture.store.failNextCommit = true
+            assertFailsWith<CommitFailure> { command() }
+            assertEquals(before, fixture.diskRecords())
+            assertEquals(before.map { it.task }, fixture.queue.tasks.value)
+        }
+        fixture.queue.pauseTask(active.id)
+        fixture.queue.acknowledgeStop(active)
+        val paused = fixture.diskRecords()
+        fixture.store.failNextCommit = true
+        assertFailsWith<CommitFailure> { fixture.queue.resumeTask(active.id) }
+        assertEquals(paused, fixture.diskRecords())
+        assertEquals(paused.map { it.task }, fixture.queue.tasks.value)
+        fixture.queue.cancel(active.id)
+        assertFalse(fixture.queue.pauseTask(active.id))
+        assertFalse(fixture.queue.resumeTask(active.id))
+        assertEquals(DownloadNowResult.REJECTED, fixture.queue.downloadNow(active.id))
+    }
+
+    @Test fun oldSerializedQueuePayloadDecodesWithNoItemInterruptionOrResumeFlag() {
+        val fixture = fixture()
+        fixture.queue.submit(genericRequest())
+        val old = fixture.file.readText().replace(",\"reuseResolvedRequest\":false", "")
+            .replace(",\"interruption\":null", "").replace(",\"canResume\":null", "")
+        fixture.file.writeText(old)
+        val record = fixture.diskRecords().single()
+        assertFalse(record.reuseResolvedRequest)
+        assertNull(record.task.interruption)
+        assertNull(record.task.canResume)
+    }
+
     private fun episode(number: Int) = EpisodePage(
         playbackUrl = "https://play.8maple.st/play/OD4C-2-$number.html",
         kind = SourceKind.EIGHT_MAPLE,
@@ -690,12 +916,18 @@ class DownloadQueueTest {
     private class SerializedFileStore(private val file: File) : DownloadQueueStore {
         private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
         var failNextCommit = false
+        var failNextRead = false
         var failOnTransaction: Int? = null
         var transactionCount = 0
             private set
 
-        @Synchronized override fun read(): List<QueuedDownload> =
-            if (file.exists()) json.decodeFromString(file.readText()) else emptyList()
+        @Synchronized override fun read(): List<QueuedDownload> {
+            if (failNextRead) {
+                failNextRead = false
+                throw CommitFailure()
+            }
+            return if (file.exists()) json.decodeFromString(file.readText()) else emptyList()
+        }
 
         @Synchronized override fun transact(change: (List<QueuedDownload>) -> List<QueuedDownload>): List<QueuedDownload> {
             transactionCount++

@@ -47,6 +47,24 @@ class DownloadRunner(
         commands.trySend(Command.Wake(owner, startId, userInitiated, resumeAll))
     }
 
+    suspend fun pauseTask(id: String): Boolean {
+        val reply = CompletableDeferred<Boolean>()
+        commands.send(Command.PauseTask(id, reply))
+        return reply.await()
+    }
+
+    suspend fun resumeTask(id: String): Boolean {
+        val reply = CompletableDeferred<Boolean>()
+        commands.send(Command.ResumeTask(id, reply))
+        return reply.await()
+    }
+
+    suspend fun downloadNow(id: String): DownloadNowResult {
+        val reply = CompletableDeferred<DownloadNowResult>()
+        commands.send(Command.DownloadNow(id, reply))
+        return reply.await()
+    }
+
     fun stop(owner: String, reason: QueuePause = QueuePause(QueuePauseKind.SYSTEM, "下載已暫停，開啟 App 後可繼續排程")) {
         // A timeout must close the claim gate immediately, even if Finished is already queued.
         pendingStops.add(owner)
@@ -131,8 +149,33 @@ class DownloadRunner(
             attempt.job.start()
         }
 
+        fun <T> changeItem(id: String, reply: CompletableDeferred<T>, rejected: T, change: () -> T) {
+            try {
+                val result = persisted(change)
+                running?.takeIf { queue.get(it.claim.id)?.interruption != null }?.let {
+                    it.stopping = true
+                    it.interrupted = true
+                    it.job.cancel(CancellationException("Download interrupted by user"))
+                }
+                changed(id)
+                // Starting idle work still requires a live foreground/background owner wake.
+                // An interrupted owner's Finished command pumps only after native cleanup.
+                reply.complete(result)
+            } catch (error: PersistenceFailure) {
+                persistenceBlocked = true
+                park(persistencePause(error), id)
+                running?.let { it.stopping = true; it.interrupted = true; it.job.cancel() }
+                reply.complete(rejected)
+            }
+        }
+
         for (command in commands) {
             when (command) {
+                is Command.PauseTask -> changeItem(command.id, command.reply, false) { queue.pauseTask(command.id) }
+                is Command.ResumeTask -> changeItem(command.id, command.reply, false) { queue.resumeTask(command.id) }
+                is Command.DownloadNow -> changeItem(command.id, command.reply, DownloadNowResult.REJECTED) {
+                    queue.downloadNow(command.id)
+                }
                 is Command.Wake -> {
                     startId = if (owner == command.owner) maxOf(startId, command.startId) else command.startId
                     owner = command.owner
@@ -252,8 +295,9 @@ class DownloadRunner(
             coroutineScope {
                 val attemptContext = currentCoroutineContext()
                 val cancellation = launch {
-                    queue.tasks.first { tasks -> tasks.any { it.id == claim.id && it.cancelRequested } }
-                    attemptContext.cancel(CancellationException("Download canceled by user"))
+                    queue.tasks.first { tasks -> tasks.any { it.id == claim.id &&
+                        (it.cancelRequested || it.interruption != null) } }
+                    attemptContext.cancel(CancellationException("Download interrupted by user"))
                 }
                 try {
                     changed(claim.id)
@@ -274,7 +318,15 @@ class DownloadRunner(
             attempt.pause = persistencePause(error)
         } catch (error: Exception) {
             try {
-                if (DownloadFailurePolicy.isTransientNetworkFailure(error)) {
+                val connectionFailure = DownloadFailurePolicy.isTransientNetworkFailure(error)
+                if (connectionFailure && networkAvailable.value) {
+                    // A socket can fail just before ConnectivityManager reports a lost network.
+                    // Observe one bounded callback window, then use the current state.
+                    withTimeoutOrNull(500) { networkAvailable.first { !it } }
+                }
+                currentCoroutineContext().ensureActive()
+                checkItemInterruption(claim)
+                if (connectionFailure && !networkAvailable.value) {
                     if (persisted { queue.parkNetwork(claim) }) {
                         attempt.pause = DownloadFailurePolicy.networkPause
                         changed(claim.id)
@@ -284,7 +336,7 @@ class DownloadRunner(
                         attempt.pause = it
                         persisted { queue.pause(it, claim.id) }
                     }
-                    persisted { queue.fail(claim, DownloadFailurePolicy.message(error)) }
+                    persisted { queue.fail(claim, DownloadFailurePolicy.sourceFailureMessage(error)) }
                     queue.get(claim.id)?.takeIf { it.status == DownloadStatus.FAILED }
                         ?.let { task -> notifySuspending { listener.onFailed(task, error) } }
                 }
@@ -313,6 +365,7 @@ class DownloadRunner(
         ensureAttemptActive(claim, requiresNetwork = false)
         downloader.recover(claim.id) { progress ->
             persisted { queue.setProgress(claim, progress) }
+            checkItemInterruption(claim)
             changed(claim.id)
         }.getOrThrow()?.let { return it }
         repeat(2) { refresh ->
@@ -331,6 +384,8 @@ class DownloadRunner(
                 return downloader.download(request, claim.id) { progress ->
                     progress.canResume?.let { attempt.canResume = it }
                     persisted { queue.setProgress(claim, progress) }
+                    // A pause committed before PROCESSING must stop the pipeline before publish.
+                    checkItemInterruption(claim)
                     changed(claim.id)
                 }.getOrThrow()
             } catch (cancelled: CancellationException) {
@@ -346,8 +401,15 @@ class DownloadRunner(
 
     private suspend fun ensureAttemptActive(claim: DownloadClaim, requiresNetwork: Boolean = true) {
         currentCoroutineContext().ensureActive()
-        if (queue.get(claim.id)?.cancelRequested == true) throw CancellationException("Download canceled by user")
+        checkItemInterruption(claim)
         if (requiresNetwork && !networkAvailable.value) throw UnknownHostException("Network disconnected")
+    }
+
+    private fun checkItemInterruption(claim: DownloadClaim) {
+        val task = queue.get(claim.id)
+        if (task == null || task.cancelRequested || task.interruption != null) {
+            throw CancellationException("Download interrupted by user")
+        }
     }
 
     private inline fun notify(block: () -> Unit) {
@@ -378,6 +440,9 @@ class DownloadRunner(
         val stopReplies = mutableListOf<CompletableDeferred<Unit>>()
     }
     private sealed interface Command {
+        data class PauseTask(val id: String, val reply: CompletableDeferred<Boolean>) : Command
+        data class ResumeTask(val id: String, val reply: CompletableDeferred<Boolean>) : Command
+        data class DownloadNow(val id: String, val reply: CompletableDeferred<DownloadNowResult>) : Command
         data class Wake(val owner: String, val startId: Int, val userInitiated: Boolean, val resumeAll: Boolean) : Command
         data class Stop(val owner: String, val reason: QueuePause, val reply: CompletableDeferred<Unit>? = null,
             val windowExpired: Boolean = false) : Command

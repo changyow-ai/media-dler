@@ -34,6 +34,8 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
@@ -88,6 +90,7 @@ import com.changyow.mediadler.core.model.SourceKind
 import com.changyow.mediadler.core.model.isActive
 import com.changyow.mediadler.core.model.isTerminal
 import com.changyow.mediadler.download.DownloadService
+import com.changyow.mediadler.download.DownloadNowResult
 import com.changyow.mediadler.ui.common.RequestNotificationPermission
 import com.changyow.mediadler.ui.common.ScreenHeader
 import java.io.File
@@ -119,7 +122,45 @@ fun HomeScreen() {
     var filter by rememberSaveable { mutableStateOf(DownloadFilter.ALL) }
     var editingId by rememberSaveable { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
-    val pending = tasks.filterNot { it.status.isTerminal }
+    val pending = scheduledHomeTasks(tasks)
+    var pendingCommands by remember { mutableStateOf<Map<String, HomeTaskCommand>>(emptyMap()) }
+
+    fun submitTaskCommand(task: DownloadTask, command: HomeTaskCommand) {
+        if (task.id in pendingCommands) return
+        pendingCommands = pendingCommands + (task.id to command)
+        scope.launch {
+            try {
+                when (command) {
+                    HomeTaskCommand.PAUSE -> {
+                        if (!container.downloadRunner.pauseTask(task.id)) {
+                            Toast.makeText(context, "目前無法暫停此項目", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    HomeTaskCommand.RESUME -> {
+                        if (container.downloadRunner.resumeTask(task.id)) DownloadService.start(context)
+                        else Toast.makeText(context, "目前無法繼續此項目", Toast.LENGTH_SHORT).show()
+                    }
+                    HomeTaskCommand.DOWNLOAD_NOW -> {
+                        val result = container.downloadRunner.downloadNow(task.id)
+                        if (result != DownloadNowResult.REJECTED) DownloadService.start(context)
+                        val message = when (result) {
+                            DownloadNowResult.READY -> "已安排立即下載"
+                            DownloadNowResult.PREEMPTING -> "正在切換下載"
+                            DownloadNowResult.AFTER_PROCESSING -> "目前檔案處理／儲存完成後開始下載"
+                            DownloadNowResult.REJECTED -> "目前無法立即下載此項目"
+                        }
+                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                Toast.makeText(context, "操作未完成，請重試", Toast.LENGTH_SHORT).show()
+            } finally {
+                pendingCommands = pendingCommands - task.id
+            }
+        }
+    }
     val visibleTasks = tasks.filter(filter::includes)
     val pause = tasks.firstNotNullOfOrNull { it.queuePause }
 
@@ -199,6 +240,10 @@ fun HomeScreen() {
                         onOpen = { openFile(context, task) },
                         onRetry = { if (viewModel.retry(task.id)) DownloadService.start(context) },
                         onCancel = { viewModel.cancel(task.id) },
+                        onPause = { submitTaskCommand(task, HomeTaskCommand.PAUSE) },
+                        onResume = { submitTaskCommand(task, HomeTaskCommand.RESUME) },
+                        onDownloadNow = { submitTaskCommand(task, HomeTaskCommand.DOWNLOAD_NOW) },
+                        pendingCommand = pendingCommands[task.id],
                         onRemove = { viewModel.remove(task.id) },
                         onEdit = { editingId = task.id },
                         queueNumber = pending.indexOfFirst { it.id == task.id }.takeIf { it >= 0 }?.plus(1),
@@ -270,9 +315,12 @@ private fun EmptyState(isFirstDownload: Boolean) {
 
 @Composable
 private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit, onCancel: () -> Unit,
+    onPause: () -> Unit, onResume: () -> Unit, onDownloadNow: () -> Unit, pendingCommand: HomeTaskCommand?,
     onRemove: () -> Unit, onEdit: () -> Unit, queueNumber: Int?) {
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
+    var showError by remember(task.id) { mutableStateOf(false) }
+    val busy = pendingCommand != null || task.interruption != null
     val failed = task.status == DownloadStatus.FAILED
     val active = !task.status.isTerminal
     val statusColor = when {
@@ -324,6 +372,15 @@ private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit,
                         Icon(Icons.Filled.MoreVert, contentDescription = "下載項目選單")
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        if (task.status == DownloadStatus.QUEUED || task.status == DownloadStatus.PAUSED) {
+                            DropdownMenuItem(text = { Text("立即下載") }, enabled = !busy && canDownloadTaskNow(task),
+                                leadingIcon = { Icon(Icons.Filled.Download, contentDescription = null) },
+                                onClick = { showMenu = false; onDownloadNow() })
+                        }
+                        if (failed) {
+                            DropdownMenuItem(text = { Text("查看完整失敗原因") },
+                                onClick = { showMenu = false; showError = true })
+                        }
                         DropdownMenuItem(text = { Text("複製原始連結") }, onClick = {
                             showMenu = false
                             context.getSystemService<ClipboardManager>()?.setPrimaryClip(ClipData.newPlainText("原始連結", task.sourceUrl))
@@ -334,18 +391,18 @@ private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit,
                             runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(task.sourceUrl))) }
                                 .onFailure { Toast.makeText(context, "無法開啟原始網頁", Toast.LENGTH_SHORT).show() }
                         })
-                        DropdownMenuItem(text = { Text("手動選擇格式") }, onClick = {
+                        DropdownMenuItem(text = { Text("手動選擇格式") }, enabled = !busy, onClick = {
                             showMenu = false
                             context.startActivity(Intent(context, ShareReceiverActivity::class.java)
                                 .putExtra(Intent.EXTRA_TEXT, task.pageUrl)
                                 .putExtra(ShareReceiverActivity.EXTRA_MANUAL_PICKER, true))
                         })
-                        DropdownMenuItem(text = { Text("轉文字") }, enabled = transcriptSourceFor(task) != null, onClick = {
+                        DropdownMenuItem(text = { Text("轉文字") }, enabled = !busy && transcriptSourceFor(task) != null, onClick = {
                             showMenu = false
                             transcribeTask(context, task)
                         })
                         if (task.sourceKind != SourceKind.GENERAL) {
-                            DropdownMenuItem(text = { Text("修正劇集資料") }, enabled = !task.status.isActive,
+                            DropdownMenuItem(text = { Text("修正劇集資料") }, enabled = !busy && !task.status.isActive,
                                 onClick = { showMenu = false; onEdit() })
                         }
                         if (active) {
@@ -355,6 +412,7 @@ private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit,
                         DropdownMenuItem(
                             text = { Text("移除紀錄") },
                             leadingIcon = { Icon(Icons.Filled.DeleteOutline, contentDescription = null) },
+                            enabled = !busy,
                             onClick = { showMenu = false; onRemove() },
                         )
                     }
@@ -370,17 +428,28 @@ private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit,
                     contentDescription = null, tint = statusColor, modifier = Modifier.size(18.dp),
                 )
                 Column(Modifier.weight(1f)) {
-                    Text(statusText(task, queueNumber), style = MaterialTheme.typography.labelLarge, color = statusColor)
+                    Text(taskStatusText(task, queueNumber, pendingCommand), style = MaterialTheme.typography.labelLarge, color = statusColor)
                     if (failed) {
                         Text(task.errorMessage ?: "未知錯誤", style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    } else if (task.progressDetail != null && active) {
-                        Text(task.progressDetail.orEmpty(), style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        taskProgressDetail(task)?.let { detail ->
+                            Text(detail, style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
-                if (task.status == DownloadStatus.COMPLETED) {
+                if (task.status == DownloadStatus.PAUSED) {
+                    TextButton(onClick = onResume, enabled = !busy && canResumeTask(task)) {
+                        Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Text("繼續下載", modifier = Modifier.padding(start = 4.dp))
+                    }
+                } else if (task.status in setOf(DownloadStatus.QUEUED, DownloadStatus.EXTRACTING, DownloadStatus.DOWNLOADING)) {
+                    IconButton(onClick = onPause, enabled = !busy && canPauseTask(task)) {
+                        Icon(Icons.Filled.Pause, contentDescription = "暫停下載", modifier = Modifier.size(22.dp))
+                    }
+                } else if (task.status == DownloadStatus.COMPLETED) {
                     FilledTonalIconButton(onClick = onOpen) {
                         Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "開啟檔案", modifier = Modifier.size(20.dp))
                     }
@@ -391,8 +460,8 @@ private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit,
                     }
                 }
             }
-            if (active) {
-                if (task.status == DownloadStatus.DOWNLOADING && task.progress in 0f..1f) {
+            if (active && (task.status != DownloadStatus.PAUSED || task.progress in 0f..1f)) {
+                if (task.status in setOf(DownloadStatus.DOWNLOADING, DownloadStatus.PAUSED) && task.progress in 0f..1f) {
                     LinearProgressIndicator(progress = { task.progress }, modifier = Modifier.fillMaxWidth().height(4.dp))
                 } else {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(4.dp))
@@ -400,17 +469,16 @@ private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit,
             }
         }
     }
-}
-
-private fun statusText(task: DownloadTask, queueNumber: Int?): String = if (task.cancelRequested) "正在取消…" else when (task.status) {
-    DownloadStatus.QUEUED -> queueNumber?.let { "排隊中 · 排程第 $it 項" } ?: "排隊中"
-    DownloadStatus.EXTRACTING -> "解析中"
-    DownloadStatus.DOWNLOADING ->
-        if (task.progress in 0f..1f) "下載中 ${(task.progress * 100).toInt()}%" else "下載中"
-    DownloadStatus.PROCESSING -> "處理中"
-    DownloadStatus.COMPLETED -> "已完成"
-    DownloadStatus.FAILED -> "下載失敗"
-    DownloadStatus.CANCELED -> "已取消"
+    if (showError) {
+        AlertDialog(
+            onDismissRequest = { showError = false },
+            title = { Text("下載失敗") },
+            text = {
+                Text(task.errorMessage ?: "未知錯誤", modifier = Modifier.verticalScroll(rememberScrollState()))
+            },
+            confirmButton = { TextButton(onClick = { showError = false }) { Text("關閉") } },
+        )
+    }
 }
 
 private fun sourceMetadata(task: DownloadTask): String? {
@@ -459,7 +527,7 @@ private fun MetadataDialog(task: DownloadTask, onDismiss: () -> Unit,
             }
         },
         confirmButton = {
-            TextButton(enabled = !saving && !task.status.isActive && title.isNotBlank() && validNumber(season) && validNumber(episode),
+            TextButton(enabled = !saving && !task.status.isActive && task.interruption == null && title.isNotBlank() && validNumber(season) && validNumber(episode),
                 modifier = Modifier.heightIn(min = 48.dp), onClick = {
                     saving = true
                     error = null

@@ -392,12 +392,262 @@ class DownloadRunnerTest {
         assertEquals(listOf(first), fixture.listener.stopped)
     }
 
+    @Test fun sourceConnectionFailureWhileOnlineFailsOnlyThatItemAndContinuesTheFifo() = runTest {
+        val fixture = fixture(backgroundScope, networkAvailable = MutableStateFlow(true))
+        val ids = fixture.queue.submitRequests(listOf(request("unavailable-source"), request("working-source")))
+        fixture.runner.wake("service", 1)
+        runCurrent()
+        fixture.downloader.calls.single().fail(IOException("Connection refused by source.example"))
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(DownloadStatus.FAILED, fixture.queue.get(ids.first())?.status)
+        assertNull(fixture.queue.pauseReason())
+        assertEquals(listOf(ids.first()), fixture.listener.failed)
+        assertEquals(ids.last(), fixture.downloader.calls.last().id)
+        assertEquals(DownloadRunner.Phase.RUNNING, fixture.runner.state.value.phase)
+        assertTrue(fixture.queue.get(ids.first())!!.errorMessage!!.contains("此來源目前無法載入"))
+        assertTrue(fixture.queue.get(ids.first())!!.errorMessage!!.contains("Connection refused"))
+    }
+
+    @Test fun delayedOfflineCallbackDuringFailureGraceRetainsTheTaskAndCheckpoint() = runTest {
+        val network = MutableStateFlow(true)
+        val fixture = fixture(backgroundScope, networkAvailable = network)
+        val id = fixture.queue.submit(request("1"))
+        fixture.runner.wake("service", 1)
+        runCurrent()
+        val partial = File(fixture.queue.workDirectory(id), "media.part").apply {
+            parentFile!!.mkdirs()
+            writeText("retained fragments")
+        }
+        fixture.downloader.calls.single().fail(IOException("Connection reset"))
+        runCurrent()
+        advanceTimeBy(200)
+        network.value = false
+        runCurrent()
+
+        assertEquals(DownloadStatus.QUEUED, fixture.queue.get(id)?.status)
+        assertEquals(QueuePauseKind.NETWORK, fixture.queue.pauseReason()?.kind)
+        assertTrue(fixture.listener.failed.isEmpty())
+        assertEquals("retained fragments", partial.readText())
+    }
+
+    @Test fun cancellationDuringOnlineFailureGraceDoesNotBecomeASourceFailure() = runTest {
+        val fixture = fixture(backgroundScope)
+        val id = fixture.queue.submit(request("1"))
+        fixture.runner.wake("service", 1)
+        runCurrent()
+        fixture.downloader.calls.single().fail(IOException("Connection refused"))
+        runCurrent()
+        fixture.queue.cancel(id)
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(DownloadStatus.CANCELED, fixture.queue.get(id)?.status)
+        assertTrue(fixture.listener.failed.isEmpty())
+        assertNull(fixture.queue.pauseReason())
+    }
+
+    @Test fun onlineExtractionFailuresFailEachPageWithoutGlobalPause() = runTest {
+        val fixture = fixture(backgroundScope)
+        val ids = fixture.queue.submitPages(listOf(page(1), page(2)), FormatSelection.BestVideo)
+        fixture.extractor.failure = IOException("Unable to resolve host unavailable.example")
+        fixture.runner.wake("service", 1)
+        runCurrent()
+        advanceTimeBy(500)
+        runCurrent()
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(DownloadStatus.FAILED, fixture.queue.get(ids.first())?.status)
+        assertEquals(DownloadStatus.FAILED, fixture.queue.get(ids.last())?.status)
+        assertNull(fixture.queue.pauseReason())
+        assertEquals(2, fixture.extractor.urls.size)
+    }
+
+    @Test fun manualPauseWaitsForNativeCleanupAndResumeReusesTheSameCheckpoint() = runTest {
+        lateinit var partial: File
+        val cleanup = CompletableDeferred<Unit>()
+        val downloader = FakeDownloader { call, index ->
+            if (index == 0) {
+                partial.parentFile!!.mkdirs()
+                partial.writeText("first HLS fragments")
+                try { awaitCancellation() } finally {
+                    withContext(NonCancellable) { cleanup.complete(Unit); delay(100) }
+                }
+            } else call.result.await()
+        }
+        val fixture = fixture(backgroundScope, downloader)
+        val ids = fixture.queue.submitPages(listOf(page(1), page(2)), FormatSelection.BestVideo)
+        partial = File(fixture.queue.workDirectory(ids.first()), "media.part")
+        fixture.runner.wake("service", 1)
+        runCurrent()
+        val original = downloader.calls.single().request
+        val pause = async { fixture.runner.pauseTask(ids.first()) }
+        runCurrent()
+        assertTrue(pause.await())
+        assertTrue(cleanup.isCompleted)
+        assertEquals(DownloadRunner.Phase.STOPPING, fixture.runner.state.value.phase)
+        assertEquals(1, downloader.calls.size)
+        assertEquals(1, fixture.queue.activeCount())
+
+        advanceTimeBy(100)
+        runCurrent()
+        assertEquals(DownloadStatus.PAUSED, fixture.queue.get(ids.first())?.status)
+        assertEquals(ids.last(), downloader.calls.last().id)
+        assertEquals("first HLS fragments", partial.readText())
+        val resume = async { fixture.runner.resumeTask(ids.first()) }
+        runCurrent()
+        assertTrue(resume.await())
+        downloader.calls.last().succeed()
+        runCurrent()
+        assertEquals(listOf(ids.first(), ids.last(), ids.first()), downloader.calls.map { it.id })
+        assertEquals(original, downloader.calls.last().request)
+        assertEquals(listOf(page(1).playbackUrl, page(2).playbackUrl), fixture.extractor.urls)
+        assertEquals("first HLS fragments", partial.readText())
+        assertEquals(1, downloader.maximumActive)
+        downloader.calls.last().succeed()
+        runCurrent()
+        assertTrue(fixture.queue.tasks.value.all { it.status == DownloadStatus.COMPLETED })
+    }
+
+    @Test fun downloadNowPreemptsAfterNativeCleanupAndReturnsTheOldItemToSecondPlace() = runTest {
+        val cleanup = CompletableDeferred<Unit>()
+        val downloader = FakeDownloader { call, index ->
+            if (index == 0) try { awaitCancellation() } finally {
+                withContext(NonCancellable) { cleanup.complete(Unit); delay(100) }
+            } else call.result.await()
+        }
+        val fixture = fixture(backgroundScope, downloader)
+        val ids = fixture.queue.submitPages(listOf(page(1), page(2), page(3)), FormatSelection.BestVideo)
+        fixture.runner.wake("service", 1)
+        runCurrent()
+        val original = downloader.calls.single().request
+        val now = async { fixture.runner.downloadNow(ids[2]) }
+        runCurrent()
+        assertEquals(DownloadNowResult.PREEMPTING, now.await())
+        assertTrue(cleanup.isCompleted)
+        assertEquals(1, downloader.calls.size)
+        assertEquals(listOf(ids[2], ids[0], ids[1]), fixture.queue.tasks.value.sortedBy { it.queuePosition }.map { it.id })
+        advanceTimeBy(100)
+        runCurrent()
+        assertEquals(ids[2], downloader.calls.last().id)
+        downloader.calls.last().succeed()
+        runCurrent()
+        assertEquals(ids[0], downloader.calls.last().id)
+        assertEquals(original, downloader.calls.last().request)
+        downloader.calls.last().succeed()
+        runCurrent()
+        assertEquals(ids[1], downloader.calls.last().id)
+        assertEquals(listOf(ids[0], ids[2], ids[0], ids[1]), downloader.calls.map { it.id })
+        assertEquals(1, downloader.maximumActive)
+    }
+
+    @Test fun repeatedDownloadNowUsesTheLatestChoiceWithoutStartingOverlappingAttempts() = runTest {
+        var cleanups = 0
+        val downloader = FakeDownloader { call, index ->
+            if (index == 0) try { awaitCancellation() } finally {
+                withContext(NonCancellable) { cleanups++; delay(100) }
+            } else call.result.await()
+        }
+        val fixture = fixture(backgroundScope, downloader)
+        val ids = fixture.queue.submitRequests((1..4).map { request(it.toString()) })
+        fixture.runner.wake("service", 1)
+        runCurrent()
+        val first = async { fixture.runner.downloadNow(ids[2]) }
+        runCurrent()
+        assertEquals(DownloadNowResult.PREEMPTING, first.await())
+        val second = async { fixture.runner.downloadNow(ids[3]) }
+        runCurrent()
+        assertEquals(DownloadNowResult.PREEMPTING, second.await())
+        assertEquals(1, downloader.calls.size)
+        advanceTimeBy(100)
+        runCurrent()
+        assertEquals(ids[3], downloader.calls.last().id)
+        assertEquals(1, cleanups)
+        assertEquals(1, downloader.maximumActive)
+        assertEquals(listOf(ids[3], ids[0], ids[2], ids[1]),
+            fixture.queue.tasks.value.sortedBy { it.queuePosition }.map { it.id })
+    }
+
+    @Test fun pauseCommittedBeforeProcessingPreventsThePipelineFromPublishing() = runTest {
+        lateinit var fixture: Fixture
+        var reachedPublication = false
+        val downloader = FakeDownloader { call, _ ->
+            assertTrue(fixture.queue.pauseTask(call.id))
+            call.progress(DownloadProgress(DownloadPhase.PROCESSING))
+            reachedPublication = true
+            call.result.await()
+        }
+        fixture = fixture(backgroundScope, downloader)
+        val id = fixture.queue.submit(request("1"))
+        fixture.runner.wake("service", 1)
+        runCurrent()
+        assertFalse(reachedPublication)
+        assertEquals(DownloadStatus.PAUSED, fixture.queue.get(id)?.status)
+        assertTrue(fixture.listener.failed.isEmpty())
+    }
+
+    @Test fun processingFinishesBeforeThePrioritizedItemAndCannotBeManuallyPaused() = runTest {
+        val fixture = fixture(backgroundScope)
+        val ids = fixture.queue.submitRequests((1..3).map { request(it.toString()) })
+        fixture.runner.wake("service", 1)
+        runCurrent()
+        fixture.downloader.calls.single().progress(DownloadProgress(DownloadPhase.PROCESSING))
+        val pause = async { fixture.runner.pauseTask(ids.first()) }
+        val now = async { fixture.runner.downloadNow(ids[2]) }
+        runCurrent()
+        assertFalse(pause.await())
+        assertEquals(DownloadNowResult.AFTER_PROCESSING, now.await())
+        assertEquals(1, fixture.downloader.calls.size)
+        assertNull(fixture.queue.get(ids.first())?.interruption)
+        fixture.downloader.calls.single().succeed()
+        runCurrent()
+        assertEquals(ids[2], fixture.downloader.calls.last().id)
+        assertEquals(DownloadStatus.COMPLETED, fixture.queue.get(ids.first())?.status)
+    }
+
+    @Test fun resumeOfAnIdlePausedItemWaitsForANewOwnerWake() = runTest {
+        val fixture = fixture(backgroundScope)
+        val id = fixture.queue.submit(request("1"))
+        fixture.runner.wake("old-service", 1)
+        runCurrent()
+        val pause = async { fixture.runner.pauseTask(id) }
+        runCurrent()
+        assertTrue(pause.await())
+        assertEquals(DownloadStatus.PAUSED, fixture.queue.get(id)?.status)
+        val resume = async { fixture.runner.resumeTask(id) }
+        runCurrent()
+        assertTrue(resume.await())
+        assertEquals(1, fixture.downloader.calls.size)
+        fixture.runner.wake("new-service", 1, userInitiated = true)
+        runCurrent()
+        assertEquals(2, fixture.downloader.calls.size)
+        assertEquals("new-service", fixture.runner.state.value.owner)
+    }
+
+    @Test fun failedPriorityTransactionStopsTheClaimGateWithoutStartingTheNewItem() = runTest {
+        val fixture = fixture(backgroundScope)
+        val ids = fixture.queue.submitRequests(listOf(request("1"), request("2")))
+        fixture.runner.wake("service", 1)
+        runCurrent()
+        fixture.store.failNextWrite = true
+        val now = async { fixture.runner.downloadNow(ids.last()) }
+        runCurrent()
+        assertEquals(DownloadNowResult.REJECTED, now.await())
+        assertEquals(QueuePauseKind.SYSTEM, fixture.queue.pauseReason()?.kind)
+        assertEquals(1, fixture.downloader.calls.size)
+        assertEquals(0, fixture.downloader.active)
+        assertEquals(DownloadRunner.Phase.PAUSED, fixture.runner.state.value.phase)
+    }
+
     @Test fun networkFailureParksTheFifoAndOnlyBackgroundOwnershipResumesIt() = runTest {
         val network = MutableStateFlow(true)
         val fixture = fixture(backgroundScope, networkAvailable = network)
         val ids = fixture.queue.submitRequests(listOf(request("1"), request("2")))
         fixture.runner.wake("service", 1)
         runCurrent()
+        network.value = false
         fixture.downloader.calls.single().fail(IOException("Connection reset"))
         runCurrent()
         assertEquals(DownloadRunner.Phase.PAUSED, fixture.runner.state.value.phase)
@@ -441,10 +691,13 @@ class DownloadRunnerTest {
     }
 
     @Test fun extractionNetworkFailureParksBeforeDownloadingAndRecreatedRunnerResumesSameTask() = runTest {
-        val fixture = fixture(backgroundScope)
+        val network = MutableStateFlow(true)
+        val fixture = fixture(backgroundScope, networkAvailable = network)
         val id = fixture.queue.submitPages(listOf(page(1)), FormatSelection.BestVideo).single()
         fixture.extractor.failure = IOException("Unable to resolve host cdn.example")
         fixture.runner.wake("service", 1)
+        runCurrent()
+        network.value = false
         runCurrent()
         assertEquals(QueuePauseKind.NETWORK, fixture.queue.pauseReason()?.kind)
         assertTrue(fixture.downloader.calls.isEmpty())
@@ -774,14 +1027,17 @@ class DownloadRunnerTest {
     }
 
     @Test fun expiredCachedBackgroundUrlRefreshesOnlyTheSamePageOnce() = runTest {
-        val fixture = fixture(backgroundScope)
+        val network = MutableStateFlow(true)
+        val fixture = fixture(backgroundScope, networkAvailable = network)
         val page = page(1)
         val id = fixture.queue.submitPages(listOf(page), FormatSelection.BestVideo).single()
         fixture.runner.wake("service", 1)
         runCurrent()
         val originalRequest = fixture.downloader.calls.single().request
+        network.value = false
         fixture.downloader.calls.single().fail(IOException("Connection reset"))
         runCurrent()
+        network.value = true
         val window = async { fixture.runner.runBackgroundWindow("worker", 1_000) }
         runCurrent()
         assertEquals(originalRequest, fixture.downloader.calls.last().request)

@@ -2,7 +2,9 @@ package com.changyow.mediadler.core.model
 
 import kotlinx.serialization.Serializable
 
-@Serializable enum class DownloadStatus { QUEUED, EXTRACTING, DOWNLOADING, PROCESSING, COMPLETED, FAILED, CANCELED }
+@Serializable enum class DownloadStatus { QUEUED, PAUSED, EXTRACTING, DOWNLOADING, PROCESSING, COMPLETED, FAILED, CANCELED }
+
+@Serializable enum class ItemInterruption { MANUAL_PAUSE, PRIORITY_REQUEUE }
 
 val DownloadStatus.isActive: Boolean
     get() = this == DownloadStatus.EXTRACTING || this == DownloadStatus.DOWNLOADING || this == DownloadStatus.PROCESSING
@@ -35,6 +37,8 @@ val DownloadStatus.isTerminal: Boolean
     val queuePause: QueuePause? = null,
     val lineId: String? = null,
     val lineName: String? = null,
+    val interruption: ItemInterruption? = null,
+    val canResume: Boolean? = null,
 )
 
 /** How the user wants a [MediaItem] downloaded. */
