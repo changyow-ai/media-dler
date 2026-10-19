@@ -4,6 +4,7 @@
 No media decoding, OCR, network, source edits, automatic skipping, or calibrated
 probability claim. Labels, IDs, paths, exact matches and v1 evidence flags do not
 enter scoring. Missing families score zero without renormalizing other families.
+The positive sum is S + A + capped content C; P remains a diagnostic within C.
 """
 import argparse
 import csv
@@ -14,9 +15,9 @@ import re
 import unicodedata
 from pathlib import Path
 
-POLICY = "weighted-v2.1-development"
+POLICY = "weighted-v3-layout-development"
 SETTINGS = {
-    "version": POLICY, "weights": {"S": 40, "A": 25, "P": 25, "V": 10}, "threshold": 55,
+    "version": POLICY, "weights": {"S": 40, "A": 25, "P": 25}, "threshold": 55,
     "scene_return_max": 20, "scene_cut_max": 5, "scene_temporal_max": 15,
     "scene_seam_floor": 1 / 255, "scene_cut_scale": 4 / 255,
     "scene_contrast_quality_policy": "clamp_min_original_seam_over_cut_scale_multiplies_return_and_temporal",
@@ -25,7 +26,15 @@ SETTINGS = {
     "ocr_expected_frames": 3, "ocr_confidence_power": .5,
     "domain_share": .65, "semantic_share": .35, "outside_domain_novelty_factor": .5,
     "fuzzy_similarity_deadzone": .5, "programme_negative_max": 40,
-    "text_color_discount_max": 3, "max_text_characters": 512, "max_latin_words": 64,
+    "layout_height_scale": .12, "layout_central_rect": [.2, .25, .8, .75],
+    "layout_max": 50, "content_cap": 60, "positive_raw_cap": 125, "overlay_negative_max": 20,
+    "overlay_edge_height": .2, "commercial_semantic_power": 2,
+    "geometry_policy": "finite_nonbool_positive_size_clip_to_unit_image_then_measure",
+    "commercial_union_policy": "integral_of_max_observation_weight_over_rectangle_union",
+    "content_formula": "C=min(60,P+50*sum_distinct_frame_Lt/3)",
+    "overlay_formula": "O=20*sum_distinct_frame(pt*et*(1-Lt))/3",
+    "final_formula": "clamp_0_100(S+A+C-O-programme_negative)",
+    "max_text_characters": 512, "max_latin_words": 64,
     "max_word_characters": 40, "max_chinese_windows_per_term": 128,
     "max_observations_per_frame": 64,
     "missing_cue_policy": "zero_no_renormalization_no_evidence_veto",
@@ -46,8 +55,13 @@ CHINESE = re.compile(r"[\u3400-\u9fff]+")
 
 
 def numeric(value):
-    return (float(value) if isinstance(value, (int, float)) and not isinstance(value, bool)
-            and math.isfinite(value) else None)
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return None
+    try:
+        value = float(value)
+    except OverflowError:
+        return None
+    return value if math.isfinite(value) else None
 
 
 def clamp(value):
@@ -171,13 +185,79 @@ def frame_groups(raw):
 
 
 def observations(items):
-    for item in items[:SETTINGS["max_observations_per_frame"]]:
+    for index, item in enumerate(items[:SETTINGS["max_observations_per_frame"]]):
         if not isinstance(item, dict) or not isinstance(item.get("text"), str):
             continue
         confidence = numeric(item.get("confidence"))
         if confidence is None or not 0 <= confidence <= 1:
             continue
-        yield normalize(item["text"][:SETTINGS["max_text_characters"]]), confidence ** SETTINGS["ocr_confidence_power"]
+        text = normalize(item["text"][:SETTINGS["max_text_characters"]])
+        if not text.strip():
+            continue
+        yield text, confidence ** SETTINGS["ocr_confidence_power"], item.get("box"), index
+
+
+def intersection(left, right):
+    result = (max(left[0], right[0]), max(left[1], right[1]), min(left[2], right[2]), min(left[3], right[3]))
+    return result if result[2] > result[0] and result[3] > result[1] else None
+
+
+def area(rect):
+    return (rect[2] - rect[0]) * (rect[3] - rect[1]) if rect else 0.0
+
+
+def image_box(box):
+    if not isinstance(box, (list, tuple)) or len(box) != 4:
+        return None
+    values = [numeric(v) for v in box]
+    if any(v is None for v in values):
+        return None
+    x, y, width, height = values
+    if width <= 0 or height <= 0 or not math.isfinite(x + width) or not math.isfinite(y + height):
+        return None
+    rect = intersection((x, y, x + width, y + height), (0, 0, 1, 1))
+    return rect if area(rect) > 0 else None
+
+
+def weighted_union(rectangles, region=(0, 0, 1, 1)):
+    """Exact rectangle integral of max weight, so overlaps/duplicates never sum."""
+    clipped = [(intersection(rect, region), weight) for rect, weight in rectangles if weight > 0]
+    clipped = [(rect, weight) for rect, weight in clipped if rect]
+    xs = sorted({x for rect, _ in clipped for x in (rect[0], rect[2])})
+    total = 0.0
+    for left, right in zip(xs, xs[1:]):
+        active = [(rect, weight) for rect, weight in clipped if rect[0] <= left and rect[2] >= right]
+        ys = sorted({y for rect, _ in active for y in (rect[1], rect[3])})
+        for top, bottom in zip(ys, ys[1:]):
+            weight = max((weight for rect, weight in active if rect[1] <= top and rect[3] >= bottom), default=0)
+            total += (right - left) * (bottom - top) * weight
+    return total
+
+
+def frame_layout(observations):
+    commercial, details, missing = [], [], []
+    large = 0.0
+    for text, quality, box, index, domains, promo in observations:
+        rect = image_box(box)
+        if rect is None:
+            missing.append("observation_%s:missing_or_invalid_unit_image_geometry" % index)
+            continue
+        height_quality = clamp((rect[3] - rect[1]) / SETTINGS["layout_height_scale"])
+        overlap = clamp(area(intersection(rect, SETTINGS["layout_central_rect"])) / area(rect))
+        contribution = quality * height_quality * overlap
+        large = max(large, contribution)
+        weight = quality * max(bool(domains), promo["quality"] ** SETTINGS["commercial_semantic_power"])
+        if weight > 0:
+            commercial.append((rect, weight))
+        details.append({"observation_index": index, "normalized_text": text, "effective_box_xyxy": rect,
+                        "confidence_quality": quality, "height_quality": height_quality,
+                        "central_overlap_fraction": overlap, "large_quality": contribution, "commercial_weight": weight})
+    union = weighted_union(commercial)
+    edge = SETTINGS["overlay_edge_height"]
+    edge_union = weighted_union(commercial, (0, 0, 1, edge)) + weighted_union(commercial, (0, 1 - edge, 1, 1))
+    return {"L_t": large, "commercial_weighted_union_area": union,
+            "commercial_edge_weighted_union_area": edge_union, "e_t": clamp(edge_union / union) if union else 0.0,
+            "observations": details, "geometry_available": len(details), "missing_reasons": missing}
 
 
 def text_score(case):
@@ -190,7 +270,7 @@ def text_score(case):
         if not groups:
             missing.append("missing_" + role + "_ocr_context")
         for items in groups.values():
-            for text, quality in observations(items):
+            for text, quality, _, _ in observations(items):
                 for domain in DOMAIN.findall(text):
                     outside[domain] = max(outside.get(domain, 0), quality)
     groups, reasons = frame_groups(raw.get("candidate", {}))
@@ -198,20 +278,27 @@ def text_score(case):
     frames = []
     for time, items in sorted(groups.items()):
         domain_quality, semantic_quality, programme_quality = 0.0, 0.0, 0.0
-        matches = []
-        for text, confidence in observations(items):
+        matches, geometry_observations = [], []
+        for text, confidence, box, index in observations(items):
             domains = sorted(set(DOMAIN.findall(text)))
             novel_quality = max((confidence * (1 - (1 - SETTINGS["outside_domain_novelty_factor"]) * outside.get(d, 0))
                                  for d in domains), default=0.0)
             promo, programme = fuzzy_quality(text, "promotion"), fuzzy_quality(text, "programme")
+            geometry_observations.append((text, confidence, box, index, domains, promo))
             domain_quality = max(domain_quality, novel_quality)
             semantic_quality = max(semantic_quality, confidence * promo["quality"])
             programme_quality = max(programme_quality, confidence * programme["quality"])
             if domains or promo["quality"] or programme["quality"]:
                 matches.append({"normalized_text": text, "confidence_quality": confidence, "domains": domains,
                                 "domain_quality": novel_quality, "semantic": promo, "programme": programme})
+        layout = frame_layout(geometry_observations)
+        if not geometry_observations:
+            layout["missing_reasons"].append("no_valid_text_confidence_observations_for_geometry")
+        p_t = SETTINGS["domain_share"] * domain_quality + SETTINGS["semantic_share"] * semantic_quality
+        layout["p_t"] = p_t
+        layout["O_t"] = SETTINGS["overlay_negative_max"] * p_t * layout["e_t"] * (1 - layout["L_t"])
         frames.append({"time_seconds": time, "domain_quality": domain_quality, "semantic_quality": semantic_quality,
-                       "programme_quality": programme_quality, "matches": matches})
+                       "programme_quality": programme_quality, "matches": matches, "layout": layout})
     expected = SETTINGS["ocr_expected_frames"]
     means = {kind: clamp(sum(f[kind + "_quality"] for f in frames) / expected)
              for kind in ("domain", "semantic", "programme")}
@@ -224,22 +311,33 @@ def text_score(case):
             "missing_reasons": missing, "programme_negative": SETTINGS["programme_negative_max"] * means["programme"]}
 
 
-def visual_score(case):
-    value = numeric(context(case, "candidate").get("visual", {}).get("top_color_bin_median"))
-    return {"points": SETTINGS["weights"]["V"] * clamp(value) if value is not None else 0.0,
-            "top_color_bin_median": value, "coverage": {"available": int(value is not None), "expected": 1},
-            "missing_reasons": [] if value is not None else ["missing_flat_color_measurement"]}
+def content_score(text):
+    expected = SETTINGS["ocr_expected_frames"]
+    large = sum(f["layout"]["L_t"] for f in text["frames"]) / expected
+    uncapped = text["points"] + SETTINGS["layout_max"] * large
+    overlay = sum(f["layout"]["O_t"] for f in text["frames"]) / expected
+    frames = [{"time_seconds": f["time_seconds"], **{key: value for key, value in f["layout"].items() if key != "observations"}}
+              for f in text["frames"]]
+    missing = list(text["missing_reasons"])
+    missing.extend("time_%s:%s" % (f["time_seconds"], reason) for f in frames for reason in f["missing_reasons"])
+    return {"points": min(SETTINGS["content_cap"], uncapped), "P_points": text["points"], "L": large,
+            "layout_points": SETTINGS["layout_max"] * large, "uncapped_points": uncapped,
+            "cap": SETTINGS["content_cap"], "overlay_negative": overlay, "frames": frames,
+            "coverage": {"geometry_frames_available": sum(f["geometry_available"] > 0 for f in frames), "expected": expected},
+            "missing_reasons": missing}
 
 
 def score_case(case):
-    families = {"S": scene_score(case), "A": audio_score(case), "P": text_score(case), "V": visual_score(case)}
-    negative = families["P"]["programme_negative"]
-    discount = SETTINGS["text_color_discount_max"] * min(families["P"]["points"] / SETTINGS["weights"]["P"],
-                                                        families["V"]["points"] / SETTINGS["weights"]["V"])
-    score = 100 * clamp((sum(f["points"] for f in families.values()) - negative - discount) / 100)
+    text = text_score(case)
+    families = {"S": scene_score(case), "A": audio_score(case), "P": text, "C": content_score(text)}
+    negative, overlay = text["programme_negative"], families["C"]["overlay_negative"]
+    positive = sum(families[key]["points"] for key in ("S", "A", "C"))
+    score = 100 * clamp((positive - overlay - negative) / 100)
     valid = context(case, "candidate").get("status") == "ok" and case.get("candidate_gate") == "valid"
     return {"id": case.get("id"), "annotations": case.get("annotations", {}), "families": families,
-            "soft_negative": {"programme": negative}, "discount": {"text_color_correlation": discount},
+            "raw_positive_points": positive, "positive_families": ["S", "A", "C"],
+            "soft_negative": {"programme": negative, "edge_overlay": overlay},
+            "diagnostics": {"top_color_bin_median": numeric(context(case, "candidate").get("visual", {}).get("top_color_bin_median"))},
             "score": score, "candidate_source_gate": {"valid": valid, "reason": None if valid else "invalid_or_unverified_candidate_source"},
             "decision": "experimental_ad_candidate" if valid and score >= SETTINGS["threshold"] else "unknown",
             "action": "preserve"}
@@ -264,11 +362,11 @@ def main(argv=None):
         output.write("\n")
     with (args.work_dir / "review.csv").open("x", newline="") as output:
         writer = csv.writer(output)
-        writer.writerow(["id", "S", "A", "P", "V", "programme_negative", "text_color_discount", "score", "decision", "action"])
+        writer.writerow(["id", "S", "A", "P", "L", "C", "edge_overlay", "programme_negative", "raw_positive", "score", "decision", "action"])
         for case in report["cases"]:
-            writer.writerow([case["id"], *[case["families"][f]["points"] for f in ("S", "A", "P", "V")],
-                             case["soft_negative"]["programme"], case["discount"]["text_color_correlation"],
-                             case["score"], case["decision"], case["action"]])
+            writer.writerow([case["id"], *[case["families"][f]["points"] for f in ("S", "A", "P")],
+                             case["families"]["C"]["L"], case["families"]["C"]["points"], case["soft_negative"]["edge_overlay"],
+                             case["soft_negative"]["programme"], case["raw_positive_points"], case["score"], case["decision"], case["action"]])
     print(str((args.work_dir / "report.json").resolve()))
     return 0
 

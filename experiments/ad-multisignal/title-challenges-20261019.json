@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "labels_fixed_at_utc": "2026-10-19T13:42:58.603165+00:00",
+  "cases": [
+    {
+      "id": "majimuri-device-hulu-poster-card",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/majisuka-E01-original.mp4",
+        "start_seconds": 1350,
+        "duration_seconds": 6
+      },
+      "before": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/majisuka-E01-original.mp4",
+        "start_seconds": 1348,
+        "duration_seconds": 2
+      },
+      "after": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/majisuka-E01-original.mp4",
+        "start_seconds": 1356,
+        "duration_seconds": 2
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "馬路無理學園",
+        "source_id": "ASUS-preserved-original",
+        "ground_truth": "retain_programme",
+        "creative_family": "programme-hulu-poster-card",
+        "split": "post_freeze_targeted_negative_challenge",
+        "baseline_exact_match": false,
+        "boundary_provenance": "unaltered_programme_excerpt_with_test_only_boundaries",
+        "label_evidence": "Primary reviewed full10second overview and1fps preview: original programme character introduction/title montage or Hulu cast-poster card, including burned-in promotional overlays. Preserve underlying programme.",
+        "note": "Added after V3 freeze to directly exercise large programme text missed by3 samples of a broader preview window; no threshold/formula changes."
+      }
+    },
+    {
+      "id": "majimuri-device-character-intro-titles",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/majisuka-E01-original.mp4",
+        "start_seconds": 532,
+        "duration_seconds": 18
+      },
+      "before": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/majisuka-E01-original.mp4",
+        "start_seconds": 530,
+        "duration_seconds": 2
+      },
+      "after": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/majisuka-E01-original.mp4",
+        "start_seconds": 550,
+        "duration_seconds": 2
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "馬路無理學園",
+        "source_id": "ASUS-preserved-original",
+        "ground_truth": "retain_programme",
+        "creative_family": "programme-character-intro-titles",
+        "split": "post_freeze_targeted_negative_challenge",
+        "baseline_exact_match": false,
+        "boundary_provenance": "unaltered_programme_excerpt_with_test_only_boundaries",
+        "label_evidence": "Primary reviewed full10second overview and1fps preview: original programme character introduction/title montage or Hulu cast-poster card, including burned-in promotional overlays. Preserve underlying programme.",
+        "note": "Added after V3 freeze to directly exercise large programme text missed by3 samples of a broader preview window; no threshold/formula changes."
+      }
+    }
+  ]
+}

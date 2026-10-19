@@ -1,0 +1,192 @@
+{
+  "schema": 1,
+  "frozen_at_utc": "2026-10-19T13:39:45.635689+00:00",
+  "policy": "weighted-v3-layout-development",
+  "branch": "experiment/ad-multisignal",
+  "baseline_commit": "51cb729953711431d6fe9b836073ecc81022bfaa",
+  "app_baseline_commit": "d4f53bd14c98fd116a3386d79d94720727385f5c",
+  "aye_task": "t-76752bee35da0fe3652c",
+  "user_request": "抓取更多實際案例，再加以優化；採加權，不要求某特徵必須存在或相同",
+  "settings": {
+    "version": "weighted-v3-layout-development",
+    "weights": {
+      "S": 40,
+      "A": 25,
+      "P": 25
+    },
+    "threshold": 55,
+    "scene_return_max": 20,
+    "scene_cut_max": 5,
+    "scene_temporal_max": 15,
+    "scene_seam_floor": 0.00392156862745098,
+    "scene_cut_scale": 0.01568627450980392,
+    "scene_contrast_quality_policy": "clamp_min_original_seam_over_cut_scale_multiplies_return_and_temporal",
+    "scene_info_scale": 0.00392156862745098,
+    "scene_native_multiplier": 4,
+    "scene_join_floor": 0.00784313725490196,
+    "audio_gain_full_db": 12,
+    "audio_peak_floor": 1,
+    "ocr_expected_frames": 3,
+    "ocr_confidence_power": 0.5,
+    "domain_share": 0.65,
+    "semantic_share": 0.35,
+    "outside_domain_novelty_factor": 0.5,
+    "fuzzy_similarity_deadzone": 0.5,
+    "programme_negative_max": 40,
+    "layout_height_scale": 0.12,
+    "layout_central_rect": [
+      0.2,
+      0.25,
+      0.8,
+      0.75
+    ],
+    "layout_max": 50,
+    "content_cap": 60,
+    "positive_raw_cap": 125,
+    "overlay_negative_max": 20,
+    "overlay_edge_height": 0.2,
+    "commercial_semantic_power": 2,
+    "geometry_policy": "finite_nonbool_positive_size_clip_to_unit_image_then_measure",
+    "commercial_union_policy": "integral_of_max_observation_weight_over_rectangle_union",
+    "content_formula": "C=min(60,P+50*sum_distinct_frame_Lt/3)",
+    "overlay_formula": "O=20*sum_distinct_frame(pt*et*(1-Lt))/3",
+    "final_formula": "clamp_0_100(S+A+C-O-programme_negative)",
+    "max_text_characters": 512,
+    "max_latin_words": 64,
+    "max_word_characters": 40,
+    "max_chinese_windows_per_term": 128,
+    "max_observations_per_frame": 64,
+    "missing_cue_policy": "zero_no_renormalization_no_evidence_veto",
+    "score_interpretation": "uncalibrated_developmental_evidence_score_not_probability"
+  },
+  "lexicon": {
+    "promotion_latin": [
+      "register",
+      "registration",
+      "deposit",
+      "bonus",
+      "casino",
+      "slot",
+      "slots",
+      "gambling",
+      "game",
+      "games",
+      "betting",
+      "bet",
+      "rebate",
+      "signup"
+    ],
+    "promotion_chinese": [
+      "注册",
+      "註冊",
+      "充值",
+      "投注",
+      "博彩",
+      "棋牌",
+      "奖金",
+      "獎金",
+      "中奖",
+      "中獎",
+      "大奖",
+      "大獎",
+      "娱乐城",
+      "遊戲",
+      "游戏"
+    ],
+    "programme_latin": [
+      "cast",
+      "elenco",
+      "traducao",
+      "dublagem",
+      "starring",
+      "screenplay"
+    ],
+    "programme_chinese": [
+      "配音",
+      "演員",
+      "演员",
+      "字幕製作",
+      "字幕制作"
+    ]
+  },
+  "patterns": {
+    "domain": "(?<![a-z0-9.-])(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,24}(?![a-z0-9.-])",
+    "latin": "[a-z]+",
+    "chinese": "[\\u3400-\\u9fff]+"
+  },
+  "source_sha256": {
+    "scripts/score-hls-ad-features.py": "7777aa29ca75cf050df83aa92d4774a77d6d1aede4d955d7f68f0a58b9056532",
+    "scripts/test_score_hls_ad_features.py": "dcd58e0e13215e384582cef122b923a72143e4772ceacd8be21729ec7f7c9b5d",
+    "scripts/probe-hls-ad-features.py": "cc4f069b469fc94fc3ae035b1d4ff861035813a938edbc8b1a9cb1bf8dd13b21",
+    "scripts/probe-hls-ad-candidates.py": "68a1df94f35fdfc0f70a8d316d2fce86f2971c576522ec1aef84223db5cfc115",
+    "scripts/ocr-image-vision.swift": "90ee01ed1daaf7ce44f6bafeda8888317c25f2404d3ba47a79569ce2cf62250b",
+    "experiments/ad-multisignal/expanded-cases-20261019.json": "b19179f52cb943707a304dee9da7534f6300a02f938374a302f50851048ebf51"
+  },
+  "input": {
+    "path": "/tmp/media-dler-ad-expanded-20261019/features-combined-38.json",
+    "sha256": "5a34bb70d5d972fcaebefc374bb3d8da393f1fc387b6be9f9ddc2720b68040c9",
+    "case_count": 38,
+    "old_raw_sha256": "d8a946caf6a1a591008f5449c0d685afd1ec91315b2ef368175a22854a060efc",
+    "new_feature_reports": [
+      {
+        "path": "/tmp/media-dler-ad-expanded-20261019/features-0/report.json",
+        "sha256": "d2bc19e17810feb767d8286d9b9b4b7a89cabac9c34e986ca0a174faffe5199e"
+      },
+      {
+        "path": "/tmp/media-dler-ad-expanded-20261019/features-1/report.json",
+        "sha256": "a59e7bfa7901cb855a4746afdcfcfc0e40b5f862c16d4e1046b86c88bb9f4dfb"
+      },
+      {
+        "path": "/tmp/media-dler-ad-expanded-20261019/features-2/report.json",
+        "sha256": "a5698d33c9e83f3e29e4abddc3be9e100a8fa78d43db12c791c014cb0c286b35"
+      }
+    ],
+    "merge": "Old14 unchanged;24new cases annotations replaced from manually/complete-exact labelled case file; all raw numeric/media/OCR inputs unchanged."
+  },
+  "design_basis": "Astra/max proposed fixed layout formula using old14 development cases. Worker implemented without expanded data access. OriginalV2.1 baseline onnew24 was read before this finalsource freeze; constants andthreshold were already assigned, not tuned inresponse. No V3 actualscores inspected before thisfreeze.",
+  "selection_and_labels": {
+    "old14": "Development cases, including 3 transformed controls retained as regressions.",
+    "new24": "11 actual ad occurrences and 13 unmodified programme controls across Moving, 心動製造所, and 馬路無理學園; the positives repeat 3 known creative families.",
+    "new_positives": "Every nonempty HLS region up to 60 seconds in 5 successfully collected episode/line manifests; no selection by score.",
+    "new_negatives": "2 unmodified interior programme TS controls per episode/line, plus ASUS opening, credits, and Hulu/programme preview ranges. Test-only candidate boundaries are annotated.",
+    "evidence_scope": "Cross-programme/context development verification; no new creative-family generalization or real-world false-positive-rate claim.",
+    "labels_fixed_before_V3_scores": true
+  },
+  "tests": {
+    "scorer_focused_passed": 23,
+    "command": "python3 -B scripts/test_score_hls_ad_features.py",
+    "evidence": "Independent task_executor run. The extractor is unchanged; its previous 18 focused tests remain applicable."
+  },
+  "no_mandatory_cue": {
+    "without_OCR_max": 65,
+    "without_scene_and_audio_max": 60,
+    "threshold": 55,
+    "programme_negative": "Soft penalty up to 40; no veto.",
+    "missing_family": "Zero points, with no global renormalization.",
+    "score_interpretation": "Uncalibrated evidence points. Raw positive maximum 125, display clamped to 0–100; not a probability."
+  },
+  "reproduce": [
+    "python3 -B scripts/score-hls-ad-features.py --report /tmp/media-dler-ad-expanded-20261019/features-combined-38.json --work-dir NEW_EMPTY_PATH"
+  ],
+  "every_action": "preserve",
+  "auto_removal_or_Android_changes": false,
+  "post_freeze_challenges": {
+    "added_at_utc": "2026-10-19T13:45:03.398868+00:00",
+    "reason": "The broad preview range did not necessarily place fixed OCR samples on the large programme poster. Add a narrow poster range and a character-title montage to exercise this risk directly.",
+    "case_file": "experiments/ad-multisignal/title-challenges-20261019.json",
+    "case_file_sha256": "2780e2d1cae296a8fc52fe7f3df25eb0edc7df135558233c7e137cfcffd8b7da",
+    "labels": "2 retain_programme labels were fixed before their extraction and scoring.",
+    "feature_report": {
+      "path": "/tmp/media-dler-ad-expanded-20261019/extra-title-features/report.json",
+      "sha256": "be888c0745af0452db69dca52c814db921ded6f091c4da8578e501c2407dfd55"
+    },
+    "formula_and_threshold_unchanged": true,
+    "results_38_preserved": "/tmp/media-dler-ad-expanded-20261019/score-v3-attempt-001/report.json",
+    "final_input": {
+      "path": "/tmp/media-dler-ad-expanded-20261019/features-combined-40.json",
+      "sha256": "274d65f918710d90f5ef692bc83a1b61e7be9b1e464eb748263a6dbeedb055e6",
+      "cases": 40
+    },
+    "reproduce": "python3 -B scripts/score-hls-ad-features.py --report /tmp/media-dler-ad-expanded-20261019/features-combined-40.json --work-dir NEW_EMPTY_PATH"
+  }
+}
