@@ -9,7 +9,18 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 
-data class AdCleanupResult(val file: File, val removedAds: Int, val removedSeconds: Double)
+data class AdCleanupResult(val file: File, val removedAds: Int, val removedSeconds: Double) {
+    /** Unrecorded cleaned copies belong to this attempt; recorded ones belong to recovery. */
+    internal suspend fun <T> useForPublication(
+        source: File,
+        hasPublicationRecord: () -> Boolean,
+        publish: suspend (File) -> T,
+    ): T = try {
+        publish(file)
+    } finally {
+        if (file != source && !hasPublicationRecord()) file.parentFile?.deleteRecursively()
+    }
+}
 
 /** Each attempt keeps its verified output inside the task's publication/recovery directory. */
 internal class AdCleanupFiles private constructor(val source: File, val directory: File) {

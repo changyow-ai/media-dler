@@ -123,14 +123,16 @@ class YtDlpDownloader(
                     onProgress(DownloadProgress(DownloadPhase.PROCESSING, detail = detail))
                 }
             } else AdCleanupResult(produced, 0, 0.0)
-            val saving = when {
-                hls != null && hls.skippedAds > 0 -> "已略過 ${hls.skippedAds} 段廣告" +
-                    (if (cleaned.removedAds > 0) "、另移除 ${cleaned.removedAds} 段廣告" else "") + "，正在儲存影片"
-                cleaned.removedAds > 0 -> "已移除 ${cleaned.removedAds} 段廣告，正在儲存影片"
-                else -> "正在儲存完成的媒體"
+            cleaned.useForPublication(produced, { publisher.hasPublicationRecord(processId) }) { file ->
+                val saving = when {
+                    hls != null && hls.skippedAds > 0 -> "已略過 ${hls.skippedAds} 段廣告" +
+                        (if (cleaned.removedAds > 0) "、另移除 ${cleaned.removedAds} 段廣告" else "") + "，正在儲存影片"
+                    cleaned.removedAds > 0 -> "已移除 ${cleaned.removedAds} 段廣告，正在儲存影片"
+                    else -> "正在儲存完成的媒體"
+                }
+                onProgress(DownloadProgress(DownloadPhase.SAVING, detail = saving))
+                Result.success(publisher.publish(processId, file, request))
             }
-            onProgress(DownloadProgress(DownloadPhase.SAVING, detail = saving))
-            Result.success(publisher.publish(processId, cleaned.file, request))
         } catch (t: Throwable) {
             if (t is CancellationException) throw t
             Result.failure(t)
