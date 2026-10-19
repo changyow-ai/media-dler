@@ -23,13 +23,14 @@ import kotlinx.serialization.Serializable
     @Serializable data class Resolved(val request: DownloadRequest) : QueuedSpec
 }
 
-/** Automatic background continuation reuses this checkpoint; manual retries resolve the page again. */
+/** Continuation and item resume reuse this checkpoint; failed/canceled retries resolve the page again. */
 @Serializable data class QueuedDownload(
     val task: DownloadTask,
     val spec: QueuedSpec,
     val attempt: Int = 0,
     val resolvedRequest: DownloadRequest? = null,
     val deleteRequested: Boolean = false,
+    val reuseResolvedRequest: Boolean = false,
 )
 
 data class DownloadClaim(

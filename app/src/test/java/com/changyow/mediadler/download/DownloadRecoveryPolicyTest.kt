@@ -19,12 +19,18 @@ class DownloadRecoveryPolicyTest {
 
     @Test fun backgroundRecoveryNeverOverridesUserActionOrRevivesFinishedTasks() {
         assertFalse(hasRecoverableDownloads(emptyList()))
-        for (status in listOf(DownloadStatus.COMPLETED, DownloadStatus.CANCELED, DownloadStatus.FAILED)) {
+        for (status in listOf(DownloadStatus.COMPLETED, DownloadStatus.CANCELED, DownloadStatus.FAILED, DownloadStatus.PAUSED)) {
             assertFalse(hasRecoverableDownloads(listOf(task(status))))
         }
         for (kind in listOf(QueuePauseKind.SYSTEM, QueuePauseKind.STORAGE)) {
             assertFalse(hasRecoverableDownloads(listOf(task(DownloadStatus.QUEUED), task(DownloadStatus.FAILED, kind))))
         }
+    }
+
+    @Test fun manuallyPausedItemsDoNotScheduleRecoveryButOtherQueuedItemsStillDo() {
+        assertFalse(hasRecoverableDownloads(List(3) { task(DownloadStatus.PAUSED) }))
+        assertFalse(hasRecoverableDownloads(listOf(task(DownloadStatus.PAUSED, QueuePauseKind.NETWORK))))
+        assertTrue(hasRecoverableDownloads(listOf(task(DownloadStatus.PAUSED), task(DownloadStatus.QUEUED))))
     }
 
     private fun task(status: DownloadStatus, pause: QueuePauseKind? = null) = DownloadTask(

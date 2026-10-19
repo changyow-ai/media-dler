@@ -101,7 +101,7 @@ class YtDlpDownloader(
             if (hlsSession == null) executeOnce() else HlsNetworkRetry.execute(
                 onRetry = { attempt, wait ->
                     onProgress(DownloadProgress(DownloadPhase.DOWNLOADING,
-                        detail = "網路暫時中斷，${wait / 1000} 秒後接續已下載片段（第 $attempt 次重試）"))
+                        detail = "來源連線暫時失敗，${wait / 1000} 秒後接續已下載片段（第 $attempt 次重試）"))
                 }, download = { executeOnce() },
             )
 

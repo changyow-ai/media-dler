@@ -49,4 +49,23 @@ object DownloadFailurePolicy {
         "remote end closed connection", "remote end closed the connection", "connection closed unexpectedly")
 
     fun message(error: Throwable): String = pauseFor(error)?.message ?: error.message?.take(500)?.takeIf { it.isNotBlank() } ?: "下載失敗，請重試"
+
+    /** A source failure does not establish that the device is offline or the video was removed. */
+    fun sourceFailureMessage(error: Throwable): String {
+        pauseFor(error)?.let { return it.message }
+        val detail = message(error)
+        val statuses = causes(error).flatMap { httpStatus.findAll(it.message.orEmpty()) }
+            .map { it.groupValues[1].toInt() }.toSet()
+        val text = causes(error).joinToString("\n") { it.message.orEmpty() }.lowercase(Locale.ROOT)
+        val explanation = when {
+            statuses.any { it == 404 || it == 410 } -> "此來源的影片已不存在或連結已失效，請更換線路。"
+            403 in statuses -> "此來源拒絕存取，請稍後重試或更換線路。"
+            listOf("certificate verify failed", "self signed certificate", "self-signed certificate",
+                "trust anchor for certification path not found").any(text::contains) ->
+                "此來源的安全憑證驗證失敗，請更換線路。"
+            isTransientNetworkFailure(error) -> "此來源目前無法載入，請稍後重試或更換線路。"
+            else -> return detail
+        }
+        return "$explanation\n$detail"
+    }
 }

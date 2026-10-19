@@ -13,6 +13,7 @@ import com.changyow.mediadler.R
 import com.changyow.mediadler.MainActivity
 import com.changyow.mediadler.core.model.DownloadStatus
 import com.changyow.mediadler.core.model.DownloadTask
+import com.changyow.mediadler.core.model.ItemInterruption
 
 object Notifications {
     const val CHANNEL_PROGRESS = "downloads_progress"
@@ -130,13 +131,24 @@ object Notifications {
 
     fun downloadProgress(context: Context, task: DownloadTask) {
         cancel(context, PAUSED_ID)
-        val phase = when (task.status) {
-            DownloadStatus.EXTRACTING -> "解析影片中"
-            DownloadStatus.PROCESSING -> "處理中"
-            else -> "下載中"
+        val paused = task.status == DownloadStatus.PAUSED
+        val phase = when (task.interruption) {
+            ItemInterruption.MANUAL_PAUSE -> "正在暫停…"
+            ItemInterruption.PRIORITY_REQUEUE -> "正在切換下載…"
+            null -> when (task.status) {
+                DownloadStatus.QUEUED -> "排隊中"
+                DownloadStatus.PAUSED -> "已暫停"
+                DownloadStatus.EXTRACTING -> "解析影片中"
+                DownloadStatus.PROCESSING -> "處理中"
+                else -> "下載中"
+            }
         }
-        val known = task.status == DownloadStatus.DOWNLOADING && task.progress in 0f..1f
-        val text = task.progressDetail ?: if (known) "$phase ${(task.progress * 100).toInt()}%" else phase
+        val known = task.status in setOf(DownloadStatus.DOWNLOADING, DownloadStatus.PAUSED) && task.progress in 0f..1f
+        val text = when {
+            task.interruption != null -> phase
+            paused -> if (known) "$phase ${(task.progress * 100).toInt()}%" else phase
+            else -> task.progressDetail ?: if (known) "$phase ${(task.progress * 100).toInt()}%" else phase
+        }
         val cancel = PendingIntent.getBroadcast(context, 0,
             Intent(context, DownloadActionReceiver::class.java).apply {
                 action = DownloadActionReceiver.ACTION_CANCEL
@@ -149,8 +161,8 @@ object Notifications {
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(downloadsIntent(context))
-            .setProgress(if (known) 100 else 0, if (known) (task.progress * 100).toInt() else 0, !known)
-            .setOngoing(true).setOnlyAlertOnce(true)
+            .setProgress(if (known) 100 else 0, if (known) (task.progress * 100).toInt() else 0, !known && !paused)
+            .setOngoing(!paused).setOnlyAlertOnce(true)
             .addAction(0, "取消", cancel).build())
     }
 

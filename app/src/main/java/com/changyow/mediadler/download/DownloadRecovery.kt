@@ -11,7 +11,8 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.changyow.mediadler.core.model.DownloadTask
 import com.changyow.mediadler.core.model.QueuePauseKind
-import com.changyow.mediadler.core.model.isTerminal
+import com.changyow.mediadler.core.model.DownloadStatus
+import com.changyow.mediadler.core.model.isActive
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
@@ -79,6 +80,6 @@ class DownloadRecovery(
 }
 
 internal fun hasRecoverableDownloads(tasks: List<DownloadTask>): Boolean =
-    tasks.any { !it.status.isTerminal } && tasks.none {
+    tasks.any { it.status == DownloadStatus.QUEUED || it.status.isActive } && tasks.none {
         it.queuePause?.kind == QueuePauseKind.STORAGE || it.queuePause?.kind == QueuePauseKind.SYSTEM
     }
