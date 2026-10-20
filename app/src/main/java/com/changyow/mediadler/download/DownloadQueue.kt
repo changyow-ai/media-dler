@@ -6,6 +6,7 @@ import com.changyow.mediadler.core.repo.DownloadQueueStore
 import java.io.File
 import java.net.URI
 import java.util.UUID
+import java.util.logging.Logger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -387,8 +388,30 @@ class DownloadQueue(
             it.task.interruption == null && !it.deleteRequested) change(it) else it
     } }
     private fun mutate(change: (List<QueuedDownload>) -> List<QueuedDownload>) = synchronized(lock) {
-        _tasks.value = store.transact { transferDeletedPause(change(it)) }
+        var resumed = emptyList<Pair<QueuedDownload, QueuedDownload>>()
+        _tasks.value = store.transact { before ->
+            val after = transferDeletedPause(change(before))
+            resumed = before.filter { it.task.status == DownloadStatus.PAUSED }.mapNotNull { old ->
+                after.firstOrNull { it.task.id == old.task.id && it.task.status == DownloadStatus.QUEUED }
+                    ?.let { old to it }
+            }
+            after
+        }
             .filterNot { it.deleteRequested && !it.task.status.isActive }.map { it.task }
+        // Sparse command diagnostics: no media URLs, titles or routine progress payloads.
+        // Log only after a committed transition; diagnostics must never change queue outcomes.
+        if (resumed.isNotEmpty()) {
+            try {
+                val caller = Throwable().stackTrace.drop(1).take(8).joinToString(" <- ") {
+                    "${it.className}.${it.methodName}:${it.lineNumber}"
+                }
+                resumed.forEach { (old, next) ->
+                    Logger.getLogger("DownloadQueue").info("PAUSED->QUEUED id=${old.task.id} " +
+                        "attempt=${old.attempt}->${next.attempt} position=${old.task.queuePosition}->${next.task.queuePosition} " +
+                        "queue=${System.identityHashCode(this)} time=${System.currentTimeMillis()} nano=${System.nanoTime()} caller=$caller")
+                }
+            } catch (_: Exception) { /* A committed user action does not depend on diagnostic output. */ }
+        }
     }
 
     /** Deletion tombstones and canceled network waits cannot be the only owner of a global pause. */
