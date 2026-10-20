@@ -1,0 +1,3160 @@
+{
+  "schema": 1,
+  "recorded_on": "2026-10-19",
+  "status": "shelved_by_user_no_accepted_solution",
+  "task_id": "t-9de06f0ad4f749d8908c",
+  "branch": "experiment/audio-leveling",
+  "scope": "Audio-only host experiments. Known ad intervals used only for scoring. One confirmed ad repeated four times; other selected content not automatically ad-free.",
+  "commits": {
+    "initial_leveling": "17cb6a1",
+    "limited_deadband": "f618139",
+    "paired_step_detector": "955ce8a"
+  },
+  "measurement_limits": "Rendered S3s/M400ms differences are LU. Third-round dB gains are proposals only; no third-round audio rendered. No phone/Kodi/VLC/battery or subjective-listening approval.",
+  "round1_at_minus28_dbfs": {
+    "source": {
+      "local_path": "/private/tmp/evaluation-impact-v2.json",
+      "sha256": "12762fbbdef784128dd6a161d4bcbbfe16614103c79c47b948543552508c56a6",
+      "bytes": 5221286
+    },
+    "retained_cases": [
+      "e11-first"
+    ],
+    "clips": {
+      "e11-first": {
+        "regions_seconds": {
+          "before": [
+            0,
+            20.318867
+          ],
+          "ad": [
+            20.318867,
+            46.082278
+          ],
+          "after": [
+            46.082278,
+            70
+          ]
+        },
+        "variants": {
+          "original": {
+            "ad_minus_before_lu": 9.7,
+            "ad_minus_after_lu": 13.2,
+            "ad_first_second_momentary_max_lufs": -11.8,
+            "true_peak_dbtp": -4.8,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -28.8,
+                "median_matched_gain_lu": 0.0
+              },
+              "ad": {
+                "median_shortterm_lufs": -19.1,
+                "median_matched_gain_lu": 0.0
+              },
+              "after": {
+                "median_shortterm_lufs": -32.3,
+                "median_matched_gain_lu": 0.0
+              }
+            }
+          },
+          "peak": {
+            "ad_minus_before_lu": 9.7,
+            "ad_minus_after_lu": 13.2,
+            "ad_first_second_momentary_max_lufs": -12.1,
+            "true_peak_dbtp": -5.9,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -28.8,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 17.0,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 17.3,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  }
+                }
+              },
+              "ad": {
+                "median_shortterm_lufs": -19.1,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.1,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.1,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  }
+                }
+              },
+              "after": {
+                "median_shortterm_lufs": -32.3,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 18.7,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.1,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 20.7,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.1,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  }
+                }
+              }
+            }
+          },
+          "rms2": {
+            "ad_minus_before_lu": 5.9,
+            "ad_minus_after_lu": 8.5,
+            "ad_first_second_momentary_max_lufs": -21.6,
+            "true_peak_dbtp": -14.3,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -32.4,
+                "median_matched_gain_lu": -3.6,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 17.0,
+                    "p95_lu": 4.6,
+                    "max_lu": 6.3,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 11.2,
+                        "fraction": 0.659
+                      },
+                      "1": {
+                        "seconds": 11.0,
+                        "fraction": 0.647
+                      },
+                      "2": {
+                        "seconds": 9.1,
+                        "fraction": 0.535
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 3.0
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 17.3,
+                    "p95_lu": 4.9,
+                    "max_lu": 5.2,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 17.3,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 17.0,
+                        "fraction": 0.983
+                      },
+                      "2": {
+                        "seconds": 16.9,
+                        "fraction": 0.977
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 17.3
+                  }
+                }
+              },
+              "ad": {
+                "median_shortterm_lufs": -26.5,
+                "median_matched_gain_lu": -7.4,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 8.5,
+                    "max_lu": 9.6,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 22.6,
+                        "fraction": 0.996
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 22.7
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 8.47,
+                    "max_lu": 8.7,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 22.7
+                  }
+                }
+              },
+              "after": {
+                "median_shortterm_lufs": -35.0,
+                "median_matched_gain_lu": -2.3,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 18.7,
+                    "p95_lu": 4.27,
+                    "max_lu": 4.9,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 11.4,
+                        "fraction": 0.61
+                      },
+                      "1": {
+                        "seconds": 9.4,
+                        "fraction": 0.503
+                      },
+                      "2": {
+                        "seconds": 7.5,
+                        "fraction": 0.401
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 3.2
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 20.7,
+                    "p95_lu": 4.1,
+                    "max_lu": 4.3,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 20.2,
+                        "fraction": 0.976
+                      },
+                      "1": {
+                        "seconds": 19.1,
+                        "fraction": 0.923
+                      },
+                      "2": {
+                        "seconds": 14.5,
+                        "fraction": 0.7
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 10.2
+                  }
+                }
+              }
+            }
+          },
+          "rms4": {
+            "ad_minus_before_lu": 4.0,
+            "ad_minus_after_lu": 6.3,
+            "ad_first_second_momentary_max_lufs": -26.3,
+            "true_peak_dbtp": -15.0,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -34.0,
+                "median_matched_gain_lu": -5.3,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 17.0,
+                    "p95_lu": 6.8,
+                    "max_lu": 9.4,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 11.5,
+                        "fraction": 0.676
+                      },
+                      "1": {
+                        "seconds": 11.1,
+                        "fraction": 0.653
+                      },
+                      "2": {
+                        "seconds": 10.3,
+                        "fraction": 0.606
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 3.0
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 17.3,
+                    "p95_lu": 6.9,
+                    "max_lu": 7.4,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 17.3,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 17.3,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 17.0,
+                        "fraction": 0.983
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 17.3
+                  }
+                }
+              },
+              "ad": {
+                "median_shortterm_lufs": -30.0,
+                "median_matched_gain_lu": -10.8,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 12.77,
+                    "max_lu": 14.5,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 22.7
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 12.57,
+                    "max_lu": 12.9,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 22.7
+                  }
+                }
+              },
+              "after": {
+                "median_shortterm_lufs": -36.3,
+                "median_matched_gain_lu": -3.3,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 18.7,
+                    "p95_lu": 6.34,
+                    "max_lu": 7.3,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 11.6,
+                        "fraction": 0.62
+                      },
+                      "1": {
+                        "seconds": 11.0,
+                        "fraction": 0.588
+                      },
+                      "2": {
+                        "seconds": 8.5,
+                        "fraction": 0.455
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 3.2
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 20.7,
+                    "p95_lu": 6.0,
+                    "max_lu": 6.2,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 20.5,
+                        "fraction": 0.99
+                      },
+                      "1": {
+                        "seconds": 20.2,
+                        "fraction": 0.976
+                      },
+                      "2": {
+                        "seconds": 17.2,
+                        "fraction": 0.831
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 10.3
+                  }
+                }
+              }
+            }
+          },
+          "leveler": {
+            "ad_minus_before_lu": 3.1,
+            "ad_minus_after_lu": 4.7,
+            "ad_first_second_momentary_max_lufs": -26.5,
+            "true_peak_dbtp": -12.8,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -32.1,
+                "median_matched_gain_lu": -3.1,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 17.0,
+                    "p95_lu": 6.0,
+                    "max_lu": 8.5,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 14.9,
+                        "fraction": 0.876
+                      },
+                      "1": {
+                        "seconds": 14.1,
+                        "fraction": 0.829
+                      },
+                      "2": {
+                        "seconds": 10.8,
+                        "fraction": 0.635
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 10.6
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 17.3,
+                    "p95_lu": 5.14,
+                    "max_lu": 5.8,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 17.3,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 17.2,
+                        "fraction": 0.994
+                      },
+                      "2": {
+                        "seconds": 16.6,
+                        "fraction": 0.96
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 17.3
+                  }
+                }
+              },
+              "ad": {
+                "median_shortterm_lufs": -29.0,
+                "median_matched_gain_lu": -9.7,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 13.3,
+                    "max_lu": 14.8,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 22.7
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 12.77,
+                    "max_lu": 13.2,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 22.7
+                  }
+                }
+              },
+              "after": {
+                "median_shortterm_lufs": -33.7,
+                "median_matched_gain_lu": -1.2,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 18.7,
+                    "p95_lu": 4.34,
+                    "max_lu": 4.6,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 9.6,
+                        "fraction": 0.513
+                      },
+                      "1": {
+                        "seconds": 8.1,
+                        "fraction": 0.433
+                      },
+                      "2": {
+                        "seconds": 4.7,
+                        "fraction": 0.251
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 5.0
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 20.7,
+                    "p95_lu": 3.8,
+                    "max_lu": 4.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 12.8,
+                        "fraction": 0.618
+                      },
+                      "1": {
+                        "seconds": 11.2,
+                        "fraction": 0.541
+                      },
+                      "2": {
+                        "seconds": 5.8,
+                        "fraction": 0.28
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 7.3
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "derivation": "Retains scalar region/gap/peak/impact statistics; removes individual frame traces and raw logs."
+  },
+  "round1_gentler_leveler_minus25_dbfs": {
+    "source": {
+      "local_path": "/Users/apple/Projects/fun-tools/media-dler/build/audio-leveling/evaluation-impact-soft.json",
+      "sha256": "6caec25bc4eea0b0ecbc91911d476974c2ad7d164c1fc524d51a71fc747af424",
+      "bytes": 2182447
+    },
+    "retained_cases": [
+      "e11-first",
+      "e11-second",
+      "e12-first",
+      "e12-second",
+      "e11-loud-content",
+      "ren-other-content"
+    ],
+    "clips": {
+      "e11-first": {
+        "regions_seconds": {
+          "before": [
+            0,
+            20.318867
+          ],
+          "ad": [
+            20.318867,
+            46.082278
+          ],
+          "after": [
+            46.082278,
+            70
+          ]
+        },
+        "variants": {
+          "original": {
+            "ad_minus_before_lu": 9.7,
+            "ad_minus_after_lu": 13.2,
+            "ad_first_second_momentary_max_lufs": -11.8,
+            "true_peak_dbtp": -4.8,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -28.8,
+                "median_matched_gain_lu": 0.0
+              },
+              "ad": {
+                "median_shortterm_lufs": -19.1,
+                "median_matched_gain_lu": 0.0
+              },
+              "after": {
+                "median_shortterm_lufs": -32.3,
+                "median_matched_gain_lu": 0.0
+              }
+            }
+          },
+          "leveler": {
+            "ad_minus_before_lu": 4.0,
+            "ad_minus_after_lu": 6.4,
+            "ad_first_second_momentary_max_lufs": -23.6,
+            "true_peak_dbtp": -12.6,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -30.3,
+                "median_matched_gain_lu": -1.3,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 17.0,
+                    "p95_lu": 3.6,
+                    "max_lu": 6.8,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 13.1,
+                        "fraction": 0.771
+                      },
+                      "1": {
+                        "seconds": 8.5,
+                        "fraction": 0.5
+                      },
+                      "2": {
+                        "seconds": 2.7,
+                        "fraction": 0.159
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 5.6
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 17.3,
+                    "p95_lu": 3.0,
+                    "max_lu": 3.5,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 17.3,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 13.3,
+                        "fraction": 0.769
+                      },
+                      "2": {
+                        "seconds": 4.0,
+                        "fraction": 0.231
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 17.3
+                  }
+                }
+              },
+              "ad": {
+                "median_shortterm_lufs": -26.3,
+                "median_matched_gain_lu": -7.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 10.4,
+                    "max_lu": 11.9,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 22.4,
+                        "fraction": 0.987
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 22.7
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 9.87,
+                    "max_lu": 10.3,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 22.7
+                  }
+                }
+              },
+              "after": {
+                "median_shortterm_lufs": -32.7,
+                "median_matched_gain_lu": -0.4,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 18.7,
+                    "p95_lu": 2.27,
+                    "max_lu": 2.5,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 5.0,
+                        "fraction": 0.267
+                      },
+                      "1": {
+                        "seconds": 3.9,
+                        "fraction": 0.209
+                      },
+                      "2": {
+                        "seconds": 1.1,
+                        "fraction": 0.059
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 3.3
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 20.7,
+                    "p95_lu": 1.9,
+                    "max_lu": 2.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 8.1,
+                        "fraction": 0.391
+                      },
+                      "1": {
+                        "seconds": 4.9,
+                        "fraction": 0.237
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 3.9
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "e11-second": {
+        "regions_seconds": {
+          "before": [
+            0,
+            20.342767
+          ],
+          "ad": [
+            20.342767,
+            46.106189
+          ],
+          "after": [
+            46.106189,
+            70
+          ]
+        },
+        "variants": {
+          "original": {
+            "ad_minus_before_lu": 5.2,
+            "ad_minus_after_lu": 3.2,
+            "ad_first_second_momentary_max_lufs": -11.9,
+            "true_peak_dbtp": -4.8,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -24.3,
+                "median_matched_gain_lu": 0.0
+              },
+              "ad": {
+                "median_shortterm_lufs": -19.1,
+                "median_matched_gain_lu": 0.0
+              },
+              "after": {
+                "median_shortterm_lufs": -22.3,
+                "median_matched_gain_lu": 0.0
+              }
+            }
+          },
+          "leveler": {
+            "ad_minus_before_lu": 2.0,
+            "ad_minus_after_lu": 1.0,
+            "ad_first_second_momentary_max_lufs": -23.9,
+            "true_peak_dbtp": -10.8,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -28.2,
+                "median_matched_gain_lu": -4.05,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 17.4,
+                    "p95_lu": 5.2,
+                    "max_lu": 7.7,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 17.4,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 17.4,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 17.4,
+                        "fraction": 1.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 17.4
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 17.4,
+                    "p95_lu": 5.0,
+                    "max_lu": 5.2,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 17.4,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 17.4,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 17.4,
+                        "fraction": 1.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 17.4
+                  }
+                }
+              },
+              "ad": {
+                "median_shortterm_lufs": -26.2,
+                "median_matched_gain_lu": -6.9,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 10.4,
+                    "max_lu": 12.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 22.7
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 9.9,
+                    "max_lu": 10.4,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 22.7
+                  }
+                }
+              },
+              "after": {
+                "median_shortterm_lufs": -27.2,
+                "median_matched_gain_lu": -4.8,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 20.9,
+                    "p95_lu": 9.38,
+                    "max_lu": 10.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 20.9,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 20.9,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 20.6,
+                        "fraction": 0.986
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 20.9
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 20.9,
+                    "p95_lu": 8.3,
+                    "max_lu": 8.6,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 20.9,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 20.9,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 20.9,
+                        "fraction": 1.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 20.9
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "e12-first": {
+        "regions_seconds": {
+          "before": [
+            0,
+            20.402278
+          ],
+          "ad": [
+            20.402278,
+            46.1657
+          ],
+          "after": [
+            46.1657,
+            70
+          ]
+        },
+        "variants": {
+          "original": {
+            "ad_minus_before_lu": 8.2,
+            "ad_minus_after_lu": 10.45,
+            "ad_first_second_momentary_max_lufs": -11.9,
+            "true_peak_dbtp": -4.7,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -27.4,
+                "median_matched_gain_lu": 0.0
+              },
+              "ad": {
+                "median_shortterm_lufs": -19.2,
+                "median_matched_gain_lu": 0.0
+              },
+              "after": {
+                "median_shortterm_lufs": -29.65,
+                "median_matched_gain_lu": 0.0
+              }
+            }
+          },
+          "leveler": {
+            "ad_minus_before_lu": 2.2,
+            "ad_minus_after_lu": 4.7,
+            "ad_first_second_momentary_max_lufs": -23.7,
+            "true_peak_dbtp": -11.3,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -28.2,
+                "median_matched_gain_lu": -0.8,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 17.4,
+                    "p95_lu": 6.0,
+                    "max_lu": 6.7,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 9.2,
+                        "fraction": 0.529
+                      },
+                      "1": {
+                        "seconds": 5.9,
+                        "fraction": 0.339
+                      },
+                      "2": {
+                        "seconds": 4.3,
+                        "fraction": 0.247
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 5.4
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 17.4,
+                    "p95_lu": 5.6,
+                    "max_lu": 5.8,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 11.5,
+                        "fraction": 0.661
+                      },
+                      "1": {
+                        "seconds": 6.6,
+                        "fraction": 0.379
+                      },
+                      "2": {
+                        "seconds": 5.8,
+                        "fraction": 0.333
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 11.5
+                  }
+                }
+              },
+              "ad": {
+                "median_shortterm_lufs": -26.0,
+                "median_matched_gain_lu": -6.7,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 22.8,
+                    "p95_lu": 10.03,
+                    "max_lu": 11.9,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 22.8,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 22.8,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 22.5,
+                        "fraction": 0.987
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 22.8
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 22.8,
+                    "p95_lu": 10.1,
+                    "max_lu": 10.5,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 22.8,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 22.8,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 22.8,
+                        "fraction": 1.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 22.8
+                  }
+                }
+              },
+              "after": {
+                "median_shortterm_lufs": -30.7,
+                "median_matched_gain_lu": -0.3,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 20.8,
+                    "p95_lu": 4.33,
+                    "max_lu": 4.8,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 7.6,
+                        "fraction": 0.365
+                      },
+                      "1": {
+                        "seconds": 5.8,
+                        "fraction": 0.279
+                      },
+                      "2": {
+                        "seconds": 2.7,
+                        "fraction": 0.13
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 4.6
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 20.8,
+                    "p95_lu": 3.8,
+                    "max_lu": 3.9,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 8.4,
+                        "fraction": 0.404
+                      },
+                      "1": {
+                        "seconds": 7.5,
+                        "fraction": 0.361
+                      },
+                      "2": {
+                        "seconds": 4.1,
+                        "fraction": 0.197
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 6.2
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "e12-second": {
+        "regions_seconds": {
+          "before": [
+            0,
+            20.760856
+          ],
+          "ad": [
+            20.760856,
+            46.524267
+          ],
+          "after": [
+            46.524267,
+            70
+          ]
+        },
+        "variants": {
+          "original": {
+            "ad_minus_before_lu": 12.35,
+            "ad_minus_after_lu": 11.45,
+            "ad_first_second_momentary_max_lufs": -12.0,
+            "true_peak_dbtp": -4.9,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -31.4,
+                "median_matched_gain_lu": 0.0
+              },
+              "ad": {
+                "median_shortterm_lufs": -19.05,
+                "median_matched_gain_lu": 0.0
+              },
+              "after": {
+                "median_shortterm_lufs": -30.5,
+                "median_matched_gain_lu": 0.0
+              }
+            }
+          },
+          "leveler": {
+            "ad_minus_before_lu": 5.5,
+            "ad_minus_after_lu": 5.1,
+            "ad_first_second_momentary_max_lufs": -23.0,
+            "true_peak_dbtp": -13.1,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -31.6,
+                "median_matched_gain_lu": -0.2,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 17.7,
+                    "p95_lu": 0.5,
+                    "max_lu": 6.5,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.7,
+                        "fraction": 0.04
+                      },
+                      "1": {
+                        "seconds": 0.4,
+                        "fraction": 0.023
+                      },
+                      "2": {
+                        "seconds": 0.3,
+                        "fraction": 0.017
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.5
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 17.7,
+                    "p95_lu": 0.32,
+                    "max_lu": 1.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.2,
+                        "fraction": 0.011
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.2
+                  }
+                }
+              },
+              "ad": {
+                "median_shortterm_lufs": -26.1,
+                "median_matched_gain_lu": -6.8,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 22.8,
+                    "p95_lu": 9.995,
+                    "max_lu": 11.2,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 22.8,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 22.8,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 22.4,
+                        "fraction": 0.982
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 22.8
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 22.8,
+                    "p95_lu": 9.7,
+                    "max_lu": 10.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 22.8,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 22.8,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 22.8,
+                        "fraction": 1.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 22.8
+                  }
+                }
+              },
+              "after": {
+                "median_shortterm_lufs": -31.2,
+                "median_matched_gain_lu": -0.7,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 20.4,
+                    "p95_lu": 1.985,
+                    "max_lu": 2.2,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 10.8,
+                        "fraction": 0.529
+                      },
+                      "1": {
+                        "seconds": 3.1,
+                        "fraction": 0.152
+                      },
+                      "2": {
+                        "seconds": 0.6,
+                        "fraction": 0.029
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 4.7
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 20.4,
+                    "p95_lu": 1.6,
+                    "max_lu": 1.8,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 14.8,
+                        "fraction": 0.725
+                      },
+                      "1": {
+                        "seconds": 3.9,
+                        "fraction": 0.191
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 6.4
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "e11-loud-content": {
+        "regions_seconds": {
+          "content": [
+            0,
+            90
+          ]
+        },
+        "variants": {
+          "original": {
+            "true_peak_dbtp": -4.8,
+            "regions": {
+              "content": {
+                "median_shortterm_lufs": -20.3,
+                "median_matched_gain_lu": 0.0
+              }
+            }
+          },
+          "leveler": {
+            "true_peak_dbtp": -9.8,
+            "regions": {
+              "content": {
+                "median_shortterm_lufs": -25.3,
+                "median_matched_gain_lu": -4.9,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 87.0,
+                    "p95_lu": 6.8,
+                    "max_lu": 7.9,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 87.0,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 87.0,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 87.0,
+                        "fraction": 1.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 87.0
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 87.0,
+                    "p95_lu": 6.5,
+                    "max_lu": 7.2,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 87.0,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 87.0,
+                        "fraction": 1.0
+                      },
+                      "2": {
+                        "seconds": 87.0,
+                        "fraction": 1.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 87.0
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "ren-other-content": {
+        "regions_seconds": {
+          "content": [
+            0,
+            90
+          ]
+        },
+        "variants": {
+          "original": {
+            "true_peak_dbtp": -3.9,
+            "regions": {
+              "content": {
+                "median_shortterm_lufs": -29.8,
+                "median_matched_gain_lu": 0.0
+              }
+            }
+          },
+          "leveler": {
+            "true_peak_dbtp": -8.2,
+            "regions": {
+              "content": {
+                "median_shortterm_lufs": -31.4,
+                "median_matched_gain_lu": -1.5,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 86.5,
+                    "p95_lu": 3.78,
+                    "max_lu": 9.7,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 42.5,
+                        "fraction": 0.491
+                      },
+                      "1": {
+                        "seconds": 30.1,
+                        "fraction": 0.348
+                      },
+                      "2": {
+                        "seconds": 17.0,
+                        "fraction": 0.197
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 4.5
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 86.5,
+                    "p95_lu": 4.6,
+                    "max_lu": 9.2,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 60.8,
+                        "fraction": 0.703
+                      },
+                      "1": {
+                        "seconds": 50.6,
+                        "fraction": 0.585
+                      },
+                      "2": {
+                        "seconds": 21.0,
+                        "fraction": 0.243
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 23.9
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "derivation": "Retains scalar region/gap/peak/impact statistics; removes individual frame traces and raw logs."
+  },
+  "round2_deadband_cap3db": {
+    "source": {
+      "local_path": "/Users/apple/Projects/fun-tools/media-dler/build/audio-leveling/evaluation-selective.json",
+      "sha256": "0bc23f4f213a714608245810733b22ec6c3df418c160e6fe85d8e5b47fee8b9c",
+      "bytes": 3225714
+    },
+    "retained_cases": [
+      "e11-first",
+      "e11-second",
+      "e12-first",
+      "e12-second",
+      "e11-loud-content",
+      "ren-other-content"
+    ],
+    "clips": {
+      "e11-first": {
+        "regions_seconds": {
+          "before": [
+            0,
+            20.318867
+          ],
+          "ad": [
+            20.318867,
+            46.082278
+          ],
+          "after": [
+            46.082278,
+            70
+          ]
+        },
+        "variants": {
+          "original": {
+            "ad_minus_before_lu": 9.7,
+            "ad_minus_after_lu": 13.2,
+            "ad_first_second_momentary_max_lufs": -11.8,
+            "true_peak_dbtp": -4.8,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -28.8,
+                "median_matched_gain_lu": 0.0
+              },
+              "ad": {
+                "median_shortterm_lufs": -19.1,
+                "median_matched_gain_lu": 0.0
+              },
+              "after": {
+                "median_shortterm_lufs": -32.3,
+                "median_matched_gain_lu": 0.0
+              }
+            }
+          },
+          "ceiling18": {
+            "ad_minus_before_lu": 8.9,
+            "ad_minus_after_lu": 12.4,
+            "ad_first_second_momentary_max_lufs": -14.8,
+            "true_peak_dbtp": -7.0,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -28.8,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 17.0,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 17.3,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  }
+                }
+              },
+              "ad": {
+                "median_shortterm_lufs": -19.9,
+                "median_matched_gain_lu": -0.6,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 2.8,
+                    "max_lu": 3.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 7.2,
+                        "fraction": 0.317
+                      },
+                      "1": {
+                        "seconds": 4.8,
+                        "fraction": 0.211
+                      },
+                      "2": {
+                        "seconds": 2.0,
+                        "fraction": 0.088
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 1.7
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 2.3,
+                    "max_lu": 2.4,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 13.6,
+                        "fraction": 0.599
+                      },
+                      "1": {
+                        "seconds": 8.1,
+                        "fraction": 0.357
+                      },
+                      "2": {
+                        "seconds": 2.4,
+                        "fraction": 0.106
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 6.0
+                  }
+                }
+              },
+              "after": {
+                "median_shortterm_lufs": -32.3,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 18.8,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.1,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 20.8,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.1,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  }
+                }
+              }
+            }
+          },
+          "ceiling19": {
+            "ad_minus_before_lu": 8.4,
+            "ad_minus_after_lu": 11.9,
+            "ad_first_second_momentary_max_lufs": -14.8,
+            "true_peak_dbtp": -7.8,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -28.8,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 17.0,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 17.3,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  }
+                }
+              },
+              "ad": {
+                "median_shortterm_lufs": -20.4,
+                "median_matched_gain_lu": -1.3,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 3.0,
+                    "max_lu": 3.1,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 11.3,
+                        "fraction": 0.498
+                      },
+                      "1": {
+                        "seconds": 8.3,
+                        "fraction": 0.366
+                      },
+                      "2": {
+                        "seconds": 4.2,
+                        "fraction": 0.185
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 1.8
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 2.5,
+                    "max_lu": 2.7,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 14.4,
+                        "fraction": 0.634
+                      },
+                      "2": {
+                        "seconds": 3.9,
+                        "fraction": 0.172
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 22.7
+                  }
+                }
+              },
+              "after": {
+                "median_shortterm_lufs": -32.3,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 18.8,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 20.8,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "e11-second": {
+        "regions_seconds": {
+          "before": [
+            0,
+            20.342767
+          ],
+          "ad": [
+            20.342767,
+            46.106189
+          ],
+          "after": [
+            46.106189,
+            70
+          ]
+        },
+        "variants": {
+          "original": {
+            "ad_minus_before_lu": 5.2,
+            "ad_minus_after_lu": 3.2,
+            "ad_first_second_momentary_max_lufs": -11.9,
+            "true_peak_dbtp": -4.8,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -24.3,
+                "median_matched_gain_lu": 0.0
+              },
+              "ad": {
+                "median_shortterm_lufs": -19.1,
+                "median_matched_gain_lu": 0.0
+              },
+              "after": {
+                "median_shortterm_lufs": -22.3,
+                "median_matched_gain_lu": 0.0
+              }
+            }
+          },
+          "ceiling18": {
+            "ad_minus_before_lu": 4.4,
+            "ad_minus_after_lu": 2.4,
+            "ad_first_second_momentary_max_lufs": -14.9,
+            "true_peak_dbtp": -6.3,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -24.3,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 17.3,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 17.3,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  }
+                }
+              },
+              "ad": {
+                "median_shortterm_lufs": -19.9,
+                "median_matched_gain_lu": -0.6,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 22.8,
+                    "p95_lu": 2.765,
+                    "max_lu": 3.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 7.3,
+                        "fraction": 0.32
+                      },
+                      "1": {
+                        "seconds": 4.7,
+                        "fraction": 0.206
+                      },
+                      "2": {
+                        "seconds": 2.0,
+                        "fraction": 0.088
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 1.7
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 22.8,
+                    "p95_lu": 2.2,
+                    "max_lu": 2.4,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 14.0,
+                        "fraction": 0.614
+                      },
+                      "1": {
+                        "seconds": 8.2,
+                        "fraction": 0.36
+                      },
+                      "2": {
+                        "seconds": 2.4,
+                        "fraction": 0.105
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 5.3
+                  }
+                }
+              },
+              "after": {
+                "median_shortterm_lufs": -22.3,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 20.9,
+                    "p95_lu": 1.1,
+                    "max_lu": 3.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 1.6,
+                        "fraction": 0.077
+                      },
+                      "1": {
+                        "seconds": 1.2,
+                        "fraction": 0.057
+                      },
+                      "2": {
+                        "seconds": 0.8,
+                        "fraction": 0.038
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 1.1
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 20.9,
+                    "p95_lu": 1.3,
+                    "max_lu": 1.5,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 3.4,
+                        "fraction": 0.163
+                      },
+                      "1": {
+                        "seconds": 2.9,
+                        "fraction": 0.139
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 3.4
+                  }
+                }
+              }
+            }
+          },
+          "ceiling19": {
+            "ad_minus_before_lu": 3.9,
+            "ad_minus_after_lu": 2.0,
+            "ad_first_second_momentary_max_lufs": -15.0,
+            "true_peak_dbtp": -6.4,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -24.3,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 17.3,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 17.3,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  }
+                }
+              },
+              "ad": {
+                "median_shortterm_lufs": -20.4,
+                "median_matched_gain_lu": -1.3,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 22.8,
+                    "p95_lu": 2.9,
+                    "max_lu": 3.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 11.0,
+                        "fraction": 0.482
+                      },
+                      "1": {
+                        "seconds": 8.9,
+                        "fraction": 0.39
+                      },
+                      "2": {
+                        "seconds": 4.1,
+                        "fraction": 0.18
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 1.9
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 22.8,
+                    "p95_lu": 2.5,
+                    "max_lu": 2.7,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 22.8,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 14.9,
+                        "fraction": 0.654
+                      },
+                      "2": {
+                        "seconds": 3.8,
+                        "fraction": 0.167
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 22.8
+                  }
+                }
+              },
+              "after": {
+                "median_shortterm_lufs": -22.4,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 20.9,
+                    "p95_lu": 2.06,
+                    "max_lu": 3.1,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 2.1,
+                        "fraction": 0.1
+                      },
+                      "1": {
+                        "seconds": 1.7,
+                        "fraction": 0.081
+                      },
+                      "2": {
+                        "seconds": 1.1,
+                        "fraction": 0.053
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 1.3
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 20.9,
+                    "p95_lu": 1.6,
+                    "max_lu": 1.8,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 6.4,
+                        "fraction": 0.306
+                      },
+                      "1": {
+                        "seconds": 3.0,
+                        "fraction": 0.144
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 3.5
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "e12-first": {
+        "regions_seconds": {
+          "before": [
+            0,
+            20.402278
+          ],
+          "ad": [
+            20.402278,
+            46.1657
+          ],
+          "after": [
+            46.1657,
+            70
+          ]
+        },
+        "variants": {
+          "original": {
+            "ad_minus_before_lu": 8.2,
+            "ad_minus_after_lu": 10.4,
+            "ad_first_second_momentary_max_lufs": -11.9,
+            "true_peak_dbtp": -4.7,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -27.4,
+                "median_matched_gain_lu": 0.0
+              },
+              "ad": {
+                "median_shortterm_lufs": -19.2,
+                "median_matched_gain_lu": 0.0
+              },
+              "after": {
+                "median_shortterm_lufs": -29.6,
+                "median_matched_gain_lu": 0.0
+              }
+            }
+          },
+          "ceiling18": {
+            "ad_minus_before_lu": 7.5,
+            "ad_minus_after_lu": 9.7,
+            "ad_first_second_momentary_max_lufs": -14.8,
+            "true_peak_dbtp": -5.8,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -27.4,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 17.4,
+                    "p95_lu": 0.1,
+                    "max_lu": 0.6,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.3,
+                        "fraction": 0.017
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.3
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 17.4,
+                    "p95_lu": 0.2,
+                    "max_lu": 0.3,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  }
+                }
+              },
+              "ad": {
+                "median_shortterm_lufs": -19.9,
+                "median_matched_gain_lu": -0.6,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 2.7,
+                    "max_lu": 3.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 7.3,
+                        "fraction": 0.322
+                      },
+                      "1": {
+                        "seconds": 4.6,
+                        "fraction": 0.203
+                      },
+                      "2": {
+                        "seconds": 2.0,
+                        "fraction": 0.088
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 1.7
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 2.3,
+                    "max_lu": 2.5,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 13.9,
+                        "fraction": 0.612
+                      },
+                      "1": {
+                        "seconds": 8.0,
+                        "fraction": 0.352
+                      },
+                      "2": {
+                        "seconds": 2.4,
+                        "fraction": 0.106
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 5.1
+                  }
+                }
+              },
+              "after": {
+                "median_shortterm_lufs": -29.6,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 20.9,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.2,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 20.9,
+                    "p95_lu": 0.1,
+                    "max_lu": 0.1,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  }
+                }
+              }
+            }
+          },
+          "ceiling19": {
+            "ad_minus_before_lu": 7.0,
+            "ad_minus_after_lu": 9.2,
+            "ad_first_second_momentary_max_lufs": -14.8,
+            "true_peak_dbtp": -6.6,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -27.4,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 17.4,
+                    "p95_lu": 0.7,
+                    "max_lu": 1.5,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 1.0,
+                        "fraction": 0.057
+                      },
+                      "1": {
+                        "seconds": 0.4,
+                        "fraction": 0.023
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.5
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 17.4,
+                    "p95_lu": 0.6,
+                    "max_lu": 0.6,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 1.5,
+                        "fraction": 0.086
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 1.2
+                  }
+                }
+              },
+              "ad": {
+                "median_shortterm_lufs": -20.4,
+                "median_matched_gain_lu": -1.3,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 2.9,
+                    "max_lu": 3.1,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 11.0,
+                        "fraction": 0.485
+                      },
+                      "1": {
+                        "seconds": 8.5,
+                        "fraction": 0.374
+                      },
+                      "2": {
+                        "seconds": 4.1,
+                        "fraction": 0.181
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 1.9
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 22.7,
+                    "p95_lu": 2.5,
+                    "max_lu": 2.7,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 22.7,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 14.7,
+                        "fraction": 0.648
+                      },
+                      "2": {
+                        "seconds": 3.6,
+                        "fraction": 0.159
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 22.7
+                  }
+                }
+              },
+              "after": {
+                "median_shortterm_lufs": -29.6,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 20.9,
+                    "p95_lu": 0.1,
+                    "max_lu": 0.8,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.5,
+                        "fraction": 0.024
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.5
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 20.9,
+                    "p95_lu": 0.4,
+                    "max_lu": 0.5,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "e12-second": {
+        "regions_seconds": {
+          "before": [
+            0,
+            20.760856
+          ],
+          "ad": [
+            20.760856,
+            46.524267
+          ],
+          "after": [
+            46.524267,
+            70
+          ]
+        },
+        "variants": {
+          "original": {
+            "ad_minus_before_lu": 12.35,
+            "ad_minus_after_lu": 11.45,
+            "ad_first_second_momentary_max_lufs": -12.0,
+            "true_peak_dbtp": -4.9,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -31.4,
+                "median_matched_gain_lu": 0.0
+              },
+              "ad": {
+                "median_shortterm_lufs": -19.05,
+                "median_matched_gain_lu": 0.0
+              },
+              "after": {
+                "median_shortterm_lufs": -30.5,
+                "median_matched_gain_lu": 0.0
+              }
+            }
+          },
+          "ceiling18": {
+            "ad_minus_before_lu": 11.5,
+            "ad_minus_after_lu": 10.6,
+            "ad_first_second_momentary_max_lufs": -15.0,
+            "true_peak_dbtp": -6.9,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -31.4,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 17.7,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 17.7,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  }
+                }
+              },
+              "ad": {
+                "median_shortterm_lufs": -19.9,
+                "median_matched_gain_lu": -0.6,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 22.8,
+                    "p95_lu": 2.765,
+                    "max_lu": 3.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 7.2,
+                        "fraction": 0.316
+                      },
+                      "1": {
+                        "seconds": 4.3,
+                        "fraction": 0.189
+                      },
+                      "2": {
+                        "seconds": 2.0,
+                        "fraction": 0.088
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 1.7
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 22.8,
+                    "p95_lu": 2.265,
+                    "max_lu": 2.4,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 13.4,
+                        "fraction": 0.588
+                      },
+                      "1": {
+                        "seconds": 8.3,
+                        "fraction": 0.364
+                      },
+                      "2": {
+                        "seconds": 2.4,
+                        "fraction": 0.105
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 5.0
+                  }
+                }
+              },
+              "after": {
+                "median_shortterm_lufs": -30.5,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 20.5,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 20.5,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  }
+                }
+              }
+            }
+          },
+          "ceiling19": {
+            "ad_minus_before_lu": 11.0,
+            "ad_minus_after_lu": 10.1,
+            "ad_first_second_momentary_max_lufs": -15.0,
+            "true_peak_dbtp": -7.8,
+            "regions": {
+              "before": {
+                "median_shortterm_lufs": -31.4,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 17.7,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 17.7,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  }
+                }
+              },
+              "ad": {
+                "median_shortterm_lufs": -20.4,
+                "median_matched_gain_lu": -1.3,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 22.8,
+                    "p95_lu": 2.9,
+                    "max_lu": 3.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 11.1,
+                        "fraction": 0.487
+                      },
+                      "1": {
+                        "seconds": 8.8,
+                        "fraction": 0.386
+                      },
+                      "2": {
+                        "seconds": 4.1,
+                        "fraction": 0.18
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 1.9
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 22.8,
+                    "p95_lu": 2.565,
+                    "max_lu": 2.7,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 22.8,
+                        "fraction": 1.0
+                      },
+                      "1": {
+                        "seconds": 14.7,
+                        "fraction": 0.645
+                      },
+                      "2": {
+                        "seconds": 3.8,
+                        "fraction": 0.167
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 22.8
+                  }
+                }
+              },
+              "after": {
+                "median_shortterm_lufs": -30.5,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 20.5,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 20.5,
+                    "p95_lu": 0.0,
+                    "max_lu": 0.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.0
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "e11-loud-content": {
+        "regions_seconds": {
+          "content": [
+            0,
+            90
+          ]
+        },
+        "variants": {
+          "original": {
+            "true_peak_dbtp": -4.8,
+            "regions": {
+              "content": {
+                "median_shortterm_lufs": -20.3,
+                "median_matched_gain_lu": 0.0
+              }
+            }
+          },
+          "ceiling18": {
+            "true_peak_dbtp": -5.1,
+            "regions": {
+              "content": {
+                "median_shortterm_lufs": -20.3,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 87.0,
+                    "p95_lu": 0.2,
+                    "max_lu": 1.5,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 2.1,
+                        "fraction": 0.024
+                      },
+                      "1": {
+                        "seconds": 1.3,
+                        "fraction": 0.015
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.6
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 87.0,
+                    "p95_lu": 0.3,
+                    "max_lu": 0.6,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 0.1,
+                        "fraction": 0.001
+                      },
+                      "1": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.1
+                  }
+                }
+              }
+            }
+          },
+          "ceiling19": {
+            "true_peak_dbtp": -4.8,
+            "regions": {
+              "content": {
+                "median_shortterm_lufs": -20.5,
+                "median_matched_gain_lu": -0.1,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 87.0,
+                    "p95_lu": 0.955,
+                    "max_lu": 2.5,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 9.5,
+                        "fraction": 0.109
+                      },
+                      "1": {
+                        "seconds": 3.9,
+                        "fraction": 0.045
+                      },
+                      "2": {
+                        "seconds": 1.1,
+                        "fraction": 0.013
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 0.9
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 87.0,
+                    "p95_lu": 0.7,
+                    "max_lu": 1.1,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 12.4,
+                        "fraction": 0.143
+                      },
+                      "1": {
+                        "seconds": 0.5,
+                        "fraction": 0.006
+                      },
+                      "2": {
+                        "seconds": 0.0,
+                        "fraction": 0.0
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 4.8
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "ren-other-content": {
+        "regions_seconds": {
+          "content": [
+            0,
+            90
+          ]
+        },
+        "variants": {
+          "original": {
+            "true_peak_dbtp": -3.9,
+            "regions": {
+              "content": {
+                "median_shortterm_lufs": -29.8,
+                "median_matched_gain_lu": 0.0
+              }
+            }
+          },
+          "ceiling18": {
+            "true_peak_dbtp": -5.7,
+            "regions": {
+              "content": {
+                "median_shortterm_lufs": -29.8,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 86.5,
+                    "p95_lu": 0.0,
+                    "max_lu": 3.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 1.3,
+                        "fraction": 0.015
+                      },
+                      "1": {
+                        "seconds": 1.1,
+                        "fraction": 0.013
+                      },
+                      "2": {
+                        "seconds": 0.9,
+                        "fraction": 0.01
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 1.3
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 86.5,
+                    "p95_lu": 0.2,
+                    "max_lu": 2.7,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 3.6,
+                        "fraction": 0.042
+                      },
+                      "1": {
+                        "seconds": 3.3,
+                        "fraction": 0.038
+                      },
+                      "2": {
+                        "seconds": 1.3,
+                        "fraction": 0.015
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 3.6
+                  }
+                }
+              }
+            }
+          },
+          "ceiling19": {
+            "true_peak_dbtp": -5.7,
+            "regions": {
+              "content": {
+                "median_shortterm_lufs": -29.8,
+                "median_matched_gain_lu": 0.0,
+                "attenuation": {
+                  "momentary": {
+                    "eligible_seconds": 86.5,
+                    "p95_lu": 0.0,
+                    "max_lu": 3.0,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 2.3,
+                        "fraction": 0.027
+                      },
+                      "1": {
+                        "seconds": 1.5,
+                        "fraction": 0.017
+                      },
+                      "2": {
+                        "seconds": 1.1,
+                        "fraction": 0.013
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 1.7
+                  },
+                  "shortterm": {
+                    "eligible_seconds": 86.5,
+                    "p95_lu": 0.6,
+                    "max_lu": 2.8,
+                    "affected": {
+                      "0.5": {
+                        "seconds": 4.8,
+                        "fraction": 0.055
+                      },
+                      "1": {
+                        "seconds": 3.4,
+                        "fraction": 0.039
+                      },
+                      "2": {
+                        "seconds": 1.7,
+                        "fraction": 0.02
+                      }
+                    },
+                    "longest_contiguous_over_0.5_lu_seconds": 3.8
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "derivation": "Retains scalar region/gap/peak/impact statistics; removes individual frame traces and raw logs."
+  },
+  "first_comparison_filters": {
+    "original": "anull",
+    "peak": "alimiter=limit=0.501187234:level=0:latency=1",
+    "rms2": "acompressor=mode=downward:threshold=0.039810717:ratio=2:attack=10:release=700:knee=2:makeup=1:detection=rms:link=maximum",
+    "rms4": "acompressor=mode=downward:threshold=0.039810717:ratio=4:attack=10:release=700:knee=2:makeup=1:detection=rms:link=maximum",
+    "leveler": "dynaudnorm=f=250:g=5:m=1:r=0.039810717:n=1:c=0"
+  },
+  "whole_e11_encoding": {
+    "source": {
+      "local_path": "/Users/apple/Projects/fun-tools/media-dler/build/audio-leveling/Moving-E0011-leveler-soft.json",
+      "sha256": "90b6263d251ca0bc624b99ebb55429b37fc7d23f5fcde76f271409bb5d3c37bf",
+      "bytes": 5011
+    },
+    "cost": {
+      "wall_seconds": 53.529,
+      "cpu_seconds": 68.187
+    },
+    "output_bytes": 249155681,
+    "summary": {
+      "integrated_lufs": -28.4,
+      "loudness_range_lu": 11.3,
+      "sample_peak_dbfs": -7.3,
+      "true_peak_dbtp": -7.2,
+      "active_shortterm_percentiles_lufs": {
+        "10": -36.7,
+        "25": -32.9,
+        "50": -30.2,
+        "75": -28.1,
+        "90": -26.0,
+        "95": -25.3
+      },
+      "measurement_cost": {
+        "wall_seconds": 15.615,
+        "cpu_seconds": 21.05
+      }
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "coverage": "Evaluation only: one visually confirmed ad payload repeated four times across two episodes, not four independent ads. Other-content clips have no ad-free assertion. Labels never control processing.",
+  "known_ad_sha256": "9eb906809fd3ff6c5d67246d8eb5a7a81805197a83fb0446571f5680fc183acb",
+  "label_method": "Exact full ad payload matches; source PTS minus clip extraction start. Video packet boundaries approximate the audio transition.",
+  "clips": {
+    "e11-first": {
+      "source_start_seconds": 280,
+      "duration_seconds": 70,
+      "ad_seconds": [20.318867, 46.082278],
+      "label_source": "/private/tmp/media-dler-tests/8maple-ads-phone/analysis/Moving-E0011-original-known-ad-matches.json",
+      "exact_match_index": 0
+    },
+    "e11-second": {
+      "source_start_seconds": 1988,
+      "duration_seconds": 70,
+      "ad_seconds": [20.342767, 46.106189],
+      "label_source": "/private/tmp/media-dler-tests/8maple-ads-phone/analysis/Moving-E0011-original-known-ad-matches.json",
+      "exact_match_index": 1
+    },
+    "e12-first": {
+      "source_start_seconds": 280,
+      "duration_seconds": 70,
+      "ad_seconds": [20.402278, 46.1657],
+      "label_source": "/private/tmp/media-dler-tests/8maple-ads-phone/analysis/Moving-E0012-original-known-ad-matches.json",
+      "exact_match_index": 0
+    },
+    "e12-second": {
+      "source_start_seconds": 1989,
+      "duration_seconds": 70,
+      "ad_seconds": [20.760856, 46.524267],
+      "label_source": "/private/tmp/media-dler-tests/8maple-ads-phone/analysis/Moving-E0012-original-known-ad-matches.json",
+      "exact_match_index": 1
+    },
+    "e11-loud-content": {
+      "source_start_seconds": 1460,
+      "duration_seconds": 90,
+      "coverage": "Whole selected content; no ad-free assertion."
+    },
+    "ren-other-content": {
+      "source_start_seconds": 60,
+      "duration_seconds": 90,
+      "coverage": "Whole selected content; no ad-free assertion."
+    }
+  }
+}

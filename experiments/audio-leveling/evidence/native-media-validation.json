@@ -1,0 +1,229 @@
+{
+  "validation": "native-media",
+  "overall_status": "PASS_WITH_DECODE_UNVERIFIED",
+  "toolchain": {
+    "ffmpeg": "/usr/local/bin/ffmpeg",
+    "ffprobe": "/usr/local/bin/ffprobe",
+    "ffmpeg_version": "7.1",
+    "ffprobe_version": "7.1"
+  },
+  "source": {
+    "path": "/private/tmp/media-dler-tests/8maple-ads-phone/media/Moving-E0011-original.mp4",
+    "file_bytes": 237303408,
+    "format_duration_s": 3085.090975,
+    "streams": {
+      "video": {
+        "codec": "h264",
+        "profile": "High",
+        "width": 1080,
+        "height": 606,
+        "time_base": "1/90000",
+        "start_time_s": 0.064,
+        "duration_s": 3084.925344,
+        "nb_frames": 74017
+      },
+      "audio": {
+        "codec": "aac",
+        "profile": "LC",
+        "sample_rate_hz": 44100,
+        "channels": 2,
+        "channel_layout": "stereo",
+        "time_base": "1/44100",
+        "start_time_s": 0.0,
+        "duration_s": 3085.090975,
+        "nb_frames": 132863
+      }
+    },
+    "av_end": {
+      "video_end_s": 3084.989344,
+      "audio_end_s": 3085.090975,
+      "audio_minus_video_end_s": 0.101631
+    }
+  },
+  "target": {
+    "path": "/Users/apple/Projects/fun-tools/media-dler/build/audio-leveling/Moving-E0011-leveler-soft.mp4",
+    "file_bytes": 249155681,
+    "format_duration_s": 3085.090998,
+    "streams": {
+      "video": {
+        "codec": "h264",
+        "profile": "High",
+        "width": 1080,
+        "height": 606,
+        "time_base": "1/90000",
+        "start_time_s": 0.064,
+        "duration_s": 3084.925344,
+        "nb_frames": 74017
+      },
+      "audio": {
+        "codec": "aac",
+        "profile": "LC",
+        "sample_rate_hz": 44100,
+        "channels": 2,
+        "channel_layout": "stereo",
+        "time_base": "1/44100",
+        "start_time_s": 0.0,
+        "duration_s": 3085.090998,
+        "nb_frames": 132864
+      }
+    },
+    "av_end": {
+      "video_end_s": 3084.989344,
+      "audio_end_s": 3085.090998,
+      "audio_minus_video_end_s": 0.101654
+    }
+  },
+  "delta_target_minus_source": {
+    "video_duration_s": 0.0,
+    "audio_duration_s": 0.000023,
+    "format_duration_s": 0.000023,
+    "video_end_s": 0.0,
+    "audio_end_s": 0.000023,
+    "av_end_difference_s": 0.000023,
+    "audio_frame_count": 1
+  },
+  "checks": {
+    "encoded_video_packet_payload_sha256": {
+      "command_template": "/usr/local/bin/ffmpeg -v error -i <input> -map 0:v:0 -c copy -f hash -hash sha256 -",
+      "source": {
+        "command": "/usr/local/bin/ffmpeg -v error -i '/private/tmp/media-dler-tests/8maple-ads-phone/media/Moving-E0011-original.mp4' -map 0:v:0 -c copy -f hash -hash sha256 -",
+        "exit_code": 0,
+        "sha256": "9af39850eb91b5c19c566a0884f1264b0cee039b72bf9edf0345d4878f885337"
+      },
+      "target": {
+        "command": "/usr/local/bin/ffmpeg -v error -i '/Users/apple/Projects/fun-tools/media-dler/build/audio-leveling/Moving-E0011-leveler-soft.mp4' -map 0:v:0 -c copy -f hash -hash sha256 -",
+        "exit_code": 0,
+        "sha256": "9af39850eb91b5c19c566a0884f1264b0cee039b72bf9edf0345d4878f885337"
+      },
+      "equal": true,
+      "result": "PASS"
+    },
+    "video_packet_pts_dts_duration": {
+      "source_time_base": "1/90000",
+      "target_time_base": "1/90000",
+      "time_bases_equal": true,
+      "command": "/usr/bin/cmp -s <(/usr/local/bin/ffprobe -v error -select_streams v:0 -show_entries packet=pts,dts,duration -of compact=p=0:nk=1 '/private/tmp/media-dler-tests/8maple-ads-phone/media/Moving-E0011-original.mp4') <(/usr/local/bin/ffprobe -v error -select_streams v:0 -show_entries packet=pts,dts,duration -of compact=p=0:nk=1 '/Users/apple/Projects/fun-tools/media-dler/build/audio-leveling/Moving-E0011-leveler-soft.mp4')",
+      "source_packet_lines": 74017,
+      "target_packet_lines": 74017,
+      "source_compact_sha256": "379bb2152e47a5a38f74e5ba816c5bc4fbd636f57200253acad141c044eb8065",
+      "target_compact_sha256": "379bb2152e47a5a38f74e5ba816c5bc4fbd636f57200253acad141c044eb8065",
+      "cmp_exit_code": 0,
+      "equal": true,
+      "result": "PASS"
+    },
+    "full_target_av_decode": {
+      "command": "/usr/local/bin/ffmpeg -v error -xerror -i '/Users/apple/Projects/fun-tools/media-dler/build/audio-leveling/Moving-E0011-leveler-soft.mp4' -f null -",
+      "status": "NOT_RUN",
+      "reason": "Omitted from this bounded verification pass per coordination scope; the completed whole-file EBU scan is the available native audio decode evidence."
+    }
+  },
+  "whole_file_measurement_comparison": {
+    "source_csv": "build/audio-leveling/e11-scan/source.csv",
+    "target_csv": "build/audio-leveling/Moving-E0011-leveler-soft.csv",
+    "ad_interval_source": "/private/tmp/media-dler-tests/8maple-ads-phone/analysis/Moving-E0011-original-known-ad-matches.json",
+    "method": {
+      "regions": "20 s before, exact ad interval, and 24 s after each known ad",
+      "skip_first_s_of_each_region": 3.0,
+      "eligibility": "source shortterm_lufs > -50 LUFS; target values use the matched source-eligible ticks",
+      "alignment": "nominal round(t,1) ticks",
+      "matched_gain": "median per-tick target shortterm_lufs minus source shortterm_lufs",
+      "onset": "maximum momentary_lufs at [ad_start + 0.4 s, ad_start + 1.0 s); no level gate"
+    },
+    "alignment": {
+      "source_rows": 30850,
+      "target_rows": 30850,
+      "common_nominal_ticks": 30850,
+      "source_duplicate_nominal_ticks": 0,
+      "target_duplicate_nominal_ticks": 0,
+      "unmatched_source_ticks": 0,
+      "unmatched_target_ticks": 0
+    },
+    "regions": {
+      "first": {
+        "ad_start_s": 300.318867,
+        "ad_end_s": 326.082278,
+        "before": {
+          "window_s": [280.318867, 300.318867],
+          "evaluated_window_s": [283.318867, 300.318867],
+          "frames": 170,
+          "source_shortterm_median_lufs": -28.75,
+          "target_shortterm_median_lufs": -30.15,
+          "matched_gain_median_lu": -1.3
+        },
+        "ad": {
+          "window_s": [300.318867, 326.082278],
+          "evaluated_window_s": [303.318867, 326.082278],
+          "frames": 227,
+          "source_shortterm_median_lufs": -19.1,
+          "target_shortterm_median_lufs": -26.2,
+          "matched_gain_median_lu": -7.1
+        },
+        "after": {
+          "window_s": [326.082278, 350.082278],
+          "evaluated_window_s": [329.082278, 350.082278],
+          "frames": 208,
+          "source_shortterm_median_lufs": -32.3,
+          "target_shortterm_median_lufs": -32.6,
+          "matched_gain_median_lu": -0.3
+        },
+        "ad_minus_before_gap_lu": {
+          "source": 9.65,
+          "target": 3.95
+        },
+        "onset_first_second": {
+          "window_s": [300.718867, 301.318867],
+          "frames": 6,
+          "source_max_momentary_lufs": -11.8,
+          "target_max_momentary_lufs": -23.3,
+          "source_max_nominal_t_s": [300.8],
+          "target_max_nominal_t_s": [300.8]
+        }
+      },
+      "second": {
+        "ad_start_s": 2008.342767,
+        "ad_end_s": 2034.106189,
+        "before": {
+          "window_s": [1988.342767, 2008.342767],
+          "evaluated_window_s": [1991.342767, 2008.342767],
+          "frames": 170,
+          "source_shortterm_median_lufs": -24.15,
+          "target_shortterm_median_lufs": -28.0,
+          "matched_gain_median_lu": -4.05
+        },
+        "ad": {
+          "window_s": [2008.342767, 2034.106189],
+          "evaluated_window_s": [2011.342767, 2034.106189],
+          "frames": 228,
+          "source_shortterm_median_lufs": -19.1,
+          "target_shortterm_median_lufs": -26.1,
+          "matched_gain_median_lu": -6.8
+        },
+        "after": {
+          "window_s": [2034.106189, 2058.106189],
+          "evaluated_window_s": [2037.106189, 2058.106189],
+          "frames": 210,
+          "source_shortterm_median_lufs": -22.25,
+          "target_shortterm_median_lufs": -27.2,
+          "matched_gain_median_lu": -4.8
+        },
+        "ad_minus_before_gap_lu": {
+          "source": 5.05,
+          "target": 1.9
+        },
+        "onset_first_second": {
+          "window_s": [2008.742767, 2009.342767],
+          "frames": 6,
+          "source_max_momentary_lufs": -11.9,
+          "target_max_momentary_lufs": -23.6,
+          "source_max_nominal_t_s": [2008.8],
+          "target_max_nominal_t_s": [2008.8]
+        }
+      }
+    }
+  },
+  "limits": [
+    "The full target AV decode command was not run in this pass; do not treat this report as a fresh end-to-end decode result.",
+    "No Kodi, VLC, device playback, or phone battery verification was performed.",
+    "The loudness measurements are descriptive human-evaluation evidence only and are not processing inputs."
+  ]
+}

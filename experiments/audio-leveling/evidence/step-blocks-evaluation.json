@@ -1,0 +1,660 @@
+{
+  "experiment": "posthoc_step_blocks_v1_known_ad_evaluation",
+  "method": {
+    "known_ad_intervals": "evaluation-windows clips source_start_seconds + ad_seconds",
+    "coverage": "union of matched merged-block intersections divided by known interval duration",
+    "missed_lead_tail": "covered union edge gaps; null when coverage is empty, with full interval in missed_uncovered_seconds",
+    "spill": "matched-block duration outside the known interval, reported per matched block and as an outside union",
+    "actual_A": "merged block attenuation_db, copied as actual_A_db",
+    "positive_A_mergedblocks": "count of merged blocks with attenuation_db > 0 over total merged blocks",
+    "attenuation_seconds": "sum of positive-A merged block durations divided by source format duration",
+    "unmatched": "merged blocks without overlap with any known ad for that episode; not classified as false positives"
+  },
+  "evaluation_windows": {
+    "path": "/private/tmp/media-dler-audio-leveling/experiments/audio-leveling/evaluation-windows.json",
+    "sha256": "1356a665474192040c9dd8b0539a3785d90ced29cdd34d2b38b0398ba585f45c",
+    "known_ad_sha256": "9eb906809fd3ff6c5d67246d8eb5a7a81805197a83fb0446571f5680fc183acb",
+    "label_method": "Exact full ad payload matches; source PTS minus clip extraction start. Video packet boundaries approximate the audio transition."
+  },
+  "limits": [
+    "Detector outputs are acoustic proposals only; no semantic ad classification or ad-free claim is made.",
+    "All quantities below are proposed control and coverage measurements; no rendered-output loudness is measured here.",
+    "Unmatched blocks are reported as blocks without overlap with a known ad, not as false positives."
+  ],
+  "detector_reports": {
+    "e11": {
+      "report_path": "build/audio-leveling/step-blocks-v1/e11.json",
+      "report_sha256": "ad2341408b32f9a64d15c01e8183b392514921c99fe5363a921e23a222781bc4",
+      "input_csv": "/Users/apple/Projects/fun-tools/media-dler/build/audio-leveling/e11-scan/source.csv",
+      "input_csv_sha256": "5c37805fc081d9d0dfa65955a52acec3d16cb4f8ff33e3ea8ef7026a7ebb1be1",
+      "metrics_path": "build/audio-leveling/e11-scan/metrics.json",
+      "metrics_sha256": "44fa1416a1ad13ff4d33c207c2d3ef816ee9072bfd06880305cb4e2a8c721c0d",
+      "experiment": "paired_step_v1_frozen",
+      "total_duration_seconds": 3085.090975,
+      "merged_block_count": 21,
+      "positive_A_merged_blocks": {
+        "count": 21,
+        "total_count": 21,
+        "count_fraction": 1.0
+      },
+      "attenuation_seconds": 1015.499934,
+      "attenuation_fraction_of_total_duration": 0.329163692,
+      "merged_block_seconds": 1015.499934,
+      "merged_block_seconds_fraction_of_total_duration": 0.329163692,
+      "max_A_db_all_merged_blocks": 6.0,
+      "known_ads": [
+        {
+          "clip": "e11-first",
+          "label_source": "/private/tmp/media-dler-tests/8maple-ads-phone/analysis/Moving-E0011-original-known-ad-matches.json",
+          "exact_match_index": 0,
+          "known_interval_seconds": [
+            300.318867,
+            326.082278
+          ],
+          "known_duration_seconds": 25.763411,
+          "matched_block_count": 0,
+          "matched_blocks": [],
+          "actual_A_db_values": [],
+          "coverage_union_seconds": 0,
+          "coverage_fraction": 0.0,
+          "coverage_union_intervals": [],
+          "coverage_start_seconds": null,
+          "coverage_end_seconds": null,
+          "missed_lead_seconds": null,
+          "missed_tail_seconds": null,
+          "missed_uncovered_seconds": 25.763411,
+          "spill_outside_known_interval_union_seconds": 0,
+          "spill_before_seconds_by_matched_block": [],
+          "spill_after_seconds_by_matched_block": []
+        },
+        {
+          "clip": "e11-second",
+          "label_source": "/private/tmp/media-dler-tests/8maple-ads-phone/analysis/Moving-E0011-original-known-ad-matches.json",
+          "exact_match_index": 1,
+          "known_interval_seconds": [
+            2008.342767,
+            2034.106189
+          ],
+          "known_duration_seconds": 25.763422,
+          "matched_block_count": 0,
+          "matched_blocks": [],
+          "actual_A_db_values": [],
+          "coverage_union_seconds": 0,
+          "coverage_fraction": 0.0,
+          "coverage_union_intervals": [],
+          "coverage_start_seconds": null,
+          "coverage_end_seconds": null,
+          "missed_lead_seconds": null,
+          "missed_tail_seconds": null,
+          "missed_uncovered_seconds": 25.763422,
+          "spill_outside_known_interval_union_seconds": 0,
+          "spill_before_seconds_by_matched_block": [],
+          "spill_after_seconds_by_matched_block": []
+        }
+      ],
+      "unmatched_blocks": [
+        {
+          "start_seconds": 398.909048,
+          "end_seconds": 402.409048,
+          "duration_seconds": 3.5,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -28.1
+        },
+        {
+          "start_seconds": 676.409025,
+          "end_seconds": 894.909025,
+          "duration_seconds": 218.5,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -28.1
+        },
+        {
+          "start_seconds": 1070.90907,
+          "end_seconds": 1072.909048,
+          "duration_seconds": 1.999978,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -20.3
+        },
+        {
+          "start_seconds": 1291.40907,
+          "end_seconds": 1605.409048,
+          "duration_seconds": 313.999978,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -22.5
+        },
+        {
+          "start_seconds": 1611.409048,
+          "end_seconds": 1619.409025,
+          "duration_seconds": 7.999977,
+          "attenuation_db": 3.3,
+          "actual_A_db": 3.3,
+          "block_median_lufs": -25.1
+        },
+        {
+          "start_seconds": 1629.409025,
+          "end_seconds": 1631.409048,
+          "duration_seconds": 2.000023,
+          "attenuation_db": 3.4,
+          "actual_A_db": 3.4,
+          "block_median_lufs": -26.8
+        },
+        {
+          "start_seconds": 1644.40907,
+          "end_seconds": 1674.909048,
+          "duration_seconds": 30.499978,
+          "attenuation_db": 4.9,
+          "actual_A_db": 4.9,
+          "block_median_lufs": -33.2
+        },
+        {
+          "start_seconds": 1698.409025,
+          "end_seconds": 1702.409025,
+          "duration_seconds": 4.0,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -27.35
+        },
+        {
+          "start_seconds": 1705.409025,
+          "end_seconds": 1707.409025,
+          "duration_seconds": 2.0,
+          "attenuation_db": 4.45,
+          "actual_A_db": 4.45,
+          "block_median_lufs": -28.85
+        },
+        {
+          "start_seconds": 1720.909048,
+          "end_seconds": 1727.909048,
+          "duration_seconds": 7.0,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -25.7
+        },
+        {
+          "start_seconds": 1761.409048,
+          "end_seconds": 1793.409025,
+          "duration_seconds": 31.999977,
+          "attenuation_db": 4.2,
+          "actual_A_db": 4.2,
+          "block_median_lufs": -29.1
+        },
+        {
+          "start_seconds": 1806.409048,
+          "end_seconds": 1828.409048,
+          "duration_seconds": 22.0,
+          "attenuation_db": 5.9,
+          "actual_A_db": 5.9,
+          "block_median_lufs": -21.45
+        },
+        {
+          "start_seconds": 1837.909025,
+          "end_seconds": 1845.909048,
+          "duration_seconds": 8.000023,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -26.4
+        },
+        {
+          "start_seconds": 1857.409025,
+          "end_seconds": 1880.909048,
+          "duration_seconds": 23.500023,
+          "attenuation_db": 5.6,
+          "actual_A_db": 5.6,
+          "block_median_lufs": -25.2
+        },
+        {
+          "start_seconds": 1959.909048,
+          "end_seconds": 1961.909025,
+          "duration_seconds": 1.999977,
+          "attenuation_db": 3.7,
+          "actual_A_db": 3.7,
+          "block_median_lufs": -22.95
+        },
+        {
+          "start_seconds": 2086.418095,
+          "end_seconds": 2162.918095,
+          "duration_seconds": 76.5,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -21.9
+        },
+        {
+          "start_seconds": 2260.418095,
+          "end_seconds": 2262.418095,
+          "duration_seconds": 2.0,
+          "attenuation_db": 4.6,
+          "actual_A_db": 4.6,
+          "block_median_lufs": -29.7
+        },
+        {
+          "start_seconds": 2309.918095,
+          "end_seconds": 2311.918095,
+          "duration_seconds": 2.0,
+          "attenuation_db": 4.35,
+          "actual_A_db": 4.35,
+          "block_median_lufs": -20.1
+        },
+        {
+          "start_seconds": 2341.918095,
+          "end_seconds": 2536.918095,
+          "duration_seconds": 195.0,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -27.35
+        },
+        {
+          "start_seconds": 2617.418095,
+          "end_seconds": 2624.418095,
+          "duration_seconds": 7.0,
+          "attenuation_db": 4.25,
+          "actual_A_db": 4.25,
+          "block_median_lufs": -26.45
+        },
+        {
+          "start_seconds": 3027.418095,
+          "end_seconds": 3081.418095,
+          "duration_seconds": 54.0,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -27.4
+        }
+      ],
+      "unmatched_block_count": 21,
+      "unmatched_block_seconds": 1015.499934,
+      "control_window": {
+        "name": "verified_fight",
+        "interval_seconds": [
+          1460.0,
+          1550.0
+        ],
+        "overlapping_blocks": [
+          {
+            "start_seconds": 1291.40907,
+            "end_seconds": 1605.409048,
+            "duration_seconds": 313.999978,
+            "attenuation_db": 6.0,
+            "actual_A_db": 6.0,
+            "block_median_lufs": -22.5
+          }
+        ],
+        "max_A_db": 6.0,
+        "max_A_if_no_overlap_as_zero_db": 6.0
+      }
+    },
+    "e12": {
+      "report_path": "build/audio-leveling/step-blocks-v1/e12.json",
+      "report_sha256": "e2e0cff663ec8f9930f3f852f4f8815f24155d746660a89ff5b22889c8f7549d",
+      "input_csv": "/Users/apple/Projects/fun-tools/media-dler/build/audio-leveling/e12-scan/source.csv",
+      "input_csv_sha256": "226ef0aa2bc1ca7a6b0e545384dd73a48223d209f005273b4661f84e8351b610",
+      "metrics_path": "build/audio-leveling/e12-scan/metrics.json",
+      "metrics_sha256": "f39d95589382c2b476fdb5290b441ad49e6985833dffc461172b63a94e3cb9f7",
+      "experiment": "paired_step_v1_frozen",
+      "total_duration_seconds": 3248.768413,
+      "merged_block_count": 21,
+      "positive_A_merged_blocks": {
+        "count": 21,
+        "total_count": 21,
+        "count_fraction": 1.0
+      },
+      "attenuation_seconds": 1454.539252,
+      "attenuation_fraction_of_total_duration": 0.447720203,
+      "merged_block_seconds": 1454.539252,
+      "merged_block_seconds_fraction_of_total_duration": 0.447720203,
+      "max_A_db_all_merged_blocks": 6.0,
+      "known_ads": [
+        {
+          "clip": "e12-first",
+          "label_source": "/private/tmp/media-dler-tests/8maple-ads-phone/analysis/Moving-E0012-original-known-ad-matches.json",
+          "exact_match_index": 0,
+          "known_interval_seconds": [
+            300.402278,
+            326.1657
+          ],
+          "known_duration_seconds": 25.763422,
+          "matched_block_count": 1,
+          "matched_blocks": [
+            {
+              "start_seconds": 299.899977,
+              "end_seconds": 324.930136,
+              "duration_seconds": 25.030159,
+              "attenuation_db": 6.0,
+              "actual_A_db": 6.0,
+              "block_median_lufs": -19.15,
+              "overlap_start_seconds": 300.402278,
+              "overlap_end_seconds": 324.930136,
+              "overlap_seconds": 24.527858,
+              "spill_before_seconds": 0.502301,
+              "spill_after_seconds": 0.0,
+              "spill_total_seconds": 0.502301
+            }
+          ],
+          "actual_A_db_values": [
+            6.0
+          ],
+          "coverage_union_seconds": 24.527858,
+          "coverage_fraction": 0.95204193,
+          "coverage_union_intervals": [
+            [
+              300.402278,
+              324.930136
+            ]
+          ],
+          "coverage_start_seconds": 300.402278,
+          "coverage_end_seconds": 324.930136,
+          "missed_lead_seconds": 0.0,
+          "missed_tail_seconds": 1.235564,
+          "missed_uncovered_seconds": 1.235564,
+          "spill_outside_known_interval_union_seconds": 0.502301,
+          "spill_before_seconds_by_matched_block": [
+            0.502301
+          ],
+          "spill_after_seconds_by_matched_block": [
+            0.0
+          ]
+        },
+        {
+          "clip": "e12-second",
+          "label_source": "/private/tmp/media-dler-tests/8maple-ads-phone/analysis/Moving-E0012-original-known-ad-matches.json",
+          "exact_match_index": 1,
+          "known_interval_seconds": [
+            2009.760856,
+            2035.524267
+          ],
+          "known_duration_seconds": 25.763411,
+          "matched_block_count": 1,
+          "matched_blocks": [
+            {
+              "start_seconds": 1901.909048,
+              "end_seconds": 2077.918095,
+              "duration_seconds": 176.009047,
+              "attenuation_db": 6.0,
+              "actual_A_db": 6.0,
+              "block_median_lufs": -28.9,
+              "overlap_start_seconds": 2009.760856,
+              "overlap_end_seconds": 2035.524267,
+              "overlap_seconds": 25.763411,
+              "spill_before_seconds": 107.851808,
+              "spill_after_seconds": 42.393828,
+              "spill_total_seconds": 150.245636
+            }
+          ],
+          "actual_A_db_values": [
+            6.0
+          ],
+          "coverage_union_seconds": 25.763411,
+          "coverage_fraction": 1.0,
+          "coverage_union_intervals": [
+            [
+              2009.760856,
+              2035.524267
+            ]
+          ],
+          "coverage_start_seconds": 2009.760856,
+          "coverage_end_seconds": 2035.524267,
+          "missed_lead_seconds": 0.0,
+          "missed_tail_seconds": 0.0,
+          "missed_uncovered_seconds": 0.0,
+          "spill_outside_known_interval_union_seconds": 150.245636,
+          "spill_before_seconds_by_matched_block": [
+            107.851808
+          ],
+          "spill_after_seconds_by_matched_block": [
+            42.393828
+          ]
+        }
+      ],
+      "unmatched_blocks": [
+        {
+          "start_seconds": 105.399977,
+          "end_seconds": 107.399977,
+          "duration_seconds": 2.0,
+          "attenuation_db": 5.8,
+          "actual_A_db": 5.8,
+          "block_median_lufs": -23.15
+        },
+        {
+          "start_seconds": 166.899977,
+          "end_seconds": 168.899977,
+          "duration_seconds": 2.0,
+          "attenuation_db": 3.65,
+          "actual_A_db": 3.65,
+          "block_median_lufs": -20.75
+        },
+        {
+          "start_seconds": 178.899977,
+          "end_seconds": 200.9,
+          "duration_seconds": 22.000023,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -23.7
+        },
+        {
+          "start_seconds": 337.409025,
+          "end_seconds": 340.909048,
+          "duration_seconds": 3.500023,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -23.1
+        },
+        {
+          "start_seconds": 436.409048,
+          "end_seconds": 467.909025,
+          "duration_seconds": 31.499977,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -25.7
+        },
+        {
+          "start_seconds": 586.409048,
+          "end_seconds": 601.909048,
+          "duration_seconds": 15.5,
+          "attenuation_db": 3.7,
+          "actual_A_db": 3.7,
+          "block_median_lufs": -32.0
+        },
+        {
+          "start_seconds": 805.909048,
+          "end_seconds": 1001.909025,
+          "duration_seconds": 195.999977,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -27.7
+        },
+        {
+          "start_seconds": 1065.909025,
+          "end_seconds": 1067.909025,
+          "duration_seconds": 2.0,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -27.5
+        },
+        {
+          "start_seconds": 1086.409025,
+          "end_seconds": 1496.909048,
+          "duration_seconds": 410.500023,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -27.8
+        },
+        {
+          "start_seconds": 1558.909048,
+          "end_seconds": 1560.909025,
+          "duration_seconds": 1.999977,
+          "attenuation_db": 3.3,
+          "actual_A_db": 3.3,
+          "block_median_lufs": -26.7
+        },
+        {
+          "start_seconds": 1634.909048,
+          "end_seconds": 1636.909048,
+          "duration_seconds": 2.0,
+          "attenuation_db": 3.95,
+          "actual_A_db": 3.95,
+          "block_median_lufs": -23.05
+        },
+        {
+          "start_seconds": 1706.409048,
+          "end_seconds": 1729.409048,
+          "duration_seconds": 23.0,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -30.65
+        },
+        {
+          "start_seconds": 1762.409048,
+          "end_seconds": 1776.409048,
+          "duration_seconds": 14.0,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -30.7
+        },
+        {
+          "start_seconds": 2504.918095,
+          "end_seconds": 2609.418095,
+          "duration_seconds": 104.5,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -23.4
+        },
+        {
+          "start_seconds": 2707.918095,
+          "end_seconds": 2709.918095,
+          "duration_seconds": 2.0,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -26.3
+        },
+        {
+          "start_seconds": 2722.918095,
+          "end_seconds": 2855.418118,
+          "duration_seconds": 132.500023,
+          "attenuation_db": 5.6,
+          "actual_A_db": 5.6,
+          "block_median_lufs": -30.9
+        },
+        {
+          "start_seconds": 2858.418095,
+          "end_seconds": 2915.418095,
+          "duration_seconds": 57.0,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -29.0
+        },
+        {
+          "start_seconds": 2928.918095,
+          "end_seconds": 3118.418118,
+          "duration_seconds": 189.500023,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -23.5
+        },
+        {
+          "start_seconds": 3126.418095,
+          "end_seconds": 3168.418095,
+          "duration_seconds": 42.0,
+          "attenuation_db": 4.85,
+          "actual_A_db": 4.85,
+          "block_median_lufs": -30.2
+        }
+      ],
+      "unmatched_block_count": 19,
+      "unmatched_block_seconds": 1253.500046,
+      "control_window": null
+    },
+    "ren": {
+      "report_path": "build/audio-leveling/step-blocks-v1/ren.json",
+      "report_sha256": "e8fb897c71f8b7e9757b05e4d246beae55e92539f82d25fdbdc4723dbfaeb78d",
+      "input_csv": "/Users/apple/Projects/fun-tools/media-dler/build/audio-leveling/ren-scan/source.csv",
+      "input_csv_sha256": "6edeb93f804d084b9121c80c90fe247e61fb972da7b1ed93d28d438e89523116",
+      "metrics_path": "build/audio-leveling/ren-scan/metrics.json",
+      "metrics_sha256": "5507915b2c5dcacbb6e7215b984bde0ba4329ab7768b6bd76f3a44ea9d90199d",
+      "experiment": "paired_step_v1_frozen",
+      "total_duration_seconds": 434.343,
+      "merged_block_count": 7,
+      "positive_A_merged_blocks": {
+        "count": 7,
+        "total_count": 7,
+        "count_fraction": 1.0
+      },
+      "attenuation_seconds": 42.500046,
+      "attenuation_fraction_of_total_duration": 0.097849041,
+      "merged_block_seconds": 42.500046,
+      "merged_block_seconds_fraction_of_total_duration": 0.097849041,
+      "max_A_db_all_merged_blocks": 6.0,
+      "known_ads": [],
+      "unmatched_blocks": [
+        {
+          "start_seconds": 22.899977,
+          "end_seconds": 24.899977,
+          "duration_seconds": 2.0,
+          "attenuation_db": 3.9,
+          "actual_A_db": 3.9,
+          "block_median_lufs": -23.0
+        },
+        {
+          "start_seconds": 174.899977,
+          "end_seconds": 190.4,
+          "duration_seconds": 15.500023,
+          "attenuation_db": 6.0,
+          "actual_A_db": 6.0,
+          "block_median_lufs": -23.4
+        },
+        {
+          "start_seconds": 258.399977,
+          "end_seconds": 260.399977,
+          "duration_seconds": 2.0,
+          "attenuation_db": 3.9,
+          "actual_A_db": 3.9,
+          "block_median_lufs": -28.8
+        },
+        {
+          "start_seconds": 287.399977,
+          "end_seconds": 300.899977,
+          "duration_seconds": 13.5,
+          "attenuation_db": 2.75,
+          "actual_A_db": 2.75,
+          "block_median_lufs": -23.7
+        },
+        {
+          "start_seconds": 333.899977,
+          "end_seconds": 335.9,
+          "duration_seconds": 2.000023,
+          "attenuation_db": 3.4,
+          "actual_A_db": 3.4,
+          "block_median_lufs": -24.15
+        },
+        {
+          "start_seconds": 404.399977,
+          "end_seconds": 408.399977,
+          "duration_seconds": 4.0,
+          "attenuation_db": 3.85,
+          "actual_A_db": 3.85,
+          "block_median_lufs": -29.95
+        },
+        {
+          "start_seconds": 419.899977,
+          "end_seconds": 423.399977,
+          "duration_seconds": 3.5,
+          "attenuation_db": 4.6,
+          "actual_A_db": 4.6,
+          "block_median_lufs": -26.4
+        }
+      ],
+      "unmatched_block_count": 7,
+      "unmatched_block_seconds": 42.500046,
+      "control_window": {
+        "name": "other_show_control",
+        "interval_seconds": [
+          60.0,
+          150.0
+        ],
+        "overlapping_blocks": [],
+        "max_A_db": null,
+        "max_A_if_no_overlap_as_zero_db": 0.0
+      }
+    }
+  }
+}
