@@ -1,0 +1,640 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "aye_task": "t-c844049f0a59893b4f36",
+  "base_commit": "7f11501a0ebe08dab4957338f81b0bc02371c866",
+  "programme": "型男大主廚 20261019",
+  "source_line": "Gimy 電光雲",
+  "source_page": "https://gimyai.tw/play/160439-1-361.html",
+  "source_manifest": "https://vip.dytt-tvs.com/20261019/41873_ce625c9a/index.m3u8",
+  "source": {
+    "path": "/tmp/media-dler-source-diagnosis-20261020/gimy-originals/gimy-20261019-8c953f915c78299500c8c91c-original.mp4",
+    "sha256": "37524426d6c4bc041c7a5e0590c2b7783a9126a8ddfc9e803b3ad1e5192b0e87",
+    "size": 668604858,
+    "mtime_ns": 1792460503007914223
+  },
+  "source_unchanged": true,
+  "policy": "weighted-v3-layout-development",
+  "threshold": 55,
+  "scorer_sha256": "7777aa29ca75cf050df83aa92d4774a77d6d1aede4d955d7f68f0a58b9056532",
+  "weights_or_lexicon_changed": false,
+  "whole_video_baseline": {
+    "policy": "weighted-v3-layout-development",
+    "threshold": 55,
+    "cases_expected": 134,
+    "cases_scored": 134,
+    "coverage": {
+      "video_interval_seconds": [
+        0.023,
+        2667.8867330000003
+      ],
+      "case_count": 134,
+      "window_union_seconds": [
+        0,
+        2667.8867330000003
+      ],
+      "gaps": [],
+      "covers_entire_video_interval": true
+    },
+    "flag_count": 0,
+    "flags": [],
+    "decode_missing": [],
+    "expected_context_absence": [
+      {
+        "id": "gimy-0000",
+        "role": "before",
+        "reason": "true_video_boundary_no_outside_context"
+      },
+      {
+        "id": "gimy-2640",
+        "role": "after",
+        "reason": "true_video_boundary_no_outside_context"
+      },
+      {
+        "id": "gimy-2660",
+        "role": "after",
+        "reason": "true_video_boundary_no_outside_context"
+      }
+    ],
+    "ocr_sample_count": 667,
+    "ocr_failure_count": 6,
+    "ocr_failures": [
+      {
+        "id": "gimy-0280",
+        "role": "candidate",
+        "fraction": 0.5,
+        "reason": "invalid_or_oversize_ocr_png"
+      },
+      {
+        "id": "gimy-0280",
+        "role": "candidate",
+        "fraction": 0.9,
+        "reason": "invalid_or_oversize_ocr_png"
+      },
+      {
+        "id": "gimy-0300",
+        "role": "candidate",
+        "fraction": 0.9,
+        "reason": "invalid_or_oversize_ocr_png"
+      },
+      {
+        "id": "gimy-1500",
+        "role": "candidate",
+        "fraction": 0.5,
+        "reason": "invalid_or_oversize_ocr_png"
+      },
+      {
+        "id": "gimy-1500",
+        "role": "candidate",
+        "fraction": 0.9,
+        "reason": "invalid_or_oversize_ocr_png"
+      },
+      {
+        "id": "gimy-1520",
+        "role": "candidate",
+        "fraction": 0.9,
+        "reason": "invalid_or_oversize_ocr_png"
+      }
+    ],
+    "top_scores": [
+      {
+        "id": "gimy-0300",
+        "start_seconds": 300,
+        "end_seconds": 340,
+        "score": 38.080779310176204,
+        "S": 12.51890490814219,
+        "A": 8.701744171341435,
+        "P": 2.704212801588564,
+        "L": 0.2994590706325962,
+        "C": 17.677166333218373,
+        "O": 0.8170361025257994,
+        "programme_negative": 0.0,
+        "action": "preserve"
+      },
+      {
+        "id": "gimy-1520",
+        "start_seconds": 1520,
+        "end_seconds": 1560,
+        "score": 36.29338163363927,
+        "S": 14.841781248641931,
+        "A": 3.356224004627296,
+        "P": 5.416666666666667,
+        "L": 0.2535741942740676,
+        "C": 18.095376380370045,
+        "O": 0.0,
+        "programme_negative": 0.0,
+        "action": "preserve"
+      },
+      {
+        "id": "gimy-0800",
+        "start_seconds": 800,
+        "end_seconds": 840,
+        "score": 31.339221897581105,
+        "S": 1.2526475366468617,
+        "A": 12.478912247298508,
+        "P": 0.0,
+        "L": 0.3521532422727147,
+        "C": 17.607662113635737,
+        "O": 0.0,
+        "programme_negative": 0.0,
+        "action": "preserve"
+      },
+      {
+        "id": "gimy-1860",
+        "start_seconds": 1860,
+        "end_seconds": 1900,
+        "score": 29.72186403832535,
+        "S": 9.754955797299147,
+        "A": 0.2829955596860013,
+        "P": 0.45643547365619597,
+        "L": 0.3887257369384903,
+        "C": 19.89272232058071,
+        "O": 0.20880963924050291,
+        "programme_negative": 0.0,
+        "action": "preserve"
+      },
+      {
+        "id": "gimy-1140",
+        "start_seconds": 1140,
+        "end_seconds": 1180,
+        "score": 29.446927434250693,
+        "S": 5.366483560798724,
+        "A": 5.998760784106568,
+        "P": 0.0,
+        "L": 0.36163366178690803,
+        "C": 18.0816830893454,
+        "O": 0.0,
+        "programme_negative": 0.0,
+        "action": "preserve"
+      },
+      {
+        "id": "gimy-1920",
+        "start_seconds": 1920,
+        "end_seconds": 1960,
+        "score": 26.79298028524438,
+        "S": 1.647597819370005,
+        "A": 7.418025499553495,
+        "P": 0.22821773682809798,
+        "L": 0.35231708577135024,
+        "C": 17.84407202539561,
+        "O": 0.11671505907473445,
+        "programme_negative": 0.0,
+        "action": "preserve"
+      },
+      {
+        "id": "gimy-1160",
+        "start_seconds": 1160,
+        "end_seconds": 1200,
+        "score": 25.74160143946,
+        "S": 10.667745590096958,
+        "A": 1.1292142589539846,
+        "P": 0.3195048315593373,
+        "L": 0.27250273517699436,
+        "C": 13.944641590409056,
+        "O": 0.0,
+        "programme_negative": 0.0,
+        "action": "preserve"
+      },
+      {
+        "id": "gimy-1280",
+        "start_seconds": 1280,
+        "end_seconds": 1320,
+        "score": 24.290752817396683,
+        "S": 3.8105384511498546,
+        "A": 3.0472135886338374,
+        "P": 0.0,
+        "L": 0.34866001555225984,
+        "C": 17.433000777612992,
+        "O": 0.0,
+        "programme_negative": 0.0,
+        "action": "preserve"
+      },
+      {
+        "id": "gimy-0440",
+        "start_seconds": 440,
+        "end_seconds": 480,
+        "score": 23.559934251519586,
+        "S": 1.4076219018282181,
+        "A": 10.522606591951542,
+        "P": 0.0,
+        "L": 0.23259411515479655,
+        "C": 11.629705757739828,
+        "O": 0.0,
+        "programme_negative": 0.0,
+        "action": "preserve"
+      },
+      {
+        "id": "gimy-1800",
+        "start_seconds": 1800,
+        "end_seconds": 1840,
+        "score": 23.167779371654525,
+        "S": 4.73282705213823,
+        "A": 1.5747629143018704,
+        "P": 0.0,
+        "L": 0.33720378810428847,
+        "C": 16.860189405214424,
+        "O": 0.0,
+        "programme_negative": 0.0,
+        "action": "preserve"
+      }
+    ],
+    "scripts_unchanged": true,
+    "runtime": {
+      "started_unix_seconds": 1792460654.4515781,
+      "finished_unix_seconds": 1792461501.191885,
+      "elapsed_seconds": 846.7403080463409,
+      "cases_completed": 134,
+      "subprocess_calls": 2527,
+      "subprocess_failures": 0,
+      "max_concurrent_subprocesses_measured": 3
+    },
+    "interpretation": "Zero flags applies to fixed40s/20s mixed-window baseline only; this is not a finding that the source has no ads or that actual HLS-discontinuity candidates would all be missed."
+  },
+  "visual_review": {
+    "sampling": "1fps, -reinit_filter 0, no drop_changed; 27 pages / 2668 consecutive sample times",
+    "reviewer": "Independent task_executor; primary reviewed original-HLS full ad contact sheets",
+    "full_screen_insertions": [
+      {
+        "id": "gambling-block-1",
+        "type": "full_screen_source_insert_gambling",
+        "brand_and_domain": "澳門新葡京 /449955.com",
+        "approximate_seconds": [
+          297,
+          316
+        ],
+        "approximate_clock": [
+          "04:57",
+          "05:16"
+        ],
+        "ad_sample_labels_inclusive": [
+          297,
+          315
+        ],
+        "normal_programme_sample_before": 296,
+        "normal_programme_sample_after": 316,
+        "pages": [
+          3,
+          4
+        ],
+        "independent_source_stills": [
+          "visual-evidence/source-00303.986s.png",
+          "visual-evidence/source-00313.000s.png"
+        ],
+        "observations": "Slot game animation, promotional winnings text and large brand/domain fill the frame; programme/studio absent. The entire overlapping40s windows remain mixed and action preserve."
+      },
+      {
+        "id": "gambling-block-2",
+        "type": "full_screen_source_insert_gambling",
+        "brand_and_domain": "澳門新葡京 /449955.com",
+        "approximate_seconds": [
+          1518,
+          1534
+        ],
+        "approximate_clock": [
+          "25:18",
+          "25:34"
+        ],
+        "ad_sample_labels_inclusive": [
+          1518,
+          1533
+        ],
+        "normal_programme_sample_before": 1517,
+        "normal_programme_sample_after": 1534,
+        "pages": [
+          16
+        ],
+        "independent_source_stills": [
+          "visual-evidence/source-01523.987s.png"
+        ],
+        "observations": "Mahjong/slot gambling promotion,16,888,888 and free-round messaging fill the frame; normal programme absent. The entire overlapping40s windows remain mixed and action preserve."
+      }
+    ],
+    "normal_programme_promotions": "Music/product promotions and end-credit brand lower-thirds kept as programme/mixed, no gambling overlay observed.",
+    "scope": "Sampling review does not prove every-frame semantics or exact subsecond boundaries."
+  },
+  "source_hls": {
+    "discontinuity_count": 113,
+    "region_count": 114,
+    "provider_ad_marker": false,
+    "confirmed_ad_regions": [
+      12,
+      13,
+      65,
+      66
+    ],
+    "confirmed_insertion_intervals_seconds": [
+      [
+        297.073,
+        316.139
+      ],
+      [
+        1518.107,
+        1533.873
+      ]
+    ],
+    "insertions": 2,
+    "ad_regions": 4,
+    "selection": "Positive regions located after full-file visual review, not blind detection. The full114-region candidate population has not been scored as a complete set."
+  },
+  "diagnostic_cases": [
+    {
+      "id": "gimy-real-region-12",
+      "kind": "individual_actual_hls_region",
+      "start_seconds": 297.07299999999975,
+      "end_seconds": 311.27299999999974,
+      "ground_truth": "full_screen_gambling_ad",
+      "S": 14.557025217606315,
+      "A": 0.0,
+      "P": 7.505220421986506,
+      "L": 0.60078545175733,
+      "C": 37.54449300985301,
+      "edge_overlay": 1.8345371448516676,
+      "score": 50.26698108260766,
+      "decision": "unknown",
+      "action": "preserve"
+    },
+    {
+      "id": "gimy-real-region-13",
+      "kind": "individual_actual_hls_region",
+      "start_seconds": 311.27299999999974,
+      "end_seconds": 316.1389999999998,
+      "ground_truth": "full_screen_gambling_ad",
+      "S": 13.275337064202771,
+      "A": 0.0,
+      "P": 10.136318527614733,
+      "L": 0.9023689270621825,
+      "C": 55.25476488072386,
+      "edge_overlay": 0.3705253871225119,
+      "score": 68.15957655780412,
+      "decision": "experimental_ad_candidate",
+      "action": "preserve"
+    },
+    {
+      "id": "gimy-real-region-65",
+      "kind": "individual_actual_hls_region",
+      "start_seconds": 1518.1069999999975,
+      "end_seconds": 1524.7739999999974,
+      "ground_truth": "full_screen_gambling_ad",
+      "S": 2.1481793466250334,
+      "A": 0.0,
+      "P": 7.540080865713566,
+      "L": 0.5545912221411142,
+      "C": 35.26964197276928,
+      "edge_overlay": 0.0,
+      "score": 37.417821319394314,
+      "decision": "unknown",
+      "action": "preserve"
+    },
+    {
+      "id": "gimy-real-region-66",
+      "kind": "individual_actual_hls_region",
+      "start_seconds": 1524.7739999999974,
+      "end_seconds": 1533.8729999999973,
+      "ground_truth": "full_screen_gambling_ad",
+      "S": 2.1131427256704622,
+      "A": 0.0,
+      "P": 9.8077425971407,
+      "L": 0.5145038176136917,
+      "C": 35.53293347782528,
+      "edge_overlay": 0.0,
+      "score": 37.646076203495745,
+      "decision": "unknown",
+      "action": "preserve"
+    },
+    {
+      "id": "gimy-grouped-regions-12-13",
+      "kind": "manually_grouped_complete_insertion",
+      "start_seconds": 297.07299999999975,
+      "end_seconds": 316.1389999999998,
+      "ground_truth": "full_screen_gambling_ad",
+      "S": 38.24558236739383,
+      "A": 0.0,
+      "P": 11.309223176554562,
+      "L": 0.4296361273111277,
+      "C": 32.79102954211095,
+      "edge_overlay": 0.6237123130386669,
+      "score": 70.41289959646612,
+      "decision": "experimental_ad_candidate",
+      "action": "preserve"
+    },
+    {
+      "id": "gimy-grouped-regions-65-66",
+      "kind": "manually_grouped_complete_insertion",
+      "start_seconds": 1518.1069999999975,
+      "end_seconds": 1533.8729999999973,
+      "ground_truth": "full_screen_gambling_ad",
+      "S": 29.858873509173385,
+      "A": 0.0,
+      "P": 16.25,
+      "L": 0.6565864943803071,
+      "C": 49.079324719015354,
+      "edge_overlay": 0.0,
+      "score": 78.93819822818874,
+      "decision": "experimental_ad_candidate",
+      "action": "preserve"
+    }
+  ],
+  "diagnostic_coverage": [
+    {
+      "id": "gimy-real-region-12",
+      "candidate_gate": "valid",
+      "errors": [],
+      "ocr_sample_count": 5,
+      "ocr_failure_count": 0,
+      "family_missing_reasons": {
+        "S": [],
+        "A": [],
+        "P": [],
+        "C": []
+      }
+    },
+    {
+      "id": "gimy-real-region-13",
+      "candidate_gate": "valid",
+      "errors": [],
+      "ocr_sample_count": 5,
+      "ocr_failure_count": 0,
+      "family_missing_reasons": {
+        "S": [],
+        "A": [],
+        "P": [],
+        "C": []
+      }
+    },
+    {
+      "id": "gimy-real-region-65",
+      "candidate_gate": "valid",
+      "errors": [],
+      "ocr_sample_count": 5,
+      "ocr_failure_count": 0,
+      "family_missing_reasons": {
+        "S": [],
+        "A": [],
+        "P": [],
+        "C": []
+      }
+    },
+    {
+      "id": "gimy-real-region-66",
+      "candidate_gate": "valid",
+      "errors": [],
+      "ocr_sample_count": 5,
+      "ocr_failure_count": 0,
+      "family_missing_reasons": {
+        "S": [],
+        "A": [],
+        "P": [],
+        "C": []
+      }
+    },
+    {
+      "id": "gimy-grouped-regions-12-13",
+      "candidate_gate": "valid",
+      "errors": [],
+      "ocr_sample_count": 5,
+      "ocr_failure_count": 0,
+      "family_missing_reasons": {
+        "S": [],
+        "A": [],
+        "P": [],
+        "C": []
+      }
+    },
+    {
+      "id": "gimy-grouped-regions-65-66",
+      "candidate_gate": "valid",
+      "errors": [],
+      "ocr_sample_count": 5,
+      "ocr_failure_count": 0,
+      "family_missing_reasons": {
+        "S": [],
+        "A": [],
+        "P": [],
+        "C": []
+      }
+    }
+  ],
+  "interpretation": {
+    "individual_region_flags": "1/4 verified ad regions exceed55; this is incomplete removal if applied independently.",
+    "manually_grouped_flags": "2/2 complete insertions exceed55 at unchanged weights. Grouping is manually specified and does not establish automated full-manifest recall or false-positive rate.",
+    "audio": "A=0 for all6 diagnostic cases; S/content evidence can suffice without a louder-audio requirement.",
+    "next": "Evaluate bounded adjacent-region grouping over the complete candidate population and retain normal-content controls. Do not tune to these exact times, domain or answers.",
+    "production": "No generic V3 auto-removal was integrated; downloaded original and all clips retained."
+  },
+  "full_decode": {
+    "kind": "decode",
+    "command": [
+      "ffmpeg",
+      "-hide_banner",
+      "-v",
+      "warning",
+      "-nostdin",
+      "-threads",
+      "2",
+      "-i",
+      "/tmp/media-dler-source-diagnosis-20261020/gimy-originals/gimy-20261019-8c953f915c78299500c8c91c-original.mp4",
+      "-map",
+      "0:v:0",
+      "-map",
+      "0:a:0",
+      "-f",
+      "null",
+      "-"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 147.5902819633484,
+    "stderr_log": "/tmp/media-dler-source-diagnosis-20261020/gimy-analysis/decode-stderr.log",
+    "action": "preserve",
+    "warning_lines": [
+      "[null @ 0x7ff775f14740] Application provided invalid, non monotonically increasing dts to muxer in stream 0: 9091 >= 9091"
+    ],
+    "warning_line_count": 1,
+    "interpretation": "All selected video/audio decoded to null once with exit0; one output-muxer non-monotonic DTS warning. Not a zero-warning clean decode and not a source authenticity proof."
+  },
+  "incomplete_other_task": {
+    "id": "d4c669a9-7a1e-49d1-ac5a-e9085a2923eb",
+    "programme": "型男大主廚 20261015",
+    "source_line": "Gimy 曦光雲",
+    "source_page": "https://gimyai.tw/play/160439-9-358.html",
+    "source_manifest": "https://svip.xgplay17.com/2026-10-16/43442_rfcES-oGGOj_fzMHuT/index.m3u8",
+    "observation": "ASUS native download failed with Did not get any data blocks / fragment55 not found. Partial checkpoint50 (about67MB) had existed; no complete public output.",
+    "scope": "Cannot verify ads across an incomplete episode; do not classify it as ad-free. Failed user record retained without blind retry.",
+    "network": "Per-item FAILED with no global network pause in live new App."
+  },
+  "limitations": [
+    "1fps thumbnail review does not establish every-frame semantics or exact subsecond boundaries.",
+    "Timestamp labels are the fps output grid; nearest source frame timing can differ.",
+    "40s overlapping baseline test windows are mixed hypothetical boundaries, not the actual HLS candidate set.",
+    "No advertisement was removed and mixed windows remain preserved.",
+    "Six baseline OCR samples failed and remain unknown; their missing evidence was neither silently repaired nor rerun.",
+    "Original HLS discontinuity candidates are being evaluated separately by the primary agent and are outside this baseline.",
+    "Diagnostic positives were selected with known visual ground truth; manually grouped positives are a grouping experiment, not automatic detector acceptance."
+  ],
+  "action": "preserve",
+  "raw_reports": [
+    {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/gimy-source/selected-001/cases.json",
+      "sha256": "6857c25c80761daaf0e18f231b8d68139656f192259b9f410d2ed8aef3a3bfd4"
+    },
+    {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/gimy-source/selected-001/features/report.json",
+      "sha256": "8d209a4787c464a4079256432d8f57ea02d818eae77cc87a4ba9df8c945b9925"
+    },
+    {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/gimy-source/selected-001/scored/report.json",
+      "sha256": "e5348724a37fc40a7bcffa189d2f696f42896c64cf1d1056ff4581d68a806795"
+    },
+    {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/gimy-source/selected-001/frozen-inputs.json",
+      "sha256": "aeb5cd92c0f899e48c6f2f253b17c44ed7d05cee6b81076d201c0ee8efab6f80"
+    },
+    {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/gimy-source/selected-001/remux-events.json",
+      "sha256": "eb25747c6e0419958a4fd5f38602fd6436e578490be83c3f5266858fb105a0a6"
+    },
+    {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/gimy-source/grouped-002/cases.json",
+      "sha256": "d0b60728b7067644e2c5c76b1057839b77b0070e451d078fcce27ffac62a71e8"
+    },
+    {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/gimy-source/grouped-002/features/report.json",
+      "sha256": "37b71f798b77f198ec1b6eb2a310731dee5f8323e1f4cd8b85299d515aab837d"
+    },
+    {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/gimy-source/grouped-002/scored/report.json",
+      "sha256": "d58642efe6f8936603344b0bbbd741b4e6bfad9f4ac9d04f9f213170ae225c0c"
+    },
+    {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/gimy-source/grouped-002/frozen-inputs.json",
+      "sha256": "05f47fb7e4fef4738a500f53d8200b87af50cece720272bd3bc8aed8dc39bcc1"
+    },
+    {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/gimy-source/grouped-002/remux-events.json",
+      "sha256": "e1302a0aceacf15f7f1b0afc6ac5d8229470aa66e4fc863ea6c6a2645b088339"
+    },
+    {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/gimy-analysis/final-summary.json",
+      "sha256": "a3634f1e7a049a5484c24df5d5d1e0bb5732b18feb7f95f64847d82bef80290c"
+    },
+    {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/gimy-analysis/visual-review.json",
+      "sha256": "491746a29a57396811fd19ef9e75341eaf5250d6f126e24d7cfad4bc6cb18426"
+    },
+    {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/gimy-analysis/thumbnails-repair-manifest.json",
+      "sha256": "4d0a89fe4b9661fe864f444e7b005023a12040f236d7a964f90f55befc609fec"
+    },
+    {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/gimy-analysis/visual-evidence-manifest.json",
+      "sha256": "5232232312eb414466ae2da8e4709366d4e50855d944b1d0f7f571d381e057f2"
+    }
+  ],
+  "follow_up_tasks": {
+    "bounded_adjacent_region_grouping": "t-9c7d3cfa5bb95e879ea3",
+    "ocr_resolution_change": "t-cc14ca7f4e6d5f0d6554"
+  },
+  "committed_scores": {
+    "whole_video_baseline": "experiments/ad-multisignal/gimy-window-scores-20261020.csv",
+    "selected_diagnostic_regions": "experiments/ad-multisignal/gimy-diagnostic-scores-20261020.csv"
+  }
+}
