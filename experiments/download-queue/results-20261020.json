@@ -1,14 +1,14 @@
 {
   "schema": 1,
   "date": "2026-10-20",
-  "source_commit": "51ae980e6773c3253e26b4e1334c39d95902ef6d",
+  "source_commit": "7e4f3e7c1224393fd803e9b46f505cbe7d34ac55",
   "branch": "experiment/ad-multisignal",
   "tasks": {
     "source_failure": "t-72b21045dba80041f89c",
     "pause_resume": "t-da75420ecc1c34b7f98f",
     "download_now": "t-afaf834174a1717aa04f"
   },
-  "implementation_status": "Source, pause/resume and priority code committed; independent runtime acceptance not complete.",
+  "implementation_status": "Core requested source-failure, manual pause/resume, priority and process-restart persistence behaviors implemented and independently verified. Overall Android report remains REVIEW for explicitly preserved limitations; original caller-unidentified transition remains OPEN.",
   "baseline_observations": {
     "build_version": "0.1.10/code11",
     "apk_sha256": "b2240015df0e16cea548f5c2a2bc3ca2cd48d27963207ac44e139511ff7c1c19",
@@ -116,11 +116,28 @@
     },
     "release_and_test_build": "BUILD SUCCESSFUL; both signed with same release certificate.",
     "independent_review": "Astra/max reviewed integration; checkpoint-recreation and overpromising-toast findings corrected.",
-    "native_feature_test": "SETUP_BLOCKED before install: secure Android keyguard plus old user Gimy native download still active. No new APK installed, no user download canceled or force-stopped, lease released.",
-    "next": "User must normally unlock ASUS; then same independent tester resumes fresh attempt, revalidates safe deployment boundary and verifies all3features.",
+    "native_feature_test": "Scoped core assertions accepted across independent attempts002–006 on frozen APK identities. Source/native media behavior reused from d4db; corrected menu/audit directly verified on26d887. SQLite priority recovery across actual PID32669->32760 directly verified in isolated production-store fixture.",
+    "next": "No required work remains for the bounded three core features. Separate OPEN investigation t-04edf0c369cf3ff975f0 must locate the earlier PAUSED->QUEUED caller; optional transient PROCESSING toast remains unverified.",
     "agent": "/root/asus_source_wait_test",
     "device": "J7AXB764Z637WNM",
-    "main_session_id": "01a15325-6581-7d93-9571-1f2b2faea12c"
+    "main_session_id": "01a15325-6581-7d93-9571-1f2b2faea12c",
+    "latest_focused_checks": {
+      "home_task_action_tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "release_build": "BUILD SUCCESSFUL",
+      "build_log": "/tmp/media-dler-source-diagnosis-20261020/menu-stability-release-build.log"
+    },
+    "unresolved_observation_review": "Astra recommends accepting only independently verified core feature scenarios while retaining the original caller-unidentified transition as a distinct OPEN investigation; non-reproduction/diagnostics do not resolve it.",
+    "final_health": "attempt006 NO_ISSUE_OBSERVED with complete coverage;004 later idle/report health gap is not erased.",
+    "overall_android_report_status": "REVIEW",
+    "core_acceptance": "PASS for individually recorded source, pause/resume, priority, media integrity and actual process-restart persistence criteria; not a claim that all possible pause anomalies are resolved.",
+    "residual_limits": [
+      "Original userGimy PAUSED->QUEUED caller remains unidentified and OPEN.",
+      "PROCESSING native defer/order verified; exact transient UI-toast copy not verified.",
+      "Finite native PID sampling is not an exhaustive concurrency proof.",
+      "attempt004 capture time limit created a later idle/report gap; menu/audit and QA queue cleanup were captured."
+    ]
   },
   "raw_reports": [
     {
@@ -140,6 +157,727 @@
     "Initial packageRelease failed in IncrementalSplitterRunnable; its diagnostic rerun succeeded, with logs preserved.",
     "Temporary QA helper first compile had a missing parenthesis, fixed only in /tmp; subsequent release/test build succeeded."
   ],
-  "data_preservation": "No main-app uninstall, data clear, global snapshot restore, original media editing, or user task cancellation.",
-  "control": "experiments/ad-multisignal/star-control-results-20261020.json"
+  "data_preservation": "No main-app uninstall, data clear, global snapshot restore, original media editing or user task cancellation. Original canceled sources replayed only as new QA-labelled Page tasks; userGimy failed/partial retained. Tester owns device mutations.",
+  "control": "experiments/ad-multisignal/star-control-results-20261020.json",
+  "menu_and_diagnostics": {
+    "commit": "7e4f3e7",
+    "menu": "Pause/Resume provided in three-dot menu; open menu snapshots the action layout and validates enabled state against live task.",
+    "diagnostics": "UI command id/time+nano plus committed PAUSED->QUEUED id/attempt/position/instance/caller; no media title/URL or routine progress.",
+    "scope": "Observability only; caller of earlier unexpected transition remains unidentified."
+  },
+  "latest_build": {
+    "created_at": "2026-10-20T02:17:23.560455+00:00",
+    "base_commit": "7f11501a0ebe08dab4957338f81b0bc02371c866",
+    "apk": "/tmp/media-dler-source-diagnosis-20261020/builds/menu-audit-003/media-dler-0.1.11-arm64-release.apk",
+    "apk_sha256": "26d887dd42c953e2c24b95a0ff6c82cf56530f58c65ae2cdab6f883892cd9041",
+    "apk_size": 123494748,
+    "badging": "package: name='com.changyow.mediadler' versionCode='12' versionName='0.1.11' platformBuildVersionName='15' platformBuildVersionCode='35' compileSdkVersion='35' compileSdkVersionCodename='15'",
+    "signature": "Signer #1 certificate DN: CN=media-dler, O=changyow-ai, C=TW\nSigner #1 certificate SHA-256 digest: e00634a00db84015f7755b263a52d837ff7d31e229347ba0c068a894af917ce4\nSigner #1 certificate SHA-1 digest: d3823edbdaaf0ed2923ba87c7f07a8d7fe51ad73\nSigner #1 certificate MD5 digest: dc6f4df026c8eaabc8aee6fd65648497\n",
+    "uncommitted_source_sha256": {
+      "app/src/main/java/com/changyow/mediadler/download/DownloadQueue.kt": "ef78fa17115e34b6257ca7d61073d5f6e6d6d0129af9f01bf69e227ca2de9d96",
+      "app/src/main/java/com/changyow/mediadler/ui/home/HomeScreen.kt": "c3c921e47870fa01fc296eac15302598edd86cb82c8dbba2bcd228cd1582a97e"
+    },
+    "build_log": "/tmp/media-dler-source-diagnosis-20261020/menu-stability-release-build.log",
+    "changes": [
+      "Stable open-menu positions with Pause/Resume actions",
+      "Sparse UI command and committed PAUSED-to-QUEUED diagnostics"
+    ]
+  },
+  "runtime_attempts": [
+    {
+      "attempt": 3,
+      "status": "UI_FAIL",
+      "build": {
+        "status": "VERIFIED",
+        "observed_id": "sha256:d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3",
+        "evidence": [
+          "attempt-003/build-d454e827d1204163a93c3a7497177250.txt",
+          "attempt-003/build-143af729d05f476cb6908cbad9be78c0.txt"
+        ]
+      },
+      "assertions": [
+        {
+          "id": "A1",
+          "status": "PASS",
+          "actual": "Actual native QA Page replays: Muyun connectionrefused and Wujie SSLcertificatefailure -> friendlysourceerrors/FAILED/queuePauseNULL; monitorvalidatedtrue; nextPERCENTcompleted.",
+          "evidence": [
+            "attempt-003/wujie-native-observation.json",
+            "attempt-003/after-muyun-native-failure.json",
+            "attempt-003/screen-22d3dda34fca4bb68b3f063b0c27c204.png"
+          ]
+        },
+        {
+          "id": "A2",
+          "status": "PASS",
+          "actual": "Controlled native404/410 expiredcopy,503 sourceunavailable, no globalNETWORK; subsequentnativeHLS completed.",
+          "evidence": [
+            "attempt-002/controlled-errors-progress.json"
+          ]
+        },
+        {
+          "id": "B1",
+          "status": "FAIL",
+          "actual": "Required three-dot pause/resume absent. Two valid menuobservations + opened complete screenshot. Inlinepause andpercent81% preservationwork.",
+          "evidence": [
+            "attempt-003/tree-015c48d337a74481b40b6856cbaac945.json",
+            "attempt-003/tree-f23122a54f2c4b9595ce812c86fee264.json",
+            "attempt-003/screen-ae916e2374b14138b159fecf697350e4.png"
+          ]
+        },
+        {
+          "id": "B2",
+          "status": "PASS",
+          "actual": "C sameID/source/HLSidentity checkpoint3 persists acrosspause/recreation, then5 onpriorityrequeue andcomplete. C publication bitidentical uninterruptedA/B, fullA/Vdecodeclean. GENERAL PERCENT81% resumeoutputexactinputSHA.",
+          "evidence": [
+            "attempt-003/reader2-initial-c-persisted.json",
+            "attempt-003/e-ui-now-outcome.json",
+            "attempt-003/rapid-priority-last-c.json",
+            "attempt-003/outputs/c.ffprobe.json",
+            "attempt-003/outputs/media-validation.json",
+            "attempt-003/outputs/percent-integrity.json"
+          ]
+        },
+        {
+          "id": "B3",
+          "status": "PASS",
+          "actual": "Controlled QA_CremainedmanualPAUSED afterglobalresumeAll+authorizedrecreation. PERCENTstays81.8745% afterclosedglobalstart; NoResume canResume=false shows explicitrestartwarning. EarlieruserGimydrift remainsunknown.",
+          "evidence": [
+            "attempt-002/c-paused-after-global-continue.json",
+            "attempt-003/reader2-initial-c-persisted.json",
+            "attempt-003/percent-paused-stable-after-global.json",
+            "attempt-003/noresume-paused-state.json",
+            "attempt-003/screen-4b92be422cf1412d8b526346093712f0.png"
+          ]
+        },
+        {
+          "id": "C1",
+          "status": "PASS",
+          "actual": "RealUIE now -> E1/C2/F3, oldC STOPPING+PRIORITY_REQUEUE retainedclaim; Ethenstartsaftercleanup. LaterselectedC completes, originalE resumes samecheckpointandcompletes.",
+          "evidence": [
+            "attempt-003/e-ui-now-outcome.json",
+            "attempt-003/before-priority-burst.json",
+            "attempt-003/priority-completion-progress.json"
+          ]
+        },
+        {
+          "id": "C2",
+          "status": "PASS",
+          "actual": "NormalactorpriorityF->C accepted22ms apart, finalC/E/Fstable, no>1activeclaim sampled. Separateprocessinghandoff ps97samples/34.9s max1QAwork id; oldprocessingnativeexit observedbefore nextchild. Finitecadence notexhaustive.",
+          "evidence": [
+            "attempt-003/rapid-priority-last-c.json",
+            "attempt-003/processing-native-ps-samples.json",
+            "attempt-003/processing-native-ps-transitions.json"
+          ]
+        },
+        {
+          "id": "C3",
+          "status": "REVIEW",
+          "actual": "ActualnativePROCESSING APIreturnedAFTER_PROCESSING and originalcompletedbeforetargetstarted. RealUI-toastnotverified: APIreorderingdismissedmenu, freshsemantic tapNOT_FOUND andnoaction.",
+          "evidence": [
+            "attempt-003/processing-api-event.json",
+            "attempt-003/processing-ui-before.json",
+            "attempt-003/processing-ui-after.json",
+            "attempt-003/processing-ui-tap.json"
+          ]
+        },
+        {
+          "id": "U1",
+          "status": "PASS",
+          "actual": "Opened real error/pause/nonresumable/progress/dropdownstates: readableTraditionalChinese, noobserved harmfuloverlap. Missingrequiredmenuaction separatelyfailsB1.",
+          "evidence": [
+            "attempt-003/screen-4b92be422cf1412d8b526346093712f0.png",
+            "attempt-003/screen-22d3dda34fca4bb68b3f063b0c27c204.png"
+          ]
+        },
+        {
+          "id": "G1",
+          "status": "PASS",
+          "actual": "StablecompletedGimy20261019originalpulled668604858B. Gimy20261015page9-358/曦光 line nativefragment55 no-data error; no publiccompleted20261015file.",
+          "evidence": [
+            "attempt-002/qa-initial-snapshot.json",
+            "attempt-002/gimy-file-stat-stable.txt",
+            "attempt-003/after-processing-priority.json"
+          ]
+        }
+      ],
+      "limitations": [
+        "EarlieruserGimyPAUSED->QUEUEDcallerunidentified; userdeniesinput. Preservecontradiction separatelyfromclosedQApass.",
+        "Native/procchildren list unavailable. Supplementalps finite97samples averaged~0.36s; oneshortPIDcmdlinecapture racedexit. Noexhaustiveconcurrencyguarantee.",
+        "C3nativeAPIdeferverified; UI-toastunverified afterAPIreorderclosedmenu.",
+        "OnlyownedNORESUMEpausedretainedfornextauthorizedmenuretest; allotherQAterminal,noqueuedfuturework. UserFAILED/CANCELEDrecordsunchanged."
+      ],
+      "runtime_health": {
+        "status": "NO_ISSUE_OBSERVED",
+        "coverage_complete": true,
+        "evidence": [
+          "/private/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-003/health-summary.json"
+        ],
+        "summary": "/private/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-003/health-summary.json"
+      },
+      "cleanup": {
+        "status": "COMPLETE",
+        "device_lease": "released",
+        "evidence": [
+          "/private/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-003/finish.json"
+        ]
+      },
+      "result": {
+        "path": "/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-003/result.json",
+        "sha256": "f4bef7c0271825392614fd1dd39f40af7a2d1183a96fd1e9554646d698924845"
+      }
+    },
+    {
+      "attempt": 4,
+      "status": "REVIEW",
+      "build": {
+        "status": "VERIFIED",
+        "observed_id": "sha256:26d887dd42c953e2c24b95a0ff6c82cf56530f58c65ae2cdab6f883892cd9041",
+        "evidence": [
+          "attempt-004/build-c7fb6cd338974110ad346b9c22246344.txt"
+        ]
+      },
+      "assertions": [
+        {
+          "id": "A1",
+          "status": "PASS",
+          "actual": "Prior exact main SHA d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3; explicitly reused by Main for menu-only update: Actual native QA Page replays: Muyun connectionrefused and Wujie SSLcertificatefailure -> friendlysourceerrors/FAILED/queuePauseNULL; monitorvalidatedtrue; nextPERCENTcompleted.",
+          "evidence": [
+            "attempt-003/wujie-native-observation.json",
+            "attempt-003/after-muyun-native-failure.json",
+            "attempt-003/screen-22d3dda34fca4bb68b3f063b0c27c204.png"
+          ]
+        },
+        {
+          "id": "A2",
+          "status": "PASS",
+          "actual": "Prior exact main SHA d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3; explicitly reused by Main for menu-only update: Controlled native404/410 expiredcopy,503 sourceunavailable, no globalNETWORK; subsequentnativeHLS completed.",
+          "evidence": [
+            "attempt-002/controlled-errors-progress.json"
+          ]
+        },
+        {
+          "id": "B1",
+          "status": "PASS",
+          "actual": "Real three-dot Resume then Pause changes owned M2 to DOWNLOADING then PAUSED. Both UI audit and committed PAUSED->QUEUED audit captured. Known-percent stable pause separately verified earlier; fresh menu resumed before byte callback.",
+          "evidence": [
+            "attempt-004/real-menu-resume-cached-fresh.json",
+            "attempt-004/menu-resume-readback.json",
+            "attempt-004/real-menu-pause-readback.json",
+            "attempt-004/manual-command-audit-logcat.txt"
+          ]
+        },
+        {
+          "id": "B2",
+          "status": "PASS",
+          "actual": "Prior exact main SHA d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3; explicitly reused by Main for menu-only update: C sameID/source/HLSidentity checkpoint3 persists acrosspause/recreation, then5 onpriorityrequeue andcomplete. C publication bitidentical uninterruptedA/B, fullA/Vdecodeclean. GENERAL PERCENT81% resumeoutputexactinputSHA.",
+          "evidence": [
+            "attempt-003/reader2-initial-c-persisted.json",
+            "attempt-003/e-ui-now-outcome.json",
+            "attempt-003/rapid-priority-last-c.json",
+            "attempt-003/outputs/c.ffprobe.json",
+            "attempt-003/outputs/media-validation.json",
+            "attempt-003/outputs/percent-integrity.json"
+          ]
+        },
+        {
+          "id": "B3",
+          "status": "PASS",
+          "actual": "Revised closed-set manual pause persists across actual idle reader recreation, global resumeAll and new QA job; real menu paused M2 stays PAUSED after global start. Earlier user transition caller unidentified and remains OPEN t-04edf0c369cf3ff975f0.",
+          "evidence": [
+            "attempt-004/post-reader-recreation-state.json",
+            "attempt-004/revised-closed-set-after-global.json",
+            "attempt-004/closed-menu-pause-after-global.json"
+          ]
+        },
+        {
+          "id": "C1",
+          "status": "PASS",
+          "actual": "Prior exact main SHA d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3; explicitly reused by Main for menu-only update: RealUIE now -> E1/C2/F3, oldC STOPPING+PRIORITY_REQUEUE retainedclaim; Ethenstartsaftercleanup. LaterselectedC completes, originalE resumes samecheckpointandcompletes.",
+          "evidence": [
+            "attempt-003/e-ui-now-outcome.json",
+            "attempt-003/before-priority-burst.json",
+            "attempt-003/priority-completion-progress.json"
+          ]
+        },
+        {
+          "id": "C2",
+          "status": "PASS",
+          "actual": "Prior exact main SHA d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3; explicitly reused by Main for menu-only update: NormalactorpriorityF->C accepted22ms apart, finalC/E/Fstable, no>1activeclaim sampled. Separateprocessinghandoff ps97samples/34.9s max1QAwork id; oldprocessingnativeexit observedbefore nextchild. Finitecadence notexhaustive.",
+          "evidence": [
+            "attempt-003/rapid-priority-last-c.json",
+            "attempt-003/processing-native-ps-samples.json",
+            "attempt-003/processing-native-ps-transitions.json"
+          ]
+        },
+        {
+          "id": "C3",
+          "status": "REVIEW",
+          "actual": "ActualnativePROCESSING APIreturnedAFTER_PROCESSING and originalcompletedbeforetargetstarted. RealUI-toastnotverified: APIreorderingdismissedmenu, freshsemantic tapNOT_FOUND andnoaction.",
+          "evidence": [
+            "attempt-003/processing-api-event.json",
+            "attempt-003/processing-ui-before.json",
+            "attempt-003/processing-ui-after.json",
+            "attempt-003/processing-ui-tap.json"
+          ]
+        },
+        {
+          "id": "U1",
+          "status": "PASS",
+          "actual": "Opened revised full Pause/Resume popup screenshots; readable Traditional Chinese, no clipping or overlap in these popup states.",
+          "evidence": [
+            "attempt-004/screen-3a54974f435e4bb8a10f2dd383405fc0.png",
+            "attempt-004/screen-c0c885f12e794e57a69195cb810f30c4.png"
+          ]
+        },
+        {
+          "id": "G1",
+          "status": "PASS",
+          "actual": "Prior exact main SHA d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3; explicitly reused by Main for menu-only update: StablecompletedGimy20261019originalpulled668604858B. Gimy20261015page9-358/曦光 line nativefragment55 no-data error; no publiccompleted20261015file.",
+          "evidence": [
+            "attempt-002/qa-initial-snapshot.json",
+            "attempt-002/gimy-file-stat-stable.txt",
+            "attempt-003/after-processing-priority.json"
+          ]
+        }
+      ],
+      "limitations": [
+        "Unknown original user Gimy PAUSED->QUEUED remains OPEN t-04edf0c369cf3ff975f0, caller unidentified; closed-set nonreproduction does not resolve it.",
+        "C3 core native AFTER_PROCESSING handoff verified on d4db…; exact transient UI toast remains REVIEW.",
+        "Pending queued order surviving process recreation not yet verified; isolated SQLite two-phase005 planned. Terminal C/E/F ordinals20/21/22 did survive003→004 recreation.",
+        "Capture3600s bound reached: health UNKNOWN gap retained; no claim of complete clean004 coverage.",
+        "QA queue records removed, all writers idle; own SAF media and history cleanup pending guarded005. User5 queue records preserved; user Gimy FAILED remains failed.",
+        "Global host memory write deferred outside writable roots."
+      ],
+      "runtime_health": {
+        "status": "UNKNOWN",
+        "coverage_complete": false,
+        "evidence": [
+          "/private/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-004/health-summary.json"
+        ],
+        "summary": "/private/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-004/health-summary.json"
+      },
+      "cleanup": {
+        "status": "COMPLETE",
+        "device_lease": "released",
+        "evidence": [
+          "/private/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-004/finish.json"
+        ]
+      },
+      "result": {
+        "path": "/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-004/result.json",
+        "sha256": "dd40fb3c316f357a45e97b4f2e541397122538edc648e9f7c86ce53d173a78ba"
+      }
+    },
+    {
+      "attempt": 5,
+      "status": "REVIEW",
+      "build": {
+        "status": "VERIFIED",
+        "observed_id": "sha256:26d887dd42c953e2c24b95a0ff6c82cf56530f58c65ae2cdab6f883892cd9041",
+        "evidence": [
+          "attempt-005/build-174dcc8091b541d3b1132ba3c3191eb6.txt"
+        ]
+      },
+      "assertions": [
+        {
+          "id": "A1",
+          "status": "PASS",
+          "actual": "Prior exact main SHA d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3; explicitly reused by Main for menu-only update: Actual native QA Page replays: Muyun connectionrefused and Wujie SSLcertificatefailure -> friendlysourceerrors/FAILED/queuePauseNULL; monitorvalidatedtrue; nextPERCENTcompleted.",
+          "evidence": [
+            "attempt-003/wujie-native-observation.json",
+            "attempt-003/after-muyun-native-failure.json",
+            "attempt-003/screen-22d3dda34fca4bb68b3f063b0c27c204.png"
+          ]
+        },
+        {
+          "id": "A2",
+          "status": "PASS",
+          "actual": "Prior exact main SHA d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3; explicitly reused by Main for menu-only update: Controlled native404/410 expiredcopy,503 sourceunavailable, no globalNETWORK; subsequentnativeHLS completed.",
+          "evidence": [
+            "attempt-002/controlled-errors-progress.json"
+          ]
+        },
+        {
+          "id": "B1",
+          "status": "PASS",
+          "actual": "Prior main26d887 attempt004 evidence reused; not repeated in005: Real three-dot Resume then Pause changes owned M2 to DOWNLOADING then PAUSED. Both UI audit and committed PAUSED->QUEUED audit captured. Known-percent stable pause separately verified earlier; fresh menu resumed before byte callback.",
+          "evidence": [
+            "attempt-004/real-menu-resume-cached-fresh.json",
+            "attempt-004/menu-resume-readback.json",
+            "attempt-004/real-menu-pause-readback.json",
+            "attempt-004/manual-command-audit-logcat.txt"
+          ]
+        },
+        {
+          "id": "B2",
+          "status": "PASS",
+          "actual": "Prior exact main SHA d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3; explicitly reused by Main for menu-only update: C sameID/source/HLSidentity checkpoint3 persists acrosspause/recreation, then5 onpriorityrequeue andcomplete. C publication bitidentical uninterruptedA/B, fullA/Vdecodeclean. GENERAL PERCENT81% resumeoutputexactinputSHA.",
+          "evidence": [
+            "attempt-003/reader2-initial-c-persisted.json",
+            "attempt-003/e-ui-now-outcome.json",
+            "attempt-003/rapid-priority-last-c.json",
+            "attempt-003/outputs/c.ffprobe.json",
+            "attempt-003/outputs/media-validation.json",
+            "attempt-003/outputs/percent-integrity.json"
+          ]
+        },
+        {
+          "id": "B3",
+          "status": "PASS",
+          "actual": "Prior main26d887 attempt004 evidence reused; not repeated in005: Revised closed-set manual pause persists across actual idle reader recreation, global resumeAll and new QA job; real menu paused M2 stays PAUSED after global start. Earlier user transition caller unidentified and remains OPEN t-04edf0c369cf3ff975f0.",
+          "evidence": [
+            "attempt-004/post-reader-recreation-state.json",
+            "attempt-004/revised-closed-set-after-global.json",
+            "attempt-004/closed-menu-pause-after-global.json"
+          ]
+        },
+        {
+          "id": "C1",
+          "status": "PASS",
+          "actual": "Prior exact main SHA d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3; explicitly reused by Main for menu-only update: RealUIE now -> E1/C2/F3, oldC STOPPING+PRIORITY_REQUEUE retainedclaim; Ethenstartsaftercleanup. LaterselectedC completes, originalE resumes samecheckpointandcompletes. Added isolated Android production SQLite process-restart proof: chosen/old/other pending order, .3 progress, cached source and partial retained; exact claim sequence and manual pause preserved across PID change.",
+          "evidence": [
+            "attempt-003/e-ui-now-outcome.json",
+            "attempt-003/before-priority-burst.json",
+            "attempt-003/priority-completion-progress.json",
+            "attempt-005/private-prepare.json",
+            "attempt-005/private-verify.json"
+          ]
+        },
+        {
+          "id": "C2",
+          "status": "PASS",
+          "actual": "Prior exact main SHA d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3; explicitly reused by Main for menu-only update: NormalactorpriorityF->C accepted22ms apart, finalC/E/Fstable, no>1activeclaim sampled. Separateprocessinghandoff ps97samples/34.9s max1QAwork id; oldprocessingnativeexit observedbefore nextchild. Finitecadence notexhaustive.",
+          "evidence": [
+            "attempt-003/rapid-priority-last-c.json",
+            "attempt-003/processing-native-ps-samples.json",
+            "attempt-003/processing-native-ps-transitions.json"
+          ]
+        },
+        {
+          "id": "C3",
+          "status": "REVIEW",
+          "actual": "ActualnativePROCESSING APIreturnedAFTER_PROCESSING and originalcompletedbeforetargetstarted. RealUI-toastnotverified: APIreorderingdismissedmenu, freshsemantic tapNOT_FOUND andnoaction.",
+          "evidence": [
+            "attempt-003/processing-api-event.json",
+            "attempt-003/processing-ui-before.json",
+            "attempt-003/processing-ui-after.json",
+            "attempt-003/processing-ui-tap.json"
+          ]
+        },
+        {
+          "id": "U1",
+          "status": "PASS",
+          "actual": "Prior main26d887 attempt004 evidence reused; not repeated in005: Opened revised full Pause/Resume popup screenshots; readable Traditional Chinese, no clipping or overlap in these popup states.",
+          "evidence": [
+            "attempt-004/screen-3a54974f435e4bb8a10f2dd383405fc0.png",
+            "attempt-004/screen-c0c885f12e794e57a69195cb810f30c4.png"
+          ]
+        },
+        {
+          "id": "G1",
+          "status": "PASS",
+          "actual": "Prior exact main SHA d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3; explicitly reused by Main for menu-only update: StablecompletedGimy20261019originalpulled668604858B. Gimy20261015page9-358/曦光 line nativefragment55 no-data error; no publiccompleted20261015file.",
+          "evidence": [
+            "attempt-002/qa-initial-snapshot.json",
+            "attempt-002/gimy-file-stat-stable.txt",
+            "attempt-003/after-processing-priority.json"
+          ]
+        }
+      ],
+      "limitations": [
+        "Old user drift remains OPEN t-04edf0c369cf3ff975f0; caller unidentified.",
+        "C3 exact UI transient toast remains REVIEW; native defer previously proved.",
+        "005 cleanup stopped after first exact SAF deletion because OEM wraps missingfile into IllegalArgumentException; preserved, source narrowly corrected, fresh006 pending. This is test helper compatibility, not feature failure.",
+        "004 health UNKNOWN tail retained;005 has separate bounded health.",
+        "Main26d887 unchanged; earlier native source/media evidence remains scoped d4db hash. Global host memory unavailable outside writable roots."
+      ],
+      "runtime_health": {
+        "status": "NO_ISSUE_OBSERVED",
+        "coverage_complete": true,
+        "evidence": [
+          "/private/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-005/health-summary.json"
+        ],
+        "summary": "/private/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-005/health-summary.json"
+      },
+      "cleanup": {
+        "status": "COMPLETE",
+        "device_lease": "released",
+        "evidence": [
+          "/private/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-005/finish.json"
+        ]
+      },
+      "result": {
+        "path": "/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-005/result.json",
+        "sha256": "fc539d74fde70d8ba94b54447cf58b139c65f9e3fb36a9d5fe6fe5b4d9048c78"
+      }
+    },
+    {
+      "attempt": 6,
+      "status": "REVIEW",
+      "build": {
+        "status": "VERIFIED",
+        "observed_id": "sha256:26d887dd42c953e2c24b95a0ff6c82cf56530f58c65ae2cdab6f883892cd9041",
+        "evidence": [
+          "attempt-006/build-b2e45e156a954169a235e33f8e86579c.txt",
+          "attempt-006/build-fbe5cd8bfd164620aac9ee088a07b050.txt"
+        ]
+      },
+      "assertions": [
+        {
+          "id": "A1",
+          "status": "PASS",
+          "actual": "Prior exact main SHA d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3; explicitly reused by Main for menu-only update: Actual native QA Page replays: Muyun connectionrefused and Wujie SSLcertificatefailure -> friendlysourceerrors/FAILED/queuePauseNULL; monitorvalidatedtrue; nextPERCENTcompleted.",
+          "evidence": [
+            "attempt-003/wujie-native-observation.json",
+            "attempt-003/after-muyun-native-failure.json",
+            "attempt-003/screen-22d3dda34fca4bb68b3f063b0c27c204.png"
+          ]
+        },
+        {
+          "id": "A2",
+          "status": "PASS",
+          "actual": "Prior exact main SHA d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3; explicitly reused by Main for menu-only update: Controlled native404/410 expiredcopy,503 sourceunavailable, no globalNETWORK; subsequentnativeHLS completed.",
+          "evidence": [
+            "attempt-002/controlled-errors-progress.json"
+          ]
+        },
+        {
+          "id": "B1",
+          "status": "PASS",
+          "actual": "Prior main26d887 attempt004 evidence reused; not repeated in005: Real three-dot Resume then Pause changes owned M2 to DOWNLOADING then PAUSED. Both UI audit and committed PAUSED->QUEUED audit captured. Known-percent stable pause separately verified earlier; fresh menu resumed before byte callback.",
+          "evidence": [
+            "attempt-004/real-menu-resume-cached-fresh.json",
+            "attempt-004/menu-resume-readback.json",
+            "attempt-004/real-menu-pause-readback.json",
+            "attempt-004/manual-command-audit-logcat.txt"
+          ]
+        },
+        {
+          "id": "B2",
+          "status": "PASS",
+          "actual": "Prior exact main SHA d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3; explicitly reused by Main for menu-only update: C sameID/source/HLSidentity checkpoint3 persists acrosspause/recreation, then5 onpriorityrequeue andcomplete. C publication bitidentical uninterruptedA/B, fullA/Vdecodeclean. GENERAL PERCENT81% resumeoutputexactinputSHA.",
+          "evidence": [
+            "attempt-003/reader2-initial-c-persisted.json",
+            "attempt-003/e-ui-now-outcome.json",
+            "attempt-003/rapid-priority-last-c.json",
+            "attempt-003/outputs/c.ffprobe.json",
+            "attempt-003/outputs/media-validation.json",
+            "attempt-003/outputs/percent-integrity.json"
+          ]
+        },
+        {
+          "id": "B3",
+          "status": "PASS",
+          "actual": "Prior main26d887 attempt004 evidence reused; not repeated in005: Revised closed-set manual pause persists across actual idle reader recreation, global resumeAll and new QA job; real menu paused M2 stays PAUSED after global start. Earlier user transition caller unidentified and remains OPEN t-04edf0c369cf3ff975f0.",
+          "evidence": [
+            "attempt-004/post-reader-recreation-state.json",
+            "attempt-004/revised-closed-set-after-global.json",
+            "attempt-004/closed-menu-pause-after-global.json"
+          ]
+        },
+        {
+          "id": "C1",
+          "status": "PASS",
+          "actual": "Prior exact main SHA d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3; explicitly reused by Main for menu-only update: RealUIE now -> E1/C2/F3, oldC STOPPING+PRIORITY_REQUEUE retainedclaim; Ethenstartsaftercleanup. LaterselectedC completes, originalE resumes samecheckpointandcompletes. Added isolated Android production SQLite process-restart proof: chosen/old/other pending order, .3 progress, cached source and partial retained; exact claim sequence and manual pause preserved across PID change.",
+          "evidence": [
+            "attempt-003/e-ui-now-outcome.json",
+            "attempt-003/before-priority-burst.json",
+            "attempt-003/priority-completion-progress.json",
+            "attempt-005/private-prepare.json",
+            "attempt-005/private-verify.json"
+          ]
+        },
+        {
+          "id": "C2",
+          "status": "PASS",
+          "actual": "Prior exact main SHA d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3; explicitly reused by Main for menu-only update: NormalactorpriorityF->C accepted22ms apart, finalC/E/Fstable, no>1activeclaim sampled. Separateprocessinghandoff ps97samples/34.9s max1QAwork id; oldprocessingnativeexit observedbefore nextchild. Finitecadence notexhaustive.",
+          "evidence": [
+            "attempt-003/rapid-priority-last-c.json",
+            "attempt-003/processing-native-ps-samples.json",
+            "attempt-003/processing-native-ps-transitions.json"
+          ]
+        },
+        {
+          "id": "C3",
+          "status": "REVIEW",
+          "actual": "ActualnativePROCESSING APIreturnedAFTER_PROCESSING and originalcompletedbeforetargetstarted. RealUI-toastnotverified: APIreorderingdismissedmenu, freshsemantic tapNOT_FOUND andnoaction.",
+          "evidence": [
+            "attempt-003/processing-api-event.json",
+            "attempt-003/processing-ui-before.json",
+            "attempt-003/processing-ui-after.json",
+            "attempt-003/processing-ui-tap.json"
+          ]
+        },
+        {
+          "id": "U1",
+          "status": "PASS",
+          "actual": "Prior main26d887 attempt004 evidence reused; not repeated in005: Opened revised full Pause/Resume popup screenshots; readable Traditional Chinese, no clipping or overlap in these popup states.",
+          "evidence": [
+            "attempt-004/screen-3a54974f435e4bb8a10f2dd383405fc0.png",
+            "attempt-004/screen-c0c885f12e794e57a69195cb810f30c4.png"
+          ]
+        },
+        {
+          "id": "G1",
+          "status": "PASS",
+          "actual": "Prior exact main SHA d4dbfdbadf3637afb460301458caf214b7f67935b2a37a0c6602c5055b83fdf3; explicitly reused by Main for menu-only update: StablecompletedGimy20261019originalpulled668604858B. Gimy20261015page9-358/曦光 line nativefragment55 no-data error; no publiccompleted20261015file.",
+          "evidence": [
+            "attempt-002/qa-initial-snapshot.json",
+            "attempt-002/gimy-file-stat-stable.txt",
+            "attempt-003/after-processing-priority.json"
+          ]
+        }
+      ],
+      "limitations": [
+        "Original user Gimy PAUSED->QUEUED remains OPEN t-04edf0c369cf3ff975f0, caller unidentified; controlled checks do not resolve it.",
+        "C3 exact transient UI toast remains REVIEW; native AFTER_PROCESSING and cleanup-before-next-writer behavior verified previously.",
+        "004 bounded capture expired after health-covered menu/audit actions; UNKNOWN tail retained.005/006 health separate.",
+        "Native singleton evidence is finite97 ps samples/34.9s, not exhaustive; /proc child listing unavailable, one short cmdline raced process exit.",
+        "Source/native/media tests ran main d4db; revised menu/audit on26d887; private restart is isolated production SQLite/queue proof, not another live media run.",
+        "005 first cleanup helper failed at OEM missingfile wrapper after deleting exactM3; preserved, fresh006 corrected guarded cleanup PASS.",
+        "Global host environment memory write deferred outside writable roots."
+      ],
+      "runtime_health": {
+        "status": "NO_ISSUE_OBSERVED",
+        "coverage_complete": true,
+        "evidence": [
+          "/private/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-006/health-summary.json"
+        ],
+        "summary": "/private/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-006/health-summary.json"
+      },
+      "cleanup": {
+        "status": "COMPLETE",
+        "device_lease": "released",
+        "evidence": [
+          "/private/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-006/finish.json"
+        ]
+      },
+      "result": {
+        "path": "/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-006/result.json",
+        "sha256": "5ff8f20e8e7dc55951f352fbccdc4ef57df2df8578ec7ebd9779e86cba639e61"
+      }
+    }
+  ],
+  "unexplained_observation": {
+    "task_id": "d4c669a9-7a1e-49d1-ac5a-e9085a2923eb",
+    "source": "Gimy20261015/曦光雲",
+    "confirmed_change": "PAUSED->QUEUED, attempt8/position5/source/cache/progress unchanged; then ordinarily claimed attempt9 after prior task ended.",
+    "device_epoch_ms_interval": [
+      1792460840813,
+      1792460841097
+    ],
+    "user_reply": "沒有操作，由你測試",
+    "classification": "Confirmed state transition; resume caller unidentified. Controlled QA persistence passes do not resolve or explain this event.",
+    "evidence": "/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-002/pause-state-contradiction.json",
+    "next": "Bounded fresh-App replay with sparse UI/commit logs; preserve original evidence and do not attribute to user/operator without proof.",
+    "aye_task": "t-04edf0c369cf3ff975f0"
+  },
+  "resume_audit_observed": {
+    "build_sha256": "26d887dd42c953e2c24b95a0ff6c82cf56530f58c65ae2cdab6f883892cd9041",
+    "qa_task_id": "0bb1b74b-46e9-434a-87e8-43075b881757",
+    "events": [
+      {
+        "UI_command": "RESUME",
+        "device_epoch_ms": 1792465925092
+      },
+      {
+        "queue_transition": "PAUSED->QUEUED",
+        "device_epoch_ms": 1792465925128,
+        "attempt": "1->1",
+        "position": "36->36",
+        "caller": "DownloadQueue.resumeTask <- DownloadRunner.coordinate"
+      },
+      {
+        "UI_command": "PAUSE",
+        "device_epoch_ms": 1792465932340
+      }
+    ],
+    "readback": "Independent tester observed DOWNLOADING after menu resume, PAUSED after menu pause, and still PAUSED after global resumeAll.",
+    "evidence": {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-004/manual-command-audit-logcat.txt",
+      "sha256": "6bb6b31f837a23b0c73e13c851e257c675246d401b088677181e6ce62f60f684"
+    },
+    "scope": "These explicit observed commands are attributed; this does not resolve the earlier user-task transition."
+  },
+  "private_priority_restart": {
+    "status": "PASS",
+    "previous_pid": 32669,
+    "verified_pid": 32760,
+    "scope": "Production Android SQLite + DownloadQueue across actual target process recreation in a UUID-private fixture; no live queue/service/network/native download.",
+    "asserted": [
+      "selected/old/remaining pending order and unique ordinals",
+      "old .3 progress, cached request and partial bytes",
+      "selected then old then remaining claim order",
+      "unrelated manual pause remains paused",
+      "private SQLite fixture removed after closing own connection"
+    ],
+    "evidence": {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-005/private-verify.json",
+      "sha256": "a3979095b9b17aaf0f1ab17e46741c1221efc751b1170f4e4b8d17e143ef4222"
+    },
+    "test_apk_identity": "/tmp/media-dler-source-diagnosis-20261020/builds/test-combined-005/build-identity.json",
+    "committed_fixture_source": {
+      "path": "experiments/download-queue/android/PrivatePriorityRestartTest.kt",
+      "sha256": "655fb77210676b9ba2d523121efc6e2ec585e321259b79000416c45cf6ca7c6c"
+    }
+  },
+  "late_health_gap": {
+    "attempt": 4,
+    "capture_stopped_local": "2026-10-20 11:27:28",
+    "reason": "3600-second capture time_limit",
+    "uncovered_until": "finish around11:32",
+    "scope": "Actual menu/audit11:12 and QA queue cleanup11:19 are inside the healthy capture window. Unknown later idle/report interval is preserved; attempt004 overall remains REVIEW.",
+    "fresh_followup": "attempt005 has NO_ISSUE_OBSERVED and complete coverage; this does not erase004 gap."
+  },
+  "final_cleanup": {
+    "status": "COMPLETE",
+    "owned_history_records_removed": 18,
+    "owned_media_files": 13,
+    "deleted_this_attempt": 12,
+    "already_absent": 1,
+    "owned_previews_absent": 13,
+    "user_queue_records": 5,
+    "user_history_records": 3,
+    "non_qa_queue_and_history_unchanged": true,
+    "original_completed_media": "Both original completed files retain size/mtime; original Gimy and STAR host copies also retain recorded SHA hashes.",
+    "qa_test_package": "Uninstalled; production26d887 APK retained.",
+    "report": {
+      "path": "/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-006/cleanup-report.json",
+      "sha256": "d639d07a978e887ae781b66e72cb2f02775d1fb2d951b02572f70e26c08c428f"
+    },
+    "runtime_health": {
+      "status": "NO_ISSUE_OBSERVED",
+      "coverage_complete": true,
+      "evidence": [
+        "/private/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-006/health-summary.json"
+      ],
+      "summary": "/private/tmp/media-dler-source-diagnosis-20261020/android/features/attempt-006/health-summary.json"
+    },
+    "lease": "released"
+  },
+  "followup_test_builds": [
+    {
+      "apk": "/tmp/media-dler-source-diagnosis-20261020/builds/test-combined-005/media-dler-final-qa-androidTest.apk",
+      "sha256": "bf39bb9c6c64421d7244b4c3721d6c6cee5f21689eac87394e0abd2559b90c47",
+      "bytes": 905161,
+      "signature": "Signer #1 certificate DN: CN=media-dler, O=changyow-ai, C=TW\nSigner #1 certificate SHA-256 digest: e00634a00db84015f7755b263a52d837ff7d31e229347ba0c068a894af917ce4\nSigner #1 certificate SHA-1 digest: d3823edbdaaf0ed2923ba87c7f07a8d7fe51ad73\nSigner #1 certificate MD5 digest: dc6f4df026c8eaabc8aee6fd65648497\n",
+      "source_sha256": {
+        "/tmp/media-dler-source-diagnosis-20261020/android/features/PrivatePriorityRestartTest.kt": "655fb77210676b9ba2d523121efc6e2ec585e321259b79000416c45cf6ca7c6c",
+        "/tmp/media-dler-source-diagnosis-20261020/android/features/FeatureOwnedCleanupTest.kt": "f4635f9c5078783f2bc980abb3c0e9f04aba23e3ba5543e6bb63505e65388808"
+      },
+      "build_log": "/tmp/media-dler-source-diagnosis-20261020/combined-final-test-build.log",
+      "methods": {
+        "cleanup": "com.changyow.mediadler.qa.FeatureOwnedCleanupTest#removeOnlyOwnedFeatureArtifacts",
+        "restart": "com.changyow.mediadler.qa.PrivatePriorityRestartTest#productionSqlitePriorityAcrossProcesses"
+      }
+    },
+    {
+      "apk": "/tmp/media-dler-source-diagnosis-20261020/builds/test-cleanup-006/media-dler-qa-cleanup-androidTest.apk",
+      "sha256": "9d5bec89b97816e28262e5a56088247137011a4250eb008ae14decbfa9720182",
+      "bytes": 905649,
+      "signature": "Signer #1 certificate DN: CN=media-dler, O=changyow-ai, C=TW\nSigner #1 certificate SHA-256 digest: e00634a00db84015f7755b263a52d837ff7d31e229347ba0c068a894af917ce4\nSigner #1 certificate SHA-1 digest: d3823edbdaaf0ed2923ba87c7f07a8d7fe51ad73\nSigner #1 certificate MD5 digest: dc6f4df026c8eaabc8aee6fd65648497\n",
+      "cleanup_source_sha256": "8b349168615aad5019241f38268e344ea42c004a711b163cd1bf4ec868247b3b",
+      "build_log": "/tmp/media-dler-source-diagnosis-20261020/cleanup-compatible-test-build.log"
+    }
+  ]
 }
