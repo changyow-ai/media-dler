@@ -127,6 +127,7 @@ fun HomeScreen() {
 
     fun submitTaskCommand(task: DownloadTask, command: HomeTaskCommand) {
         if (task.id in pendingCommands) return
+        android.util.Log.i("DownloadAction", "UI command=$command id=${task.id} time=${System.currentTimeMillis()} nano=${System.nanoTime()}")
         pendingCommands = pendingCommands + (task.id to command)
         scope.launch {
             try {
@@ -319,6 +320,7 @@ private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit,
     onRemove: () -> Unit, onEdit: () -> Unit, queueNumber: Int?) {
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
+    var menuTask by remember(task.id) { mutableStateOf(task) }
     var showError by remember(task.id) { mutableStateOf(false) }
     val busy = pendingCommand != null || task.interruption != null
     val failed = task.status == DownloadStatus.FAILED
@@ -368,17 +370,27 @@ private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit,
                         maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 Box {
-                    IconButton(onClick = { showMenu = true }) {
+                    IconButton(onClick = { menuTask = task; showMenu = true }) {
                         Icon(Icons.Filled.MoreVert, contentDescription = "下載項目選單")
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                        if (task.status == DownloadStatus.QUEUED || task.status == DownloadStatus.PAUSED) {
+                        // Keep an open menu's positions stable as live tasks change state.
+                        if (canPauseTask(menuTask)) {
+                            DropdownMenuItem(text = { Text("暫停下載") }, enabled = !busy && canPauseTask(task),
+                                leadingIcon = { Icon(Icons.Filled.Pause, contentDescription = null) },
+                                onClick = { showMenu = false; onPause() })
+                        } else if (canResumeTask(menuTask)) {
+                            DropdownMenuItem(text = { Text("繼續下載") }, enabled = !busy && canResumeTask(task),
+                                leadingIcon = { Icon(Icons.Filled.PlayArrow, contentDescription = null) },
+                                onClick = { showMenu = false; onResume() })
+                        }
+                        if (menuTask.status == DownloadStatus.QUEUED || menuTask.status == DownloadStatus.PAUSED) {
                             DropdownMenuItem(text = { Text("立即下載") }, enabled = !busy && canDownloadTaskNow(task),
                                 leadingIcon = { Icon(Icons.Filled.Download, contentDescription = null) },
                                 onClick = { showMenu = false; onDownloadNow() })
                         }
-                        if (failed) {
-                            DropdownMenuItem(text = { Text("查看完整失敗原因") },
+                        if (menuTask.status == DownloadStatus.FAILED) {
+                            DropdownMenuItem(text = { Text("查看完整失敗原因") }, enabled = failed,
                                 onClick = { showMenu = false; showError = true })
                         }
                         DropdownMenuItem(text = { Text("複製原始連結") }, onClick = {
@@ -401,12 +413,12 @@ private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit,
                             showMenu = false
                             transcribeTask(context, task)
                         })
-                        if (task.sourceKind != SourceKind.GENERAL) {
+                        if (menuTask.sourceKind != SourceKind.GENERAL) {
                             DropdownMenuItem(text = { Text("修正劇集資料") }, enabled = !busy && !task.status.isActive,
                                 onClick = { showMenu = false; onEdit() })
                         }
-                        if (active) {
-                            DropdownMenuItem(text = { Text("取消下載") }, enabled = !task.cancelRequested,
+                        if (!menuTask.status.isTerminal) {
+                            DropdownMenuItem(text = { Text("取消下載") }, enabled = active && !task.cancelRequested,
                                 onClick = { showMenu = false; onCancel() })
                         }
                         DropdownMenuItem(
