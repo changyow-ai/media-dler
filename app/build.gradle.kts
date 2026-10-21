@@ -30,8 +30,8 @@ android {
         minSdk = 28
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 12
-        versionName = "0.1.11"
+        versionCode = 13
+        versionName = "0.1.12"
 
         // yt-dlp / ffmpeg ship native libraries for these ABIs.
         // TEMP (Phase 1): arm64-v8a (devices) + x86_64 (emulator testing) only, to keep the
@@ -47,6 +47,8 @@ android {
             }
         }
     }
+
+    testBuildType = providers.gradleProperty("testBuildType").orElse("debug").get()
 
     externalNativeBuild {
         cmake {
@@ -153,6 +155,8 @@ dependencies {
 
     implementation(libs.youtubedl.library)
     implementation(libs.youtubedl.ffmpeg)
+    // Bundled model: ad analysis is entirely on-device, including first use.
+    implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
 
     implementation(libs.opencc4j)
     // Extracts the sherpa-onnx model .tar.bz2 archives on-device (bzip2 + tar, pure Java).
@@ -167,3 +171,12 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("org.apache.sshd:sshd-sftp:2.20.0")
 }
+
+// Host experiments and Android execute the same extractor and frozen scorer.
+val weightedAdAssets = tasks.register<Sync>("weightedAdAssets") {
+    from(rootProject.file("scripts/probe-hls-ad-features.py")) { rename { "probe_hls_ad_features.py" } }
+    from(rootProject.file("scripts/score-hls-ad-features.py")) { rename { "score_hls_ad_features.py" } }
+    into(layout.buildDirectory.dir("generated/weightedAdAssets"))
+}
+android.sourceSets.getByName("main").assets.srcDir(weightedAdAssets.map { it.destinationDir })
+tasks.named("preBuild").configure { dependsOn(weightedAdAssets) }

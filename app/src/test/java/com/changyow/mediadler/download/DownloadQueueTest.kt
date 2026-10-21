@@ -774,8 +774,14 @@ class DownloadQueueTest {
             val ids = fixture.queue.submitRequests(List(2) { genericRequest() })
             val active = assertNotNull(fixture.queue.claimNext())
             val partial = fixture.partialFile(active.id)
-            if (intent == ItemInterruption.MANUAL_PAUSE) fixture.queue.pauseTask(active.id)
-            else fixture.queue.downloadNow(ids.last())
+            when (intent) {
+                ItemInterruption.MANUAL_PAUSE -> fixture.queue.pauseTask(active.id)
+                ItemInterruption.PRIORITY_REQUEUE -> fixture.queue.downloadNow(ids.last())
+                ItemInterruption.SKIP_AD_ANALYSIS -> {
+                    fixture.queue.setProgress(active, DownloadProgress(DownloadPhase.AD_ANALYSIS))
+                    assertTrue(fixture.queue.skipAdAnalysis(active.id))
+                }
+            }
             if (delete) fixture.queue.remove(active.id) else fixture.queue.cancel(active.id)
             assertFalse(fixture.queue.pauseTask(active.id))
             val queue = if (recreate) fixture.reopen() else fixture.queue.also { it.acknowledgeStop(active, interrupted = true) }
@@ -812,9 +818,11 @@ class DownloadQueueTest {
         assertFalse(fixture.queue.resumeTask("missing"))
         assertEquals(DownloadNowResult.REJECTED, fixture.queue.downloadNow("missing"))
         val active = assertNotNull(fixture.queue.claimNext())
+        fixture.queue.setProgress(active, DownloadProgress(DownloadPhase.AD_ANALYSIS))
         val before = fixture.diskRecords()
         for (readFailure in listOf(false, true)) for (command in listOf<() -> Any>(
             { fixture.queue.pauseTask(active.id) }, { fixture.queue.downloadNow(ids.last()) },
+            { fixture.queue.skipAdAnalysis(active.id) },
         )) {
             if (readFailure) fixture.store.failNextRead = true else fixture.store.failNextCommit = true
             assertFailsWith<CommitFailure> { command() }
@@ -839,11 +847,143 @@ class DownloadQueueTest {
         fixture.queue.submit(genericRequest())
         val old = fixture.file.readText().replace(",\"reuseResolvedRequest\":false", "")
             .replace(",\"interruption\":null", "").replace(",\"canResume\":null", "")
+            .replace(",\"progressPhase\":null", "").replace(",\"skipAdAnalysis\":false", "")
         fixture.file.writeText(old)
         val record = fixture.diskRecords().single()
         assertFalse(record.reuseResolvedRequest)
         assertNull(record.task.interruption)
         assertNull(record.task.canResume)
+        assertNull(record.task.progressPhase)
+        assertFalse(record.task.skipAdAnalysis)
+        assertFalse((record.spec as QueuedSpec.Resolved).request.skipAdAnalysis)
+    }
+
+    @Test fun analysisSkipIsDurableIdempotentAndWaitsForAcknowledgementWithoutChangingPositionOrPolicy() {
+        for (recreate in listOf(false, true)) {
+            val fixture = fixture()
+            val ids = fixture.queue.submitPages(listOf(episode(1), episode(2)), FormatSelection.BestVideo,
+                AdRemovalPolicy.WEIGHTED)
+            val claim = assertNotNull(fixture.queue.claimNext())
+            val request = genericRequest().copy(adRemovalPolicy = AdRemovalPolicy.WEIGHTED)
+            fixture.queue.resolved(claim, request)
+            assertFalse(fixture.queue.skipAdAnalysis(claim.id))
+            fixture.queue.setProgress(claim, DownloadProgress(DownloadPhase.AD_ANALYSIS, detail = "OCR"))
+            val position = fixture.queue.get(claim.id)!!.queuePosition
+            assertTrue(fixture.queue.skipAdAnalysis(claim.id))
+            assertTrue(fixture.queue.skipAdAnalysis(claim.id))
+            assertTrue(fixture.queue.get(claim.id)!!.skipAdAnalysis)
+            assertEquals(ItemInterruption.SKIP_AD_ANALYSIS, fixture.queue.get(claim.id)!!.interruption)
+            val stopped = fixture.diskRecords()
+            fixture.queue.setProgress(claim, DownloadProgress(DownloadPhase.DOWNLOADING))
+            assertFalse(fixture.queue.complete(claim, "content://late", "video/mp4"))
+            assertEquals(stopped, fixture.diskRecords())
+            assertNull(fixture.queue.claimNext())
+            val queue = if (recreate) fixture.reopen() else fixture.queue.also { it.acknowledgeStop(claim, true) }
+            assertEquals(DownloadStatus.QUEUED, queue.get(claim.id)!!.status)
+            assertNull(queue.get(claim.id)!!.progressPhase)
+            assertNull(queue.pauseReason())
+            assertEquals(position, queue.get(claim.id)!!.queuePosition)
+            val resumed = assertNotNull(queue.claimNext())
+            assertEquals(claim.id, resumed.id)
+            assertTrue(resumed.skipAdAnalysis)
+            assertEquals(request, resumed.resolvedRequest)
+            assertEquals(AdRemovalPolicy.WEIGHTED, resumed.adRemovalPolicy)
+            queue.fail(resumed, "source expired")
+            assertTrue(queue.retry(claim.id))
+            val retry = assertNotNull(DownloadQueue(fixture.store, fixture.workRoot).claimNext())
+            assertTrue(retry.skipAdAnalysis)
+            assertEquals(AdRemovalPolicy.WEIGHTED, retry.adRemovalPolicy)
+            assertFalse(queue.get(ids.last())!!.skipAdAnalysis)
+        }
+    }
+
+    @Test fun analysisSkipCannotWinAfterTransferCompletionOrAnotherInterruption() {
+        for (phase in DownloadPhase.entries.filter { it != DownloadPhase.AD_ANALYSIS }) {
+            val fixture = fixture()
+            val id = fixture.queue.submit(genericRequest())
+            val claim = assertNotNull(fixture.queue.claimNext())
+            fixture.queue.setProgress(claim, DownloadProgress(phase, detail = "old analysis summary"))
+            assertFalse(fixture.queue.skipAdAnalysis(id))
+            assertFalse(fixture.queue.get(id)!!.skipAdAnalysis)
+            fixture.queue.complete(claim, "content://done", "video/mp4")
+            assertFalse(fixture.queue.skipAdAnalysis(id))
+            assertNull(fixture.queue.get(id)!!.progressPhase)
+        }
+        val fixture = fixture()
+        val id = fixture.queue.submit(genericRequest())
+        val claim = assertNotNull(fixture.queue.claimNext())
+        fixture.queue.setProgress(claim, DownloadProgress(DownloadPhase.AD_ANALYSIS))
+        assertTrue(fixture.queue.pauseTask(id))
+        assertFalse(fixture.queue.skipAdAnalysis(id))
+        assertFalse(fixture.queue.get(id)!!.skipAdAnalysis)
+    }
+
+    @Test fun staleAnalysisClaimCannotReopenSkipAfterFullContentAttemptStarts() {
+        val fixture = fixture()
+        val id = fixture.queue.submit(genericRequest())
+        val analysis = assertNotNull(fixture.queue.claimNext())
+        fixture.queue.setProgress(analysis, DownloadProgress(DownloadPhase.AD_ANALYSIS))
+        assertTrue(fixture.queue.skipAdAnalysis(id))
+        fixture.queue.acknowledgeStop(analysis, interrupted = true)
+        val full = assertNotNull(fixture.queue.claimNext())
+        fixture.queue.setProgress(full, DownloadProgress(DownloadPhase.DOWNLOADING, .2f))
+        val before = fixture.diskRecords()
+        fixture.queue.setProgress(analysis, DownloadProgress(DownloadPhase.AD_ANALYSIS))
+        assertFalse(fixture.queue.complete(analysis, "content://filtered", "video/mp4"))
+        assertFalse(fixture.queue.skipAdAnalysis(id))
+        assertEquals(before, fixture.diskRecords())
+        assertTrue(fixture.queue.pauseTask(id))
+        fixture.queue.acknowledgeStop(full, interrupted = true)
+        assertEquals(DownloadStatus.PAUSED, fixture.queue.get(id)?.status)
+        assertNull(fixture.queue.get(id)?.progressPhase)
+        assertTrue(fixture.queue.get(id)!!.skipAdAnalysis)
+    }
+
+    @Test fun adPolicySnapshotSurvivesPauseRetryRestartAndDuplicateSubmission() {
+        val fixture = fixture()
+        val id = fixture.queue.submitPages(listOf(episode(1)), FormatSelection.BestVideo,
+            AdRemovalPolicy.WEIGHTED).single()
+        assertEquals(id, fixture.queue.submitPages(listOf(episode(1)), FormatSelection.BestVideo,
+            AdRemovalPolicy.OFF).single())
+        assertTrue(fixture.queue.pauseTask(id))
+        val reopened = fixture.reopen()
+        assertTrue(reopened.resumeTask(id))
+        val first = assertNotNull(reopened.claimNext())
+        assertEquals(AdRemovalPolicy.WEIGHTED, first.adRemovalPolicy)
+        reopened.fail(first, "source failure")
+        assertTrue(reopened.retry(id))
+        assertEquals(AdRemovalPolicy.WEIGHTED, fixture.reopen().claimNext()?.adRemovalPolicy)
+    }
+
+    @Test fun legacyEmptyTaskGetsDefaultPersistedBeforeExecution() {
+        val fixture = fixture()
+        fixture.queue.submitPages(listOf(episode(1)), FormatSelection.BestVideo)
+        fixture.store.transact { rows -> rows.map { it.copy(adRemovalPolicy = null, attempt = 2) } }
+        val queue = fixture.reopen()
+        assertEquals(AdRemovalPolicy.CONFIRMED_ONLY, fixture.diskRecords().single().adRemovalPolicy)
+        assertEquals(AdRemovalPolicy.CONFIRMED_ONLY, queue.claimNext()?.adRemovalPolicy)
+    }
+
+    @Test fun legacyWorkIsPreservedAndCannotBypassMigrationWithResumePriorityOrRetry() {
+        for (status in listOf(DownloadStatus.PAUSED, DownloadStatus.CANCELED, DownloadStatus.FAILED)) {
+            val fixture = fixture()
+            val id = fixture.queue.submitPages(listOf(episode(1)), FormatSelection.BestVideo).single()
+            val partial = fixture.partialFile(id)
+            fixture.store.transact { rows -> rows.map { it.copy(adRemovalPolicy = null,
+                task = it.task.copy(status = status)) } }
+            val queue = fixture.reopen()
+            assertEquals(status, queue.get(id)?.status)
+            assertTrue(queue.get(id)?.errorMessage.orEmpty().contains("已保留暫存"))
+            assertTrue(queue.get(id)?.adPolicyMigrationRequired == true)
+            assertFalse(queue.resumeTask(id))
+            assertEquals(DownloadNowResult.REJECTED, queue.downloadNow(id))
+            assertFalse(queue.retry(id))
+            assertNull(queue.claimNext())
+            assertEquals("resumable bytes", partial.readText())
+            val fresh = queue.submitPages(listOf(episode(1)), FormatSelection.BestVideo, AdRemovalPolicy.OFF).single()
+            assertNotEquals(id, fresh)
+            assertEquals(fresh, queue.claimNext()?.id)
+        }
     }
 
     private fun episode(number: Int) = EpisodePage(

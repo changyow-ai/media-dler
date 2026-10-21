@@ -31,6 +31,8 @@ import kotlinx.serialization.Serializable
     val resolvedRequest: DownloadRequest? = null,
     val deleteRequested: Boolean = false,
     val reuseResolvedRequest: Boolean = false,
+    /** Null denotes a legacy record that must be migrated before execution. */
+    val adRemovalPolicy: AdRemovalPolicy? = null,
 )
 
 data class DownloadClaim(
@@ -38,4 +40,6 @@ data class DownloadClaim(
     val attempt: Int,
     val spec: QueuedSpec,
     val resolvedRequest: DownloadRequest? = null,
+    val adRemovalPolicy: AdRemovalPolicy = AdRemovalPolicy.CONFIRMED_ONLY,
+    val skipAdAnalysis: Boolean = false,
 )

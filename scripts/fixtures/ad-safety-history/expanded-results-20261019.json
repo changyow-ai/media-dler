@@ -1,0 +1,1460 @@
+{
+  "schema": 1,
+  "date": "2026-10-19",
+  "branch": "experiment/ad-multisignal",
+  "base_commit": "51cb729953711431d6fe9b836073ecc81022bfaa",
+  "aye_task": "t-76752bee35da0fe3652c",
+  "policy": "weighted-v3-layout-development",
+  "status": "MORE_ACTUAL_CASES_AND_WEIGHTED_LAYOUT_OPTIMIZATION_COMPLETE; HOST_EXPERIMENT",
+  "protocol": "experiments/ad-multisignal/expanded-protocol-20261019.json",
+  "case_definitions": "experiments/ad-multisignal/expanded-cases-20261019.json",
+  "raw_report": "/tmp/media-dler-ad-expanded-20261019/score-v3-final-40/report.json",
+  "raw_report_sha256": "ea4054c58626109d300dc1d6c9befb9adc7eccc00a519ff12e32b3022daf796a",
+  "review_csv": "/tmp/media-dler-ad-expanded-20261019/score-v3-final-40/review.csv",
+  "metrics": {
+    "original_14": {
+      "weighted_v2_1": {
+        "cases": 14,
+        "ad_occurrences": 6,
+        "flagged_ads": 5,
+        "missed_ads": 1,
+        "retain_cases": 8,
+        "false_flags": 1,
+        "flagged_ids": [
+          "e1-ad-02",
+          "e1-ad-04",
+          "e1-ad-06",
+          "unseen-phone-ad",
+          "heldout-288588-family",
+          "normal-dynamic-hardcuts-loud-banner"
+        ]
+      },
+      "weighted_v3": {
+        "cases": 14,
+        "ad_occurrences": 6,
+        "flagged_ads": 6,
+        "missed_ads": 0,
+        "retain_cases": 8,
+        "false_flags": 0,
+        "flagged_ids": [
+          "e1-ad-02",
+          "e1-ad-04",
+          "e1-ad-06",
+          "e1-ad-08",
+          "unseen-phone-ad",
+          "heldout-288588-family"
+        ]
+      }
+    },
+    "new_24": {
+      "weighted_v2_1": {
+        "cases": 24,
+        "ad_occurrences": 11,
+        "flagged_ads": 5,
+        "missed_ads": 6,
+        "retain_cases": 13,
+        "false_flags": 0,
+        "flagged_ids": [
+          "moving-high-E01-r02",
+          "moving-high-E01-r04",
+          "moving-sutong-E12-r01",
+          "moving-sutong-E12-r03",
+          "majimuri-line5-E01-r02"
+        ]
+      },
+      "weighted_v3": {
+        "cases": 24,
+        "ad_occurrences": 11,
+        "flagged_ads": 11,
+        "missed_ads": 0,
+        "retain_cases": 13,
+        "false_flags": 0,
+        "flagged_ids": [
+          "moving-high-E01-r02",
+          "moving-high-E01-r04",
+          "moving-high-E01-r06",
+          "moving-sutong-E12-r01",
+          "moving-sutong-E12-r03",
+          "heart-high-E01-r02",
+          "heart-high-E01-r04",
+          "heart-high-E01-r06",
+          "majimuri-line1-E01-r01",
+          "majimuri-line5-E01-r02",
+          "majimuri-line5-E01-r04"
+        ]
+      }
+    },
+    "all_38": {
+      "weighted_v2_1": {
+        "cases": 38,
+        "ad_occurrences": 17,
+        "flagged_ads": 10,
+        "missed_ads": 7,
+        "retain_cases": 21,
+        "false_flags": 1,
+        "flagged_ids": [
+          "e1-ad-02",
+          "e1-ad-04",
+          "e1-ad-06",
+          "unseen-phone-ad",
+          "heldout-288588-family",
+          "normal-dynamic-hardcuts-loud-banner",
+          "moving-high-E01-r02",
+          "moving-high-E01-r04",
+          "moving-sutong-E12-r01",
+          "moving-sutong-E12-r03",
+          "majimuri-line5-E01-r02"
+        ]
+      },
+      "weighted_v3": {
+        "cases": 38,
+        "ad_occurrences": 17,
+        "flagged_ads": 17,
+        "missed_ads": 0,
+        "retain_cases": 21,
+        "false_flags": 0,
+        "flagged_ids": [
+          "e1-ad-02",
+          "e1-ad-04",
+          "e1-ad-06",
+          "e1-ad-08",
+          "unseen-phone-ad",
+          "heldout-288588-family",
+          "moving-high-E01-r02",
+          "moving-high-E01-r04",
+          "moving-high-E01-r06",
+          "moving-sutong-E12-r01",
+          "moving-sutong-E12-r03",
+          "heart-high-E01-r02",
+          "heart-high-E01-r04",
+          "heart-high-E01-r06",
+          "majimuri-line1-E01-r01",
+          "majimuri-line5-E01-r02",
+          "majimuri-line5-E01-r04"
+        ]
+      }
+    },
+    "new_26": {
+      "weighted_v2_1": {
+        "cases": 26,
+        "ad_occurrences": 11,
+        "flagged_ads": 5,
+        "missed_ads": 6,
+        "retain_cases": 15,
+        "false_flags": 0,
+        "flagged_ids": [
+          "moving-high-E01-r02",
+          "moving-high-E01-r04",
+          "moving-sutong-E12-r01",
+          "moving-sutong-E12-r03",
+          "majimuri-line5-E01-r02"
+        ]
+      },
+      "weighted_v3": {
+        "cases": 26,
+        "ad_occurrences": 11,
+        "flagged_ads": 11,
+        "missed_ads": 0,
+        "retain_cases": 15,
+        "false_flags": 0,
+        "flagged_ids": [
+          "moving-high-E01-r02",
+          "moving-high-E01-r04",
+          "moving-high-E01-r06",
+          "moving-sutong-E12-r01",
+          "moving-sutong-E12-r03",
+          "heart-high-E01-r02",
+          "heart-high-E01-r04",
+          "heart-high-E01-r06",
+          "majimuri-line1-E01-r01",
+          "majimuri-line5-E01-r02",
+          "majimuri-line5-E01-r04"
+        ]
+      }
+    },
+    "all_40": {
+      "weighted_v2_1": {
+        "cases": 40,
+        "ad_occurrences": 17,
+        "flagged_ads": 10,
+        "missed_ads": 7,
+        "retain_cases": 23,
+        "false_flags": 1,
+        "flagged_ids": [
+          "e1-ad-02",
+          "e1-ad-04",
+          "e1-ad-06",
+          "unseen-phone-ad",
+          "heldout-288588-family",
+          "normal-dynamic-hardcuts-loud-banner",
+          "moving-high-E01-r02",
+          "moving-high-E01-r04",
+          "moving-sutong-E12-r01",
+          "moving-sutong-E12-r03",
+          "majimuri-line5-E01-r02"
+        ]
+      },
+      "weighted_v3": {
+        "cases": 40,
+        "ad_occurrences": 17,
+        "flagged_ads": 17,
+        "missed_ads": 0,
+        "retain_cases": 23,
+        "false_flags": 0,
+        "flagged_ids": [
+          "e1-ad-02",
+          "e1-ad-04",
+          "e1-ad-06",
+          "e1-ad-08",
+          "unseen-phone-ad",
+          "heldout-288588-family",
+          "moving-high-E01-r02",
+          "moving-high-E01-r04",
+          "moving-high-E01-r06",
+          "moving-sutong-E12-r01",
+          "moving-sutong-E12-r03",
+          "heart-high-E01-r02",
+          "heart-high-E01-r04",
+          "heart-high-E01-r06",
+          "majimuri-line1-E01-r01",
+          "majimuri-line5-E01-r02",
+          "majimuri-line5-E01-r04"
+        ]
+      }
+    }
+  },
+  "change": {
+    "central_text_layout": "Text confidence, box height, and central overlap contribute continuously. C=min(60,P+50L); no required brand, identical domain, or keyword.",
+    "overlay_soft_penalty": "Commercial-text weighted union near image edges contributes a soft penalty up to 20, reduced when large central text is present.",
+    "flat_colour": "Removed as a positive score; raw measurements remain diagnostic.",
+    "threshold": 55,
+    "interpretation": "Evidence points, not probability. S+A+C has a raw maximum of 125; displayed scores are clamped to 0–100. Missing cues contribute 0 without renormalization."
+  },
+  "school_first_episode": {
+    "injected_ads_found_in_source_lines": [
+      {
+        "id": "majimuri-line1-E01-r01",
+        "line": "速通線路",
+        "source_page": "https://play.8maple.st/play/nE6C-1-1.html",
+        "start_seconds": 300.5669390000001,
+        "end_seconds": 326.3269390000001,
+        "duration_seconds": 25.75999999999999,
+        "creative_family": "288588",
+        "complete_H264_AAC_exact_match": true,
+        "v2_1_flag": false,
+        "v3_flag": true,
+        "v3_score": 85.73919149905632
+      },
+      {
+        "id": "majimuri-line5-E01-r02",
+        "line": "高光線路",
+        "source_page": "https://play.8maple.st/play/nE6C-5-1.html",
+        "start_seconds": 497.56374499999976,
+        "end_seconds": 514.0304109999997,
+        "duration_seconds": 16.466665999999975,
+        "creative_family": "451451-A",
+        "complete_H264_AAC_exact_match": true,
+        "v2_1_flag": true,
+        "v3_flag": true,
+        "v3_score": 100.0
+      },
+      {
+        "id": "majimuri-line5-E01-r04",
+        "line": "高光線路",
+        "source_page": "https://play.8maple.st/play/nE6C-5-1.html",
+        "start_seconds": 1396.3785700000012,
+        "end_seconds": 1414.045236000001,
+        "duration_seconds": 17.66666599999985,
+        "creative_family": "451451-B",
+        "complete_H264_AAC_exact_match": true,
+        "v2_1_flag": false,
+        "v3_flag": true,
+        "v3_score": 81.74157634075168
+      }
+    ],
+    "scope": "Source lines 1 and 5 are alternative versions of the same episode. One ad in line 1 and two in line 5 do not mean three ads in one file.",
+    "ASUS_existing_copy": {
+      "path": "/tmp/media-dler-ad-expanded-20261019/majisuka-E01-original.mp4",
+      "device_source": "/sdcard/Download/media-dler/drama/馬路無理學園/E0001 馬路無理學園_第01集_ 日劇 _ 楓林網 - 線上看片 [b79dc028eb7648a5deff7ee2].mp4",
+      "bytes": 219952729,
+      "sha256": "49b5f6e1c2d560570f7e2be9ddd2db03fae3f04305c6379fd3a2ae32aa9a8b17",
+      "duration_seconds": 1379.967867,
+      "observations": "A full-file contact sheet at 10-second intervals showed no obvious injected gambling creative. Opening, credits, broad preview, narrow Hulu poster, and character-title controls all remain below the score threshold.",
+      "cannot_confirm_app_removed_ads": true,
+      "reason": "The ASUS programme encoding (1280×720) differs from the 速通 source (1080×606); exact before/after packet anchors did not match. The absent ad sequence alone cannot establish removal or the selected source.",
+      "failed_packet_attribution_evidence": "/tmp/media-dler-ad-expanded-20261019/school-device-packet-verification.json"
+    }
+  },
+  "verification": {
+    "new_candidate_sources_valid": 26,
+    "new_present_roles_OCR_and_decode": "All present roles decoded and OCR providers succeeded. Three EOF after-contexts and one opening before-context are intentionally absent. Some programme title frames produce empty OCR observations; those contribute zero text/layout points.",
+    "scorer_focused_tests_passed": 23,
+    "test_evidence": "Independent task_executor synthetic tests cover source/annotation isolation, rectangle union, continuous partial evidence, empty OCR payloads, and preservation.",
+    "freeze_bindings_and_metrics_primary_verified": true,
+    "ASUS_original_local_copy_SHA256_unchanged_after_analysis": true,
+    "app_code_changed": false,
+    "Android_runtime_test": "Not applicable: no Android changes, installation, app interaction, source rewriting, or automatic removal.",
+    "all_actions": "preserve",
+    "independent_review": "Astra/max independently verified source/input/settings bindings, raw feature merges, arithmetic, label isolation, and the original 38-case matrix. Primary verified the 2 additional post-freeze title/poster cases and exact equality of all original 38 scores."
+  },
+  "source_acquisition": {
+    "reports": [
+      "/tmp/media-dler-ad-expanded-20261019/batch-001/moving-high-E01/acquisition.json",
+      "/tmp/media-dler-ad-expanded-20261019/batch-001/moving-sutong-E12/acquisition.json",
+      "/tmp/media-dler-ad-expanded-20261019/batch-001/heart-high-E01/acquisition.json",
+      "/tmp/media-dler-ad-expanded-20261019/batch-001/majimuri-line1-E01/acquisition.json",
+      "/tmp/media-dler-ad-expanded-20261019/batch-002/majimuri-line5-E01/acquisition.json"
+    ],
+    "network_segment_bytes": 97142044,
+    "media_transforms": "Ad clips were remuxed without re-encoding. Normal TS files are untouched. Five ASUS programme controls are read-only ranges; no volume or banner transformations were added in the new 26 cases."
+  },
+  "source_failures": [
+    {
+      "id": "majimuri-line4-E01",
+      "reason": "DNS lookup failed for ikcdn01.ikzybf.com"
+    },
+    {
+      "id": "majimuri-line2-E01",
+      "reason": "HTTP successful empty master body"
+    },
+    {
+      "id": "majimuri-line3-E01",
+      "reason": "TLS unexpected EOF"
+    },
+    {
+      "id": "majimuri-line6-E01",
+      "reason": "Encrypted child HLS not supported by this conservative collection subset; no inference about ads"
+    }
+  ],
+  "limitations": [
+    "The 17 ad occurrences represent 4 creative families overall; the new 11 repeat 3 known families. This is development evidence across programme contexts, not an estimate of unseen-creative detection accuracy.",
+    "The 15 new retain cases use unmodified programme content, with selected TS/excerpt boundaries introduced only for testing. Existing real credits-with-overlay and constructed hard-cut/volume/banner regressions remain included.",
+    "Generic scoring remains a host experiment; it is not integrated into App automatic removal.",
+    "Failed DNS, TLS, empty, and encrypted source variants were excluded; they cannot be counted as clean.",
+    "Large programme text, posters, and other presentation styles remain possible failure modes. Some stylized title text is not recognized by OCR; no text/layout evidence is then available."
+  ],
+  "cases": [
+    {
+      "id": "e1-ad-02",
+      "truth": "ad",
+      "creative_family": "451451-A",
+      "programme": "戀愛博士/old development control",
+      "evaluation_role": "reused_development_or_constructed_regression",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "real_hls_discontinuity",
+      "baseline_exact_flag": true,
+      "score_v2_1": 77.54545951581036,
+      "score_v3": 100.0,
+      "v2_1_flag": true,
+      "v3_flag": true,
+      "contributions": {
+        "S": 36.58021689657698,
+        "A": 22.163257674338087,
+        "P_within_C": 18.314354736561967,
+        "L": 0.5708521698155891,
+        "C": 46.856963227341424,
+        "edge_overlay_negative": 4.028885796962174,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 105.6004377982565
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "e1-ad-04",
+      "truth": "ad",
+      "creative_family": "451451-B",
+      "programme": "戀愛博士/old development control",
+      "evaluation_role": "reused_development_or_constructed_regression",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "real_hls_discontinuity",
+      "baseline_exact_flag": true,
+      "score_v2_1": 66.22645440186395,
+      "score_v3": 100.0,
+      "v2_1_flag": true,
+      "v3_flag": true,
+      "contributions": {
+        "S": 33.89020627617722,
+        "A": 17.166893685926254,
+        "P_within_C": 14.663495064760468,
+        "L": 0.8492408561291452,
+        "C": 57.12553787121773,
+        "edge_overlay_negative": 0.3839615304660595,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 108.1826378333212
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "e1-ad-06",
+      "truth": "ad",
+      "creative_family": "451451-A",
+      "programme": "戀愛博士/old development control",
+      "evaluation_role": "reused_development_or_constructed_regression",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "real_hls_discontinuity",
+      "baseline_exact_flag": true,
+      "score_v2_1": 62.46482712518954,
+      "score_v3": 86.49091961067349,
+      "v2_1_flag": true,
+      "v3_flag": true,
+      "contributions": {
+        "S": 24.563412576812734,
+        "A": 19.099429603481504,
+        "P_within_C": 18.314354736561967,
+        "L": 0.5708521698155891,
+        "C": 46.856963227341424,
+        "edge_overlay_negative": 4.028885796962174,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 90.51980540763566
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "e1-ad-08",
+      "truth": "ad",
+      "creative_family": "451451-B",
+      "programme": "戀愛博士/old development control",
+      "evaluation_role": "reused_development_or_constructed_regression",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "playlist_end"
+      },
+      "boundary_provenance": "real_hls_discontinuity",
+      "baseline_exact_flag": true,
+      "score_v2_1": 15.169354439760468,
+      "score_v3": 56.74157634075168,
+      "v2_1_flag": false,
+      "v3_flag": true,
+      "contributions": {
+        "S": 0.0,
+        "A": 0.0,
+        "P_within_C": 14.663495064760468,
+        "L": 0.8492408561291452,
+        "C": 57.12553787121773,
+        "edge_overlay_negative": 0.3839615304660595,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 57.12553787121773
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "unseen-phone-ad",
+      "truth": "ad",
+      "creative_family": "unseen-phone-collage",
+      "programme": "戀愛博士/old development control",
+      "evaluation_role": "reused_development_or_constructed_regression",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "real_hls_discontinuity",
+      "baseline_exact_flag": false,
+      "score_v2_1": 72.91969795733078,
+      "score_v3": 84.14590079094964,
+      "v2_1_flag": true,
+      "v3_flag": true,
+      "contributions": {
+        "S": 34.940551590517785,
+        "A": 25.0,
+        "P_within_C": 11.993252269590783,
+        "L": 0.3212016572175838,
+        "C": 28.053335130469975,
+        "edge_overlay_negative": 3.847985930038119,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 87.99388672098776
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "normal-credits-with-domain",
+      "truth": "mixed_programme_overlay",
+      "creative_family": "programme-credits",
+      "programme": "戀愛博士/old development control",
+      "evaluation_role": "reused_development_or_constructed_regression",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "real_hls_discontinuity",
+      "baseline_exact_flag": false,
+      "score_v2_1": 19.80215632190667,
+      "score_v3": 19.26580578572742,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 12.932190507266593,
+        "A": 0.0,
+        "P_within_C": 12.47257794592938,
+        "L": 0.2859828305967091,
+        "C": 26.771719475764833,
+        "edge_overlay_negative": 7.104770863970674,
+        "programme_negative": 13.333333333333332,
+        "raw_positive_sum": 39.70390998303142
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "normal-shot-reverse-shot",
+      "truth": "normal",
+      "creative_family": "e1-normal-office",
+      "programme": "戀愛博士/old development control",
+      "evaluation_role": "reused_development_or_constructed_regression",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "constructed_candidate_boundaries_over_real_contiguous_programme; not a real HLS discontinuity interval",
+      "baseline_exact_flag": false,
+      "score_v2_1": 4.151187969282258,
+      "score_v3": 0.6333928303933697,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 0.4692640977513699,
+        "A": 0.16412873264199979,
+        "P_within_C": 0.0,
+        "L": 0.0,
+        "C": 0.0,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 0.6333928303933697
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "normal-continuous-dialogue",
+      "truth": "normal",
+      "creative_family": "e1-normal-dialogue",
+      "programme": "戀愛博士/old development control",
+      "evaluation_role": "reused_development_or_constructed_regression",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "constructed_candidate_boundaries_over_real_contiguous_programme; not a real HLS discontinuity interval",
+      "baseline_exact_flag": false,
+      "score_v2_1": 6.674539387868229,
+      "score_v3": 0.769591471201561,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 0.769591471201561,
+        "A": 0.0,
+        "P_within_C": 0.0,
+        "L": 0.0,
+        "C": 0.0,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 0.769591471201561
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "normal-scene-transition",
+      "truth": "normal",
+      "creative_family": "e1-normal-scene-transition",
+      "programme": "戀愛博士/old development control",
+      "evaluation_role": "reused_development_or_constructed_regression",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "constructed_candidate_boundaries_over_real_contiguous_programme; not a real HLS discontinuity interval",
+      "baseline_exact_flag": false,
+      "score_v2_1": 8.593150588097581,
+      "score_v3": 0.5180637825420249,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 0.5180637825420249,
+        "A": 0.0,
+        "P_within_C": 0.0,
+        "L": 0.0,
+        "C": 0.0,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 0.5180637825420249
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "normal-loud",
+      "truth": "normal",
+      "creative_family": "e1-normal-dialogue",
+      "programme": "戀愛博士/old development control",
+      "evaluation_role": "reused_development_or_constructed_regression",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "constructed_candidate_boundaries_over_real_contiguous_programme; not a real HLS discontinuity interval",
+      "baseline_exact_flag": false,
+      "score_v2_1": 27.27143908910874,
+      "score_v3": 21.373001589108743,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 0.8355759909447424,
+        "A": 20.537425598164,
+        "P_within_C": 0.0,
+        "L": 0.0,
+        "C": 0.0,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 21.373001589108743
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "normal-banner-overlay",
+      "truth": "mixed_programme_overlay",
+      "creative_family": "e1-normal-dialogue",
+      "programme": "戀愛博士/old development control",
+      "evaluation_role": "reused_development_or_constructed_regression",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "constructed_candidate_boundaries_over_real_contiguous_programme; not a real HLS discontinuity interval",
+      "baseline_exact_flag": false,
+      "score_v2_1": 37.49822367971955,
+      "score_v3": 13.540975415830658,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 8.540975415830662,
+        "A": 0.0,
+        "P_within_C": 25.0,
+        "L": 0.0,
+        "C": 25.0,
+        "edge_overlay_negative": 20.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 33.54097541583066
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "heldout-288588-family",
+      "truth": "ad",
+      "creative_family": "288588",
+      "programme": "戀愛博士/old development control",
+      "evaluation_role": "reused_development_or_constructed_regression",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "real_hls_discontinuity",
+      "baseline_exact_flag": true,
+      "score_v2_1": 63.49400059969871,
+      "score_v3": 100.0,
+      "v2_1_flag": true,
+      "v3_flag": true,
+      "contributions": {
+        "S": 18.965454267787777,
+        "A": 24.672876665291394,
+        "P_within_C": 19.37715404161954,
+        "L": 0.8796296290294926,
+        "C": 60,
+        "edge_overlay_negative": 0.49399048582724053,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 103.63833093307917
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "normal-exact-two-hardcuts",
+      "truth": "normal",
+      "creative_family": "e1-normal-office",
+      "programme": "戀愛博士/old development control",
+      "evaluation_role": "reused_development_or_constructed_regression",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "constructed_DCS_at_true_native_shot_changes",
+      "baseline_exact_flag": false,
+      "score_v2_1": 19.03793352860033,
+      "score_v3": 15.511457834155888,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 15.252030382698392,
+        "A": 0.2594274514574962,
+        "P_within_C": 0.0,
+        "L": 0.0,
+        "C": 0.0,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 15.511457834155888
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "normal-dynamic-hardcuts-loud-banner",
+      "truth": "mixed_programme_overlay",
+      "creative_family": "e1-normal-office",
+      "programme": "戀愛博士/old development control",
+      "evaluation_role": "reused_development_or_constructed_regression",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "constructed_DCS_at_true_native_shot_changes",
+      "baseline_exact_flag": false,
+      "score_v2_1": 65.4365972668997,
+      "score_v3": 44.43609372565605,
+      "v2_1_flag": true,
+      "v3_flag": false,
+      "contributions": {
+        "S": 16.700530149451147,
+        "A": 23.223718940893978,
+        "P_within_C": 22.559223176554568,
+        "L": 0.0,
+        "C": 22.559223176554568,
+        "edge_overlay_negative": 18.04737854124365,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 62.483472266899696
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "moving-high-E01-r02",
+      "truth": "ad",
+      "creative_family": "451451-A",
+      "programme": "Moving 異能",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "real_hls_discontinuity",
+      "baseline_exact_flag": true,
+      "score_v2_1": 66.82895274124016,
+      "score_v3": 90.8550452267241,
+      "v2_1_flag": true,
+      "v3_flag": true,
+      "contributions": {
+        "S": 39.05789823731354,
+        "A": 8.969069559031318,
+        "P_within_C": 18.314354736561967,
+        "L": 0.5708521698155891,
+        "C": 46.856963227341424,
+        "edge_overlay_negative": 4.028885796962174,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 94.88393102368627
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "moving-high-E01-r04",
+      "truth": "ad",
+      "creative_family": "451451-B",
+      "programme": "Moving 異能",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "real_hls_discontinuity",
+      "baseline_exact_flag": true,
+      "score_v2_1": 78.48909341458085,
+      "score_v3": 100.0,
+      "v2_1_flag": true,
+      "v3_flag": true,
+      "contributions": {
+        "S": 38.319738974820375,
+        "A": 25.0,
+        "P_within_C": 14.663495064760468,
+        "L": 0.8492408561291452,
+        "C": 57.12553787121773,
+        "edge_overlay_negative": 0.3839615304660595,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 120.4452768460381
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "moving-high-E01-r06",
+      "truth": "ad",
+      "creative_family": "451451-A",
+      "programme": "Moving 異能",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "playlist_end"
+      },
+      "boundary_provenance": "real_hls_discontinuity",
+      "baseline_exact_flag": true,
+      "score_v2_1": 43.8019849448953,
+      "score_v3": 67.82807743037925,
+      "v2_1_flag": false,
+      "v3_flag": true,
+      "contributions": {
+        "S": 0.0,
+        "A": 25.0,
+        "P_within_C": 18.314354736561967,
+        "L": 0.5708521698155891,
+        "C": 46.856963227341424,
+        "edge_overlay_negative": 4.028885796962174,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 71.85696322734142
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "moving-high-E01-normal-1",
+      "truth": "retain_programme",
+      "creative_family": "programme",
+      "programme": "Moving 異能",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+      "baseline_exact_flag": false,
+      "score_v2_1": 20.789795924856133,
+      "score_v3": 13.499968533319906,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 11.541756910908203,
+        "A": 0.47261458355541897,
+        "P_within_C": 7.427985194281399,
+        "L": 0.0,
+        "C": 7.427985194281399,
+        "edge_overlay_negative": 5.942388155425118,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 19.442356688745022
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "moving-high-E01-normal-2",
+      "truth": "retain_programme",
+      "creative_family": "programme",
+      "programme": "Moving 異能",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+      "baseline_exact_flag": false,
+      "score_v2_1": 9.188356916199876,
+      "score_v3": 6.918391638422099,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 0.9979671102547749,
+        "A": 5.920424528167324,
+        "P_within_C": 0.0,
+        "L": 0.0,
+        "C": 0.0,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 6.918391638422099
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "moving-sutong-E12-r01",
+      "truth": "ad",
+      "creative_family": "288588",
+      "programme": "Moving 異能",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "real_hls_discontinuity",
+      "baseline_exact_flag": true,
+      "score_v2_1": 69.09352040891946,
+      "score_v3": 100.0,
+      "v2_1_flag": true,
+      "v3_flag": true,
+      "contributions": {
+        "S": 24.237850742299926,
+        "A": 25.0,
+        "P_within_C": 19.37715404161954,
+        "L": 0.8796296290294926,
+        "C": 60,
+        "edge_overlay_negative": 0.49399048582724053,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 109.23785074229993
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "moving-sutong-E12-r03",
+      "truth": "ad",
+      "creative_family": "288588",
+      "programme": "Moving 異能",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "real_hls_discontinuity",
+      "baseline_exact_flag": true,
+      "score_v2_1": 82.62241574040894,
+      "score_v3": 100.0,
+      "v2_1_flag": true,
+      "v3_flag": true,
+      "contributions": {
+        "S": 37.76674607378939,
+        "A": 25.0,
+        "P_within_C": 19.37715404161954,
+        "L": 0.8796296290294926,
+        "C": 60,
+        "edge_overlay_negative": 0.49399048582724053,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 122.76674607378939
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "moving-sutong-E12-normal-1",
+      "truth": "retain_programme",
+      "creative_family": "programme",
+      "programme": "Moving 異能",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+      "baseline_exact_flag": false,
+      "score_v2_1": 36.15053639770021,
+      "score_v3": 32.046803758811315,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 7.0468037588113175,
+        "A": 25.0,
+        "P_within_C": 0.0,
+        "L": 0.0,
+        "C": 0.0,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 32.046803758811315
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "moving-sutong-E12-normal-2",
+      "truth": "retain_programme",
+      "creative_family": "programme",
+      "programme": "Moving 異能",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+      "baseline_exact_flag": false,
+      "score_v2_1": 14.065464365327468,
+      "score_v3": 11.305047698660804,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 2.09223514702187,
+        "A": 9.212812551638933,
+        "P_within_C": 0.0,
+        "L": 0.0,
+        "C": 0.0,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 11.305047698660804
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "heart-high-E01-r02",
+      "truth": "ad",
+      "creative_family": "451451-A",
+      "programme": "心動製造所",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "real_hls_discontinuity",
+      "baseline_exact_flag": true,
+      "score_v2_1": 48.31412298231269,
+      "score_v3": 72.34021546779664,
+      "v2_1_flag": false,
+      "v3_flag": true,
+      "contributions": {
+        "S": 10.26467348069708,
+        "A": 19.24746455672031,
+        "P_within_C": 18.314354736561967,
+        "L": 0.5708521698155891,
+        "C": 46.856963227341424,
+        "edge_overlay_negative": 4.028885796962174,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 76.36910126475881
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "heart-high-E01-r04",
+      "truth": "ad",
+      "creative_family": "451451-B",
+      "programme": "心動製造所",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "real_hls_discontinuity",
+      "baseline_exact_flag": true,
+      "score_v2_1": 52.71400524700412,
+      "score_v3": 94.28622714799532,
+      "v2_1_flag": false,
+      "v3_flag": true,
+      "contributions": {
+        "S": 15.019380350997341,
+        "A": 22.5252704562463,
+        "P_within_C": 14.663495064760468,
+        "L": 0.8492408561291452,
+        "C": 57.12553787121773,
+        "edge_overlay_negative": 0.3839615304660595,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 94.67018867846137
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "heart-high-E01-r06",
+      "truth": "ad",
+      "creative_family": "451451-A",
+      "programme": "心動製造所",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "playlist_end"
+      },
+      "boundary_provenance": "real_hls_discontinuity",
+      "baseline_exact_flag": true,
+      "score_v2_1": 43.8019849448953,
+      "score_v3": 67.82807743037925,
+      "v2_1_flag": false,
+      "v3_flag": true,
+      "contributions": {
+        "S": 0.0,
+        "A": 25.0,
+        "P_within_C": 18.314354736561967,
+        "L": 0.5708521698155891,
+        "C": 46.856963227341424,
+        "edge_overlay_negative": 4.028885796962174,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 71.85696322734142
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "heart-high-E01-normal-1",
+      "truth": "retain_programme",
+      "creative_family": "programme",
+      "programme": "心動製造所",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+      "baseline_exact_flag": false,
+      "score_v2_1": 23.833079945770226,
+      "score_v3": 18.87865286243689,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 18.14670017611592,
+        "A": 0.7319526863209708,
+        "P_within_C": 0.0,
+        "L": 0.0,
+        "C": 0.0,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 18.87865286243689
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "heart-high-E01-normal-2",
+      "truth": "retain_programme",
+      "creative_family": "programme",
+      "programme": "心動製造所",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+      "baseline_exact_flag": false,
+      "score_v2_1": 17.895485811316856,
+      "score_v3": 15.818662894650187,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 12.051293664899715,
+        "A": 3.7673692297504733,
+        "P_within_C": 0.0,
+        "L": 0.0,
+        "C": 0.0,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 15.818662894650188
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "majimuri-line1-E01-r01",
+      "truth": "ad",
+      "creative_family": "288588",
+      "programme": "馬路無理學園",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "real_hls_discontinuity",
+      "baseline_exact_flag": true,
+      "score_v2_1": 46.0888516515031,
+      "score_v3": 85.73919149905632,
+      "v2_1_flag": false,
+      "v3_flag": true,
+      "contributions": {
+        "S": 6.7245605116820055,
+        "A": 19.508621473201554,
+        "P_within_C": 19.37715404161954,
+        "L": 0.8796296290294926,
+        "C": 60,
+        "edge_overlay_negative": 0.49399048582724053,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 86.23318198488356
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "majimuri-line1-E01-normal-1",
+      "truth": "retain_programme",
+      "creative_family": "programme",
+      "programme": "馬路無理學園",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+      "baseline_exact_flag": false,
+      "score_v2_1": 11.886118646273523,
+      "score_v3": 9.841847812940191,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 3.575318657387483,
+        "A": 6.266529155552708,
+        "P_within_C": 0.0,
+        "L": 0.0,
+        "C": 0.0,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 9.841847812940191
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "majimuri-line1-E01-normal-2",
+      "truth": "retain_programme",
+      "creative_family": "programme",
+      "programme": "馬路無理學園",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+      "baseline_exact_flag": false,
+      "score_v2_1": 14.991706382233982,
+      "score_v3": 12.387527523612517,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 4.038197777275893,
+        "A": 7.533369716069202,
+        "P_within_C": 0.0,
+        "L": 0.016319200605348468,
+        "C": 0.8159600302674234,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 12.387527523612517
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "majimuri-line5-E01-r02",
+      "truth": "ad",
+      "creative_family": "451451-A",
+      "programme": "馬路無理學園",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "real_hls_discontinuity",
+      "baseline_exact_flag": true,
+      "score_v2_1": 77.0441551218679,
+      "score_v3": 100.0,
+      "v2_1_flag": true,
+      "v3_flag": true,
+      "contributions": {
+        "S": 36.82503550207125,
+        "A": 21.417134674901344,
+        "P_within_C": 18.314354736561967,
+        "L": 0.5708521698155891,
+        "C": 46.856963227341424,
+        "edge_overlay_negative": 4.028885796962174,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 105.09913340431402
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "majimuri-line5-E01-r04",
+      "truth": "ad",
+      "creative_family": "451451-B",
+      "programme": "馬路無理學園",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "playlist_end"
+      },
+      "boundary_provenance": "real_hls_discontinuity",
+      "baseline_exact_flag": true,
+      "score_v2_1": 40.16935443976047,
+      "score_v3": 81.74157634075168,
+      "v2_1_flag": false,
+      "v3_flag": true,
+      "contributions": {
+        "S": 0.0,
+        "A": 25.0,
+        "P_within_C": 14.663495064760468,
+        "L": 0.8492408561291452,
+        "C": 57.12553787121773,
+        "edge_overlay_negative": 0.3839615304660595,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 82.12553787121773
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "majimuri-line5-E01-normal-1",
+      "truth": "retain_programme",
+      "creative_family": "programme",
+      "programme": "馬路無理學園",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+      "baseline_exact_flag": false,
+      "score_v2_1": 2.3811020684120416,
+      "score_v3": 13.236373748773886,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 0.9075777628564863,
+        "A": 0.0,
+        "P_within_C": 0.0,
+        "L": 0.24657591971834802,
+        "C": 12.3287959859174,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 13.236373748773886
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "majimuri-line5-E01-normal-2",
+      "truth": "retain_programme",
+      "creative_family": "programme",
+      "programme": "馬路無理學園",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+      "baseline_exact_flag": false,
+      "score_v2_1": 17.395785591455383,
+      "score_v3": 14.390143230344272,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 11.928182416897698,
+        "A": 2.461960813446573,
+        "P_within_C": 0.0,
+        "L": 0.0,
+        "C": 0.0,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 14.390143230344272
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "majimuri-device-opening",
+      "truth": "retain_programme",
+      "creative_family": "programme-opening",
+      "programme": "馬路無理學園",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "playlist_start",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "unaltered_programme_excerpt_with_test_only_boundaries",
+      "baseline_exact_flag": false,
+      "score_v2_1": 1.9487847222222223,
+      "score_v3": 0.0,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 0.0,
+        "A": 0.0,
+        "P_within_C": 0.0,
+        "L": 0.0,
+        "C": 0.0,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 0.0
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "majimuri-device-credits",
+      "truth": "retain_programme",
+      "creative_family": "programme-credits",
+      "programme": "馬路無理學園",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "unaltered_programme_excerpt_with_test_only_boundaries",
+      "baseline_exact_flag": false,
+      "score_v2_1": 15.475790617469261,
+      "score_v3": 13.443093858210004,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 0.42914071883358174,
+        "A": 8.384323509746793,
+        "P_within_C": 0.0,
+        "L": 0.09259259259259257,
+        "C": 4.629629629629629,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 13.443093858210004
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "majimuri-device-hulu-preview",
+      "truth": "retain_programme",
+      "creative_family": "programme-hulu-preview",
+      "programme": "馬路無理學園",
+      "evaluation_role": "new_actual_media_development",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "unaltered_programme_excerpt_with_test_only_boundaries",
+      "baseline_exact_flag": false,
+      "score_v2_1": 6.726157118554905,
+      "score_v3": 6.434912046555798,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 2.0823069523888624,
+        "A": 2.5127737772771543,
+        "P_within_C": 0.0,
+        "L": 0.03679662633779562,
+        "C": 1.8398313168897809,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 6.434912046555798
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "majimuri-device-hulu-poster-card",
+      "truth": "retain_programme",
+      "creative_family": "programme-hulu-poster-card",
+      "programme": "馬路無理學園",
+      "evaluation_role": "post_freeze_targeted_actual_negative",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "unaltered_programme_excerpt_with_test_only_boundaries",
+      "baseline_exact_flag": false,
+      "score_v2_1": 8.479736396897993,
+      "score_v3": 23.10077227958561,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 0.8351639273226837,
+        "A": 6.700562052908642,
+        "P_within_C": 0.0,
+        "L": 0.3113009259870857,
+        "C": 15.565046299354284,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 23.10077227958561
+      },
+      "action": "preserve"
+    },
+    {
+      "id": "majimuri-device-character-intro-titles",
+      "truth": "retain_programme",
+      "creative_family": "programme-character-intro-titles",
+      "programme": "馬路無理學園",
+      "evaluation_role": "post_freeze_targeted_actual_negative",
+      "source_boundary": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "boundary_provenance": "unaltered_programme_excerpt_with_test_only_boundaries",
+      "baseline_exact_flag": false,
+      "score_v2_1": 10.207928887093301,
+      "score_v3": 9.016645562244843,
+      "v2_1_flag": false,
+      "v3_flag": false,
+      "contributions": {
+        "S": 6.776245994863665,
+        "A": 1.19643983667408,
+        "P_within_C": 0.0,
+        "L": 0.020879194614141987,
+        "C": 1.0439597307070994,
+        "edge_overlay_negative": 0.0,
+        "programme_negative": 0.0,
+        "raw_positive_sum": 9.016645562244843
+      },
+      "action": "preserve"
+    }
+  ],
+  "metrics_label_join": "V2.1 new-case raw reports retain pending labels from extraction time. All comparisons join by case ID to the fixed expanded-cases/title-challenges annotations; original reports are preserved.",
+  "additional_case_definitions": "experiments/ad-multisignal/title-challenges-20261019.json"
+}

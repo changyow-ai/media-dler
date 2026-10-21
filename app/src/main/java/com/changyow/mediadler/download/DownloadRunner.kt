@@ -53,6 +53,12 @@ class DownloadRunner(
         return reply.await()
     }
 
+    suspend fun skipAdAnalysis(id: String): Boolean {
+        val reply = CompletableDeferred<Boolean>()
+        commands.send(Command.SkipAdAnalysis(id, reply))
+        return reply.await()
+    }
+
     suspend fun resumeTask(id: String): Boolean {
         val reply = CompletableDeferred<Boolean>()
         commands.send(Command.ResumeTask(id, reply))
@@ -172,6 +178,7 @@ class DownloadRunner(
         for (command in commands) {
             when (command) {
                 is Command.PauseTask -> changeItem(command.id, command.reply, false) { queue.pauseTask(command.id) }
+                is Command.SkipAdAnalysis -> changeItem(command.id, command.reply, false) { queue.skipAdAnalysis(command.id) }
                 is Command.ResumeTask -> changeItem(command.id, command.reply, false) { queue.resumeTask(command.id) }
                 is Command.DownloadNow -> changeItem(command.id, command.reply, DownloadNowResult.REJECTED) {
                     queue.downloadNow(command.id)
@@ -363,7 +370,7 @@ class DownloadRunner(
         val claim = attempt.claim
         // The publication journal and completed private media need no network.
         ensureAttemptActive(claim, requiresNetwork = false)
-        downloader.recover(claim.id) { progress ->
+        downloader.recover(claim.id, claim.skipAdAnalysis) { progress ->
             persisted { queue.setProgress(claim, progress) }
             checkItemInterruption(claim)
             changed(claim.id)
@@ -376,7 +383,8 @@ class DownloadRunner(
                 persisted { queue.extracting(claim, if (refresh == 0) null else "串流連結已失效，正在重新解析同一集") }
                 changed(claim.id)
             }
-            val request = claim.resolvedRequest?.takeIf { refresh == 0 } ?: resolver.resolve(claim.spec)
+            val request = (claim.resolvedRequest?.takeIf { refresh == 0 } ?: resolver.resolve(claim.spec))
+                .copy(adRemovalPolicy = claim.adRemovalPolicy, skipAdAnalysis = claim.skipAdAnalysis)
             ensureAttemptActive(claim)
             persisted { queue.resolved(claim, request) }
             changed(claim.id)
@@ -441,6 +449,7 @@ class DownloadRunner(
     }
     private sealed interface Command {
         data class PauseTask(val id: String, val reply: CompletableDeferred<Boolean>) : Command
+        data class SkipAdAnalysis(val id: String, val reply: CompletableDeferred<Boolean>) : Command
         data class ResumeTask(val id: String, val reply: CompletableDeferred<Boolean>) : Command
         data class DownloadNow(val id: String, val reply: CompletableDeferred<DownloadNowResult>) : Command
         data class Wake(val owner: String, val startId: Int, val userInitiated: Boolean, val resumeAll: Boolean) : Command

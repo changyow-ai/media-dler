@@ -37,6 +37,8 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         val safTreeUri = stringPreferencesKey("saf_tree_uri")
         val downloadAllWhenMultiple = booleanPreferencesKey("download_all_when_multiple")
         val downloadRateLimit = longPreferencesKey("download_rate_limit_bytes_per_second")
+        val adRemovalEnabled = booleanPreferencesKey("ad_removal_enabled")
+        val weightedAdAnalysisEnabled = booleanPreferencesKey("weighted_ad_analysis_enabled")
         val autoUpdateYtDlpOnStartup = booleanPreferencesKey("auto_update_ytdlp_on_startup")
         val transcribeLanguage = stringPreferencesKey("transcribe_language")
         val transcribeEngine = stringPreferencesKey("transcribe_engine")
@@ -68,6 +70,8 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         safTreeUri = this[Keys.safTreeUri],
         downloadAllWhenMultiple = this[Keys.downloadAllWhenMultiple] ?: true,
         downloadRateLimitBytesPerSecond = this[Keys.downloadRateLimit]?.takeIf { it > 0 },
+        adRemovalEnabled = this[Keys.adRemovalEnabled] ?: true,
+        weightedAdAnalysisEnabled = this[Keys.weightedAdAnalysisEnabled] ?: false,
         autoUpdateYtDlpOnStartup = this[Keys.autoUpdateYtDlpOnStartup] ?: false,
         transcribeLanguage = enumOrDefault(this[Keys.transcribeLanguage], TranscribeLanguage.AUTO),
         transcribeEngine = enumOrDefault(this[Keys.transcribeEngine], TranscribeEngine.ON_DEVICE),
@@ -87,6 +91,8 @@ class DataStoreSettingsRepository(private val context: Context) : SettingsReposi
         this[Keys.audioFormat] = settings.audioFormat.name
         this[Keys.storageMode] = settings.storageMode.name
         this[Keys.downloadAllWhenMultiple] = settings.downloadAllWhenMultiple
+        this[Keys.adRemovalEnabled] = settings.adRemovalEnabled
+        this[Keys.weightedAdAnalysisEnabled] = settings.weightedAdAnalysisEnabled
         val rate = settings.downloadRateLimitBytesPerSecond
         require(rate == null || rate > 0) { "Download rate must be positive" }
         if (rate != null) this[Keys.downloadRateLimit] = rate else remove(Keys.downloadRateLimit)

@@ -3,6 +3,7 @@ package com.changyow.mediadler.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.changyow.mediadler.core.model.DownloadTask
+import com.changyow.mediadler.core.model.DownloadPhase
 import com.changyow.mediadler.core.model.DownloadStatus
 import com.changyow.mediadler.core.model.EpisodeMetadata
 import com.changyow.mediadler.core.model.ItemInterruption
@@ -89,34 +90,44 @@ internal fun transcriptSourceFor(task: DownloadTask): TranscriptSource? {
     return TranscriptSource(page.toString(), true)
 }
 
-internal enum class HomeTaskCommand { PAUSE, RESUME, DOWNLOAD_NOW }
+internal enum class HomeTaskCommand { PAUSE, RESUME, DOWNLOAD_NOW, SKIP_AD_ANALYSIS }
 
 internal fun taskControlsAvailable(task: DownloadTask): Boolean =
     !task.cancelRequested && task.interruption == null
 
-internal fun canPauseTask(task: DownloadTask): Boolean = taskControlsAvailable(task) && task.status in
+internal fun isAdAnalysisTask(task: DownloadTask): Boolean =
+    task.status == DownloadStatus.DOWNLOADING && task.progressPhase == DownloadPhase.AD_ANALYSIS
+
+internal fun canSkipAdAnalysis(task: DownloadTask): Boolean =
+    taskControlsAvailable(task) && isAdAnalysisTask(task) && !task.skipAdAnalysis
+
+internal fun canPauseTask(task: DownloadTask): Boolean = taskControlsAvailable(task) && !isAdAnalysisTask(task) && task.status in
     setOf(DownloadStatus.QUEUED, DownloadStatus.EXTRACTING, DownloadStatus.DOWNLOADING)
 
 internal fun canResumeTask(task: DownloadTask): Boolean =
-    taskControlsAvailable(task) && task.status == DownloadStatus.PAUSED
+    taskControlsAvailable(task) && !task.adPolicyMigrationRequired && task.status == DownloadStatus.PAUSED
 
 internal fun canDownloadTaskNow(task: DownloadTask): Boolean = taskControlsAvailable(task) &&
-    task.status in setOf(DownloadStatus.QUEUED, DownloadStatus.PAUSED)
+    !task.adPolicyMigrationRequired && task.status in setOf(DownloadStatus.QUEUED, DownloadStatus.PAUSED)
 
 internal fun scheduledHomeTasks(tasks: List<DownloadTask>): List<DownloadTask> =
     tasks.filter { !it.status.isTerminal && it.status != DownloadStatus.PAUSED }
 
 internal fun taskStatusText(task: DownloadTask, queueNumber: Int?, pending: HomeTaskCommand? = null): String = when {
     task.cancelRequested -> "正在取消…"
-    task.interruption == ItemInterruption.MANUAL_PAUSE || pending == HomeTaskCommand.PAUSE -> "正在暫停…"
+    task.interruption == ItemInterruption.MANUAL_PAUSE -> "正在暫停…"
     task.interruption == ItemInterruption.PRIORITY_REQUEUE -> "正在切換下載…"
+    task.interruption == ItemInterruption.SKIP_AD_ANALYSIS -> "正在略過廣告分析…"
+    pending == HomeTaskCommand.PAUSE -> "正在暫停…"
+    pending == HomeTaskCommand.SKIP_AD_ANALYSIS -> "正在略過廣告分析…"
     pending == HomeTaskCommand.RESUME -> "正在繼續下載…"
     pending == HomeTaskCommand.DOWNLOAD_NOW -> "正在安排下載…"
     else -> when (task.status) {
         DownloadStatus.QUEUED -> queueNumber?.let { "排隊中 · 排程第 $it 項" } ?: "排隊中"
         DownloadStatus.PAUSED -> if (task.progress in 0f..1f) "已暫停 ${(task.progress * 100).toInt()}%" else "已暫停"
         DownloadStatus.EXTRACTING -> "解析中"
-        DownloadStatus.DOWNLOADING -> if (task.progress in 0f..1f) "下載中 ${(task.progress * 100).toInt()}%" else "下載中"
+        DownloadStatus.DOWNLOADING -> if (isAdAnalysisTask(task)) "廣告分析中"
+            else if (task.progress in 0f..1f) "下載中 ${(task.progress * 100).toInt()}%" else "下載中"
         DownloadStatus.PROCESSING -> "處理中"
         DownloadStatus.COMPLETED -> "已完成"
         DownloadStatus.FAILED -> "下載失敗"
@@ -125,8 +136,10 @@ internal fun taskStatusText(task: DownloadTask, queueNumber: Int?, pending: Home
 }
 
 internal fun taskProgressDetail(task: DownloadTask): String? = when {
+    task.adPolicyMigrationRequired -> task.errorMessage ?: task.progressDetail
     task.status == DownloadStatus.PAUSED && task.canResume == false -> "此來源不支援續傳，繼續時會重新下載"
-    task.status == DownloadStatus.PAUSED -> null
+    task.status == DownloadStatus.PAUSED -> task.progressDetail?.takeIf { "候選已處理 " in it }
+        ?.let { "暫停前進度：\n$it" }
     !task.status.isTerminal -> task.progressDetail
     else -> null
 }

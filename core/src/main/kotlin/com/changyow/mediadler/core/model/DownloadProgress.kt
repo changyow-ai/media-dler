@@ -2,7 +2,7 @@ package com.changyow.mediadler.core.model
 
 import kotlinx.serialization.Serializable
 
-enum class DownloadPhase { DOWNLOADING, PROCESSING, SAVING }
+@Serializable enum class DownloadPhase { AD_ANALYSIS, DOWNLOADING, PROCESSING, SAVING }
 
 /** A phase-local fraction is known only when the source supplied a reliable total. */
 data class DownloadProgress(

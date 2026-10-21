@@ -1,6 +1,7 @@
 package com.changyow.mediadler.ui.home
 
 import com.changyow.mediadler.core.model.DownloadStatus
+import com.changyow.mediadler.core.model.DownloadPhase
 import com.changyow.mediadler.core.model.DownloadTask
 import com.changyow.mediadler.core.model.ItemInterruption
 import kotlin.test.Test
@@ -43,7 +44,41 @@ class HomeTaskActionsTest {
             assertEquals(status in setOf(DownloadStatus.QUEUED, DownloadStatus.EXTRACTING, DownloadStatus.DOWNLOADING), canPauseTask(task))
             assertEquals(status == DownloadStatus.PAUSED, canResumeTask(task))
             assertEquals(status in setOf(DownloadStatus.QUEUED, DownloadStatus.PAUSED), canDownloadTaskNow(task))
+            assertFalse(canSkipAdAnalysis(task))
         }
+    }
+
+    @Test fun analysisOffersSkipInsteadOfPauseOnlyWhileThatPhaseIsActive() {
+        val analyzing = task().copy(status = DownloadStatus.DOWNLOADING, progressPhase = DownloadPhase.AD_ANALYSIS,
+            progress = .42f, progressDetail = "候選已處理 4/12")
+        assertEquals("廣告分析中", taskStatusText(analyzing, null))
+        assertTrue(canSkipAdAnalysis(analyzing))
+        assertFalse(canPauseTask(analyzing))
+        assertFalse(canSkipAdAnalysis(analyzing.copy(skipAdAnalysis = true)))
+        assertFalse(canSkipAdAnalysis(analyzing.copy(cancelRequested = true)))
+        for (status in DownloadStatus.entries.filter { it != DownloadStatus.DOWNLOADING }) {
+            assertFalse(canSkipAdAnalysis(analyzing.copy(status = status)))
+        }
+        for (phase in DownloadPhase.entries.filter { it != DownloadPhase.AD_ANALYSIS }) {
+            assertFalse(canSkipAdAnalysis(analyzing.copy(progressPhase = phase)))
+        }
+        val downloading = analyzing.copy(progressPhase = DownloadPhase.DOWNLOADING)
+        assertEquals("下載中 42%", taskStatusText(downloading, null))
+        assertEquals(analyzing.progressDetail, taskProgressDetail(downloading))
+        assertFalse(canSkipAdAnalysis(downloading))
+        assertTrue(canPauseTask(downloading))
+        assertTrue(canPauseTask(downloading.copy(progressPhase = null)))
+    }
+
+    @Test fun pendingSkipIsVisibleAndCancellationAndInterruptionsTakePriority() {
+        val analyzing = task().copy(status = DownloadStatus.DOWNLOADING, progressPhase = DownloadPhase.AD_ANALYSIS)
+        assertEquals("正在略過廣告分析…", taskStatusText(analyzing, null, HomeTaskCommand.SKIP_AD_ANALYSIS))
+        assertEquals("正在取消…", taskStatusText(analyzing.copy(cancelRequested = true), null,
+            HomeTaskCommand.SKIP_AD_ANALYSIS))
+        assertEquals("正在切換下載…", taskStatusText(analyzing.copy(interruption = ItemInterruption.PRIORITY_REQUEUE),
+            null, HomeTaskCommand.SKIP_AD_ANALYSIS))
+        assertEquals("正在略過廣告分析…", taskStatusText(analyzing.copy(interruption = ItemInterruption.SKIP_AD_ANALYSIS),
+            null, HomeTaskCommand.PAUSE))
     }
 
     @Test fun interruptionsDisableRepeatedActionsAndShowWhatIsHappening() {
@@ -54,7 +89,12 @@ class HomeTaskActionsTest {
                 assertFalse(canPauseTask(task))
                 assertFalse(canResumeTask(task))
                 assertFalse(canDownloadTaskNow(task))
-                assertEquals(if (interruption == ItemInterruption.MANUAL_PAUSE) "正在暫停…" else "正在切換下載…",
+                assertFalse(canSkipAdAnalysis(task.copy(progressPhase = DownloadPhase.AD_ANALYSIS)))
+                assertEquals(when (interruption) {
+                    ItemInterruption.MANUAL_PAUSE -> "正在暫停…"
+                    ItemInterruption.PRIORITY_REQUEUE -> "正在切換下載…"
+                    ItemInterruption.SKIP_AD_ANALYSIS -> "正在略過廣告分析…"
+                },
                     taskStatusText(task, 1))
                 assertEquals("正在取消…", taskStatusText(task.copy(cancelRequested = true), 1))
             }
@@ -69,6 +109,8 @@ class HomeTaskActionsTest {
         assertNull(taskProgressDetail(paused))
         assertNull(taskProgressDetail(paused.copy(canResume = true)))
         assertEquals("此來源不支援續傳，繼續時會重新下載", taskProgressDetail(paused.copy(canResume = false)))
+        val analysis = "分析候選影音\n候選已處理 4/12 · 未確認 2\n累計分析 1分30秒"
+        assertEquals("暫停前進度：\n$analysis", taskProgressDetail(paused.copy(progressDetail = analysis)))
     }
 
     @Test fun manuallyPausedTasksStayVisibleButDoNotConsumeSchedulePositions() {
@@ -79,6 +121,16 @@ class HomeTaskActionsTest {
         assertTrue(paused in merged)
         assertEquals(listOf(active, queued), scheduledHomeTasks(merged))
         assertEquals("排隊中 · 排程第 2 項", taskStatusText(queued, 2))
+    }
+
+    @Test fun legacyMigrationShowsInstructionsAndDisablesIncompatibleResume() {
+        val message = "舊任務的去 AD 策略無法確認，已保留暫存；請重新建立下載"
+        val legacy = task().copy(status = DownloadStatus.PAUSED,
+            adPolicyMigrationRequired = true, errorMessage = message, progressDetail = message)
+        assertEquals(message, taskProgressDetail(legacy))
+        assertFalse(canResumeTask(legacy))
+        assertFalse(canDownloadTaskNow(legacy))
+        assertEquals(message, taskProgressDetail(legacy.copy(status = DownloadStatus.FAILED)))
     }
 
     private fun task(id: String = "task") = DownloadTask(id, "Video", "https://media.example/watch",

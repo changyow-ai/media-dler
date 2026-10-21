@@ -14,7 +14,16 @@ import java.nio.charset.CodingErrorAction
 import java.security.MessageDigest
 import java.util.Locale
 
-internal data class PreparedHlsResume(val resource: MediaResource, val manifest: String, val identity: String)
+internal data class PreparedHlsResume(
+    val resource: MediaResource,
+    val manifest: String,
+    val identity: String,
+    val skippedAds: Int = 0,
+    val skippedAdSegments: Int = 0,
+    val skippedAdSeconds: Double = 0.0,
+    val adPlan: java.io.File? = null,
+    val adAnalysisComplete: Boolean? = null,
+)
 
 /** Runs only for the claimed special-source job, never for queued episodes. */
 internal object SpecialSourceResume {

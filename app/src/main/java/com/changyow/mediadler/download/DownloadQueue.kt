@@ -27,7 +27,8 @@ class DownloadQueue(
         // Once per process/container, never on every service start.
         val deleted = mutableListOf<String>()
         val completed = mutableListOf<String>()
-        mutate { records -> records.mapNotNull { record ->
+        mutate { records -> records.map { it.copy(task = it.task.copy(progressPhase = null)) }
+            .map(::migrateAdPolicy).mapNotNull { record ->
             when {
                 record.deleteRequested -> {
                     deleted += record.task.id
@@ -51,15 +52,19 @@ class DownloadQueue(
         completed.forEach(::deleteScratch)
     }
 
-    fun submit(request: DownloadRequest): String = submitBatch(listOf(specFor(request))).single()
-    fun submitRequests(requests: List<DownloadRequest>, allowPageDuplicates: Boolean = false): List<String> =
-        submitBatch(requests.map(::specFor), allowPageDuplicates)
+    fun submit(request: DownloadRequest): String =
+        submitBatch(listOf(specFor(request)), adRemovalPolicy = request.adRemovalPolicy).single()
+    fun submitRequests(requests: List<DownloadRequest>, allowPageDuplicates: Boolean = false,
+                       adRemovalPolicy: AdRemovalPolicy = AdRemovalPolicy.CONFIRMED_ONLY): List<String> =
+        submitBatch(requests.map(::specFor), allowPageDuplicates, adRemovalPolicy)
 
-    fun submitPages(pages: List<EpisodePage>, selection: FormatSelection): List<String> =
-        submitBatch(pages.map { QueuedSpec.Page(it, selection) })
+    fun submitPages(pages: List<EpisodePage>, selection: FormatSelection,
+                    adRemovalPolicy: AdRemovalPolicy = AdRemovalPolicy.CONFIRMED_ONLY): List<String> =
+        submitBatch(pages.map { QueuedSpec.Page(it, selection) }, adRemovalPolicy = adRemovalPolicy)
 
     /** All pages land in one transaction before any extraction or service wake-up. */
-    fun submitBatch(specs: List<QueuedSpec>, allowPageDuplicates: Boolean = false): List<String> {
+    fun submitBatch(specs: List<QueuedSpec>, allowPageDuplicates: Boolean = false,
+                    adRemovalPolicy: AdRemovalPolicy = AdRemovalPolicy.CONFIRMED_ONLY): List<String> {
         val ids = mutableListOf<String>()
         mutate { before ->
             val records = before.toMutableList()
@@ -73,11 +78,12 @@ class DownloadQueue(
                 }
                 val duplicate = if (allowPageDuplicates) null else (spec as? QueuedSpec.Page)?.let { page -> records.firstOrNull {
                     val existing = it.spec as? QueuedSpec.Page
-                    existing != null && !it.task.status.isTerminal && pageKey(existing.page) == pageKey(page.page)
+                    existing != null && it.adRemovalPolicy != null && !it.task.status.isTerminal &&
+                        pageKey(existing.page) == pageKey(page.page)
                 } }
                 if (duplicate != null) { ids += duplicate.task.id; continue }
                 val id = UUID.randomUUID().toString()
-                records += QueuedDownload(taskFor(id, position++, spec), spec)
+                records += QueuedDownload(taskFor(id, position++, spec), spec, adRemovalPolicy = adRemovalPolicy)
                 ids += id
             }
             records
@@ -94,11 +100,12 @@ class DownloadQueue(
                 ?: return@mutate records
             val attempt = next.attempt + 1
             claim = DownloadClaim(next.task.id, attempt, next.spec,
-                resolvedRequest = next.resolvedRequest.takeIf { preferResolved || next.reuseResolvedRequest })
+                resolvedRequest = next.resolvedRequest.takeIf { preferResolved || next.reuseResolvedRequest },
+                adRemovalPolicy = requireNotNull(next.adRemovalPolicy), skipAdAnalysis = next.task.skipAdAnalysis)
             records.map { if (it.task.id != next.task.id) it else it.copy(attempt = attempt, reuseResolvedRequest = false,
                 task = it.task.copy(status = if (it.spec is QueuedSpec.Page) DownloadStatus.EXTRACTING else DownloadStatus.DOWNLOADING,
                     progress = if (next.reuseResolvedRequest) it.task.progress else -1f,
-                    progressDetail = null, errorMessage = null)) }
+                    progressDetail = null, progressPhase = null, errorMessage = null)) }
         }
         return claim
     }
@@ -107,6 +114,25 @@ class DownloadQueue(
     fun pauseReason(): QueuePause? = _tasks.value.firstNotNullOfOrNull { it.queuePause }
     fun activeCount(): Int = _tasks.value.count { it.status.isActive }
     fun get(id: String): DownloadTask? = _tasks.value.firstOrNull { it.id == id }
+
+    /** Persist one task's full-content intent before its current native attempt is canceled. */
+    fun skipAdAnalysis(id: String): Boolean {
+        var accepted = false
+        mutate { records -> records.map { record ->
+            val task = record.task
+            if (task.id != id || record.deleteRequested || task.cancelRequested ||
+                task.status != DownloadStatus.DOWNLOADING || task.progressPhase != DownloadPhase.AD_ANALYSIS ||
+                task.interruption !in setOf(null, ItemInterruption.SKIP_AD_ANALYSIS)) record
+            else if (task.interruption == ItemInterruption.SKIP_AD_ANALYSIS) {
+                accepted = true
+                record
+            } else if (task.skipAdAnalysis) record else {
+                accepted = true
+                record.copy(task = task.copy(skipAdAnalysis = true, interruption = ItemInterruption.SKIP_AD_ANALYSIS))
+            }
+        } }
+        return accepted
+    }
 
     /** Active work changes state only after its native process acknowledges the stop. */
     fun pauseTask(id: String): Boolean {
@@ -129,7 +155,7 @@ class DownloadQueue(
         var resumed = false
         mutate { records -> records.map { record ->
             if (record.task.id != id || record.deleteRequested || record.task.cancelRequested ||
-                record.task.status != DownloadStatus.PAUSED) record else {
+                record.task.status != DownloadStatus.PAUSED || record.adRemovalPolicy == null) record else {
                 resumed = true
                 record.copy(reuseResolvedRequest = true, task = record.task.copy(
                     status = DownloadStatus.QUEUED, interruption = null,
@@ -143,7 +169,8 @@ class DownloadQueue(
     fun downloadNow(id: String): DownloadNowResult {
         var result = DownloadNowResult.REJECTED
         mutate { records ->
-            val target = records.firstOrNull { it.task.id == id && !it.deleteRequested && !it.task.cancelRequested }
+            val target = records.firstOrNull { it.task.id == id && !it.deleteRequested && !it.task.cancelRequested &&
+                it.adRemovalPolicy != null }
                 ?: return@mutate records
             if (target.task.status.isActive) {
                 result = DownloadNowResult.READY
@@ -213,19 +240,22 @@ class DownloadQueue(
             seriesTitle = item.seriesTitle ?: record.task.seriesTitle,
             seasonNumber = item.seasonNumber ?: record.task.seasonNumber,
             episodeNumber = item.episodeNumber ?: record.task.episodeNumber,
-            status = DownloadStatus.DOWNLOADING, progress = -1f))
+            status = DownloadStatus.DOWNLOADING, progress = -1f, progressPhase = null))
     }
     fun extracting(claim: DownloadClaim, detail: String? = null) = update(claim) {
-        it.copy(task = it.task.copy(status = DownloadStatus.EXTRACTING, progress = -1f, progressDetail = detail))
+        it.copy(task = it.task.copy(status = DownloadStatus.EXTRACTING, progress = -1f, progressDetail = detail, progressPhase = null))
     }
 
     fun setProgress(claim: DownloadClaim, progress: Float, detail: String? = null) = update(claim) {
-        it.copy(task = it.task.copy(status = DownloadStatus.DOWNLOADING, progress = progress, progressDetail = detail))
+        it.copy(task = it.task.copy(status = DownloadStatus.DOWNLOADING, progress = progress, progressDetail = detail,
+            progressPhase = DownloadPhase.DOWNLOADING))
     }
     fun setProgress(claim: DownloadClaim, progress: DownloadProgress) = update(claim) {
         it.copy(task = it.task.copy(
-            status = if (progress.phase == DownloadPhase.DOWNLOADING) DownloadStatus.DOWNLOADING else DownloadStatus.PROCESSING,
+            status = if (progress.phase in setOf(DownloadPhase.AD_ANALYSIS, DownloadPhase.DOWNLOADING))
+                DownloadStatus.DOWNLOADING else DownloadStatus.PROCESSING,
             progress = progress.fraction, progressDetail = progress.detail,
+            progressPhase = progress.phase,
             canResume = progress.canResume ?: it.task.canResume,
         ))
     }
@@ -258,7 +288,7 @@ class DownloadQueue(
                     it.task.interruption != null || it.deleteRequested) it
                 else {
                     parked = true
-                    it.copy(task = it.task.copy(status = DownloadStatus.QUEUED,
+                    it.copy(task = it.task.copy(status = DownloadStatus.QUEUED, progressPhase = null,
                         progressDetail = DownloadFailurePolicy.networkPause.message, errorMessage = null,
                         queuePause = if (stronger) it.task.queuePause else DownloadFailurePolicy.networkPause))
                 }
@@ -281,14 +311,15 @@ class DownloadQueue(
         ))
     } }
     fun processing(claim: DownloadClaim, detail: String = "正在封裝與儲存") = update(claim) {
-        it.copy(task = it.task.copy(status = DownloadStatus.PROCESSING, progress = -1f, progressDetail = detail))
+        it.copy(task = it.task.copy(status = DownloadStatus.PROCESSING, progress = -1f, progressDetail = detail,
+            progressPhase = DownloadPhase.PROCESSING))
     }
     fun complete(claim: DownloadClaim, outputUri: String, mimeType: String): Boolean {
         var committed = false
         update(claim) {
             committed = true
             it.copy(task = it.task.copy(status = DownloadStatus.COMPLETED, progress = 1f,
-                outputUri = outputUri, mimeType = mimeType, errorMessage = null, progressDetail = null))
+                outputUri = outputUri, mimeType = mimeType, errorMessage = null, progressDetail = null, progressPhase = null))
         }
         if (committed) deleteScratch(claim.id)
         return committed
@@ -297,7 +328,7 @@ class DownloadQueue(
         if (it.task.id == id) it.copy(task = it.task.copy(previewPath = path)) else it
     } }
     fun fail(claim: DownloadClaim, message: String) = update(claim) {
-        it.copy(task = it.task.copy(status = DownloadStatus.FAILED, errorMessage = message, progressDetail = null))
+        it.copy(task = it.task.copy(status = DownloadStatus.FAILED, errorMessage = message, progressDetail = null, progressPhase = null))
     }
 
     /** Cancellation retains resumable bytes; explicit deletion removes them after native exit. */
@@ -322,12 +353,14 @@ class DownloadQueue(
                         status = when {
                             record.task.cancelRequested -> DownloadStatus.CANCELED
                             intent == ItemInterruption.MANUAL_PAUSE -> DownloadStatus.PAUSED
-                            intent == ItemInterruption.PRIORITY_REQUEUE -> DownloadStatus.QUEUED
+                            intent in setOf(ItemInterruption.PRIORITY_REQUEUE, ItemInterruption.SKIP_AD_ANALYSIS) -> DownloadStatus.QUEUED
                             interrupted -> DownloadStatus.QUEUED
                             else -> DownloadStatus.FAILED
                         },
-                        cancelRequested = false, interruption = null,
-                        progressDetail = if (intent != null) record.task.progressDetail
+                        cancelRequested = false, interruption = null, progressPhase = null,
+                        progressDetail = if (intent == ItemInterruption.SKIP_AD_ANALYSIS)
+                            "略過廣告分析，準備下載完整內容（含廣告）"
+                            else if (intent != null) record.task.progressDetail
                             else if (interrupted) record.task.queuePause?.message ?: "等待恢復下載" else null,
                     ),
                 )
@@ -345,13 +378,13 @@ class DownloadQueue(
     private fun retryMatching(matches: (DownloadTask) -> Boolean): Int {
         var retried = 0
         mutate { records -> records.map {
-            if (it.deleteRequested || !matches(it.task)) it else {
+            if (it.deleteRequested || it.adRemovalPolicy == null || !matches(it.task)) it else {
                 retried++
                 // Invalidate before any worker can claim the manual retry with preferResolved.
                 it.copy(resolvedRequest = if (it.spec is QueuedSpec.Page) null else it.resolvedRequest,
                     reuseResolvedRequest = false,
                     task = it.task.copy(status = DownloadStatus.QUEUED, progress = -1f, errorMessage = null,
-                    progressDetail = null, cancelRequested = false, queuePause = null, interruption = null))
+                    progressDetail = null, progressPhase = null, cancelRequested = false, queuePause = null, interruption = null))
             }
         } }
         return retried
@@ -448,6 +481,19 @@ class DownloadQueue(
         return QueuedSpec.Page(EpisodePage(item.source.pageUrl, item.source.kind, item.source.originalUrl,
             title = item.title, seriesTitle = item.seriesTitle, seasonNumber = item.seasonNumber,
             episodeNumber = item.episodeNumber, thumbnailUrl = item.thumbnailUrl), selection)
+    }
+
+    private fun migrateAdPolicy(record: QueuedDownload): QueuedDownload {
+        if (record.adRemovalPolicy != null || record.task.status == DownloadStatus.COMPLETED ||
+            record.deleteRequested) return record
+        // A failed extraction or an empty directory has no ad decisions to preserve.
+        val hasWork = record.task.sourceKind != SourceKind.GENERAL &&
+            workDirectory(record.task.id).walkTopDown().any { it.isFile && it.length() > 0 }
+        if (!hasWork) return record.copy(adRemovalPolicy = AdRemovalPolicy.CONFIRMED_ONLY)
+        val detail = "舊任務的去 AD 策略無法確認，已保留暫存；請重新建立下載，原任務可保留或刪除"
+        return record.copy(task = record.task.copy(status = if (record.task.status.isTerminal) record.task.status else DownloadStatus.PAUSED,
+            cancelRequested = false, interruption = null, progressDetail = detail, errorMessage = detail,
+            adPolicyMigrationRequired = true))
     }
     private fun taskFor(id: String, position: Long, spec: QueuedSpec): DownloadTask {
         val page = (spec as? QueuedSpec.Page)?.page

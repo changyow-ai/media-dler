@@ -12,6 +12,7 @@ import androidx.core.content.getSystemService
 import com.changyow.mediadler.R
 import com.changyow.mediadler.MainActivity
 import com.changyow.mediadler.core.model.DownloadStatus
+import com.changyow.mediadler.core.model.DownloadPhase
 import com.changyow.mediadler.core.model.DownloadTask
 import com.changyow.mediadler.core.model.ItemInterruption
 
@@ -132,23 +133,9 @@ object Notifications {
     fun downloadProgress(context: Context, task: DownloadTask) {
         cancel(context, PAUSED_ID)
         val paused = task.status == DownloadStatus.PAUSED
-        val phase = when (task.interruption) {
-            ItemInterruption.MANUAL_PAUSE -> "正在暫停…"
-            ItemInterruption.PRIORITY_REQUEUE -> "正在切換下載…"
-            null -> when (task.status) {
-                DownloadStatus.QUEUED -> "排隊中"
-                DownloadStatus.PAUSED -> "已暫停"
-                DownloadStatus.EXTRACTING -> "解析影片中"
-                DownloadStatus.PROCESSING -> "處理中"
-                else -> "下載中"
-            }
-        }
-        val known = task.status in setOf(DownloadStatus.DOWNLOADING, DownloadStatus.PAUSED) && task.progress in 0f..1f
-        val text = when {
-            task.interruption != null -> phase
-            paused -> if (known) "$phase ${(task.progress * 100).toInt()}%" else phase
-            else -> task.progressDetail ?: if (known) "$phase ${(task.progress * 100).toInt()}%" else phase
-        }
+        val known = task.status in setOf(DownloadStatus.DOWNLOADING, DownloadStatus.PAUSED) && task.progress in 0f..1f &&
+            !(task.status == DownloadStatus.DOWNLOADING && task.progressPhase == DownloadPhase.AD_ANALYSIS)
+        val text = downloadProgressText(task)
         val cancel = PendingIntent.getBroadcast(context, 0,
             Intent(context, DownloadActionReceiver::class.java).apply {
                 action = DownloadActionReceiver.ACTION_CANCEL
@@ -246,4 +233,29 @@ object Notifications {
         // On API 33+ this silently no-ops if POST_NOTIFICATIONS is not granted.
         context.getSystemService<NotificationManager>()?.notify(id, notification)
     }
+}
+
+internal fun downloadProgressText(task: DownloadTask): String {
+    if (task.cancelRequested) return "正在取消…"
+    when (task.interruption) {
+        ItemInterruption.MANUAL_PAUSE -> return "正在暫停…"
+        ItemInterruption.PRIORITY_REQUEUE -> return "正在切換下載…"
+        ItemInterruption.SKIP_AD_ANALYSIS -> return "正在略過廣告分析…"
+        null -> Unit
+    }
+    val analyzingAds = task.status == DownloadStatus.DOWNLOADING && task.progressPhase == DownloadPhase.AD_ANALYSIS
+    val phase = when (task.status) {
+        DownloadStatus.QUEUED -> "排隊中"
+        DownloadStatus.PAUSED -> "已暫停"
+        DownloadStatus.EXTRACTING -> "解析影片中"
+        DownloadStatus.PROCESSING -> "處理中"
+        else -> if (analyzingAds) "廣告分析中" else "下載中"
+    }
+    val known = task.status in setOf(DownloadStatus.DOWNLOADING, DownloadStatus.PAUSED) &&
+        task.progress in 0f..1f && !analyzingAds
+    val label = if (known) "$phase ${(task.progress * 100).toInt()}%" else phase
+    val detail = if (task.status == DownloadStatus.PAUSED) {
+        task.progressDetail?.takeIf { "候選已處理 " in it }?.let { "暫停前進度：\n$it" }
+    } else task.progressDetail
+    return listOfNotNull(label, detail?.takeUnless { it == label }).joinToString("\n")
 }

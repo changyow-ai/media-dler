@@ -20,8 +20,13 @@ local.properties
 test-runs/
 handoff.md
 docs/
-doc/
+/doc/*
+!/doc/ad-processing.md
 plan/
 plans/
 issues/
 issue/
+
+# Local experiment runs; reusable regression inputs live in scripts/fixtures/.
+/experiments/
+__pycache__/

@@ -53,7 +53,7 @@ class PickerViewModel(
                 if (!forcePicker && page != null) {
                     val selection = current.defaultVideoQuality.maxHeight?.let { FormatSelection.CappedVideo(it) }
                         ?: FormatSelection.BestVideo
-                    val ids = withContext(Dispatchers.IO) { queue.submitPages(listOf(page), selection) }
+                    val ids = withContext(Dispatchers.IO) { queue.submitPages(listOf(page), selection, current.adRemovalPolicy) }
                     _state.value = UiState.Submitted(ids.size)
                     return@launch
                 }
@@ -62,7 +62,8 @@ class PickerViewModel(
                     items.isEmpty() -> _state.value = UiState.Error("找不到可下載的媒體")
                     !forcePicker && current.shareMode == ShareMode.ONE_TAP && (items.size == 1 || current.downloadAllWhenMultiple) -> {
                         val ids = withContext(Dispatchers.IO) {
-                            queue.submitRequests(items.map { DownloadRequest(it, SelectionPlanner.defaultSelection(it, current)) })
+                            queue.submitRequests(items.map { DownloadRequest(it, SelectionPlanner.defaultSelection(it, current)) },
+                                adRemovalPolicy = current.adRemovalPolicy)
                         }
                         _state.value = UiState.Submitted(ids.size)
                     }
@@ -84,7 +85,10 @@ class PickerViewModel(
         }
         viewModelScope.launch {
             try {
-                val ids = withContext(Dispatchers.IO) { queue.submitRequests(requests, allowPageDuplicates = forcePicker) }
+                val policy = settings.settings.first().adRemovalPolicy
+                val ids = withContext(Dispatchers.IO) {
+                    queue.submitRequests(requests, allowPageDuplicates = forcePicker, adRemovalPolicy = policy)
+                }
                 _state.value = UiState.Submitted(ids.size)
             } catch (cancelled: CancellationException) {
                 throw cancelled

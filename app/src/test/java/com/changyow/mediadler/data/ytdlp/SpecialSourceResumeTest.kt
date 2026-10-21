@@ -115,6 +115,22 @@ class SpecialSourceResumeTest {
         Unit
     }
 
+    @Test fun `provider markers remain untouched until native content verification`() = runBlocking {
+        val block = "# ppvod-ad-injected v1\n#EXT-X-DISCONTINUITY\n" +
+            "#EXTINF:4,\nad-a.ts\n#EXTINF:1.76,\nad-b.ts\n#EXT-X-DISCONTINUITY\n"
+        val marked = vod.replace("#EXT-X-ENDLIST", block + "#EXTINF:4,\nlast.ts\n#EXT-X-ENDLIST")
+        server.reply("/marked.m3u8", marked)
+        val resource = MediaResource(server.url("/marked.m3u8"))
+        val original = assertNotNull(SpecialSourceResume.prepare(resource))
+        val retry = assertNotNull(SpecialSourceResume.prepare(resource))
+        assertEquals(marked, original.manifest)
+        assertEquals(0, original.skippedAds)
+        assertNull(original.adPlan)
+        assertEquals(original, retry)
+        server.reply("/marked.m3u8", marked.replace("ad-a.ts", "changed-ad-a.ts"))
+        assertNotEquals(original.identity, assertNotNull(SpecialSourceResume.prepare(resource)).identity)
+    }
+
     /** Android's unit-test compiler omits jdk.httpserver, so use a tiny loopback-only HTTP fixture. */
     private class LocalHttpServer {
         val routes = ConcurrentHashMap<String, (Request) -> Response>()

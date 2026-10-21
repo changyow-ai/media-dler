@@ -102,7 +102,8 @@ class SeriesPickerViewModel(
         viewModelScope.launch {
             try {
                 val selection = ready.quality.maxHeight?.let { FormatSelection.CappedVideo(it) } ?: FormatSelection.BestVideo
-                val ids = withContext(Dispatchers.IO) { queue.submitPages(pages, selection) }
+                val policy = settings.settings.first().adRemovalPolicy
+                val ids = withContext(Dispatchers.IO) { queue.submitPages(pages, selection, policy) }
                 savedStateHandle[SELECTED_LINE] = null
                 savedStateHandle[SELECTED_URLS] = arrayListOf<String>()
                 _state.value = UiState.Submitted(ids.size)

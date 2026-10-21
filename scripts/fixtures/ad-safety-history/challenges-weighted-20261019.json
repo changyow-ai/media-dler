@@ -1,0 +1,119 @@
+{
+  "schema": 1,
+  "purpose": "Two targeted negatives fixed before weighted-v2 evaluation; same source/drama asv1, not independent generalization evidence.",
+  "cases": [
+    {
+      "id": "normal-exact-two-hardcuts",
+      "candidate": {
+        "path": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+        "start_seconds": 202.7235,
+        "duration_seconds": 6.256256000000008
+      },
+      "before": {
+        "path": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+        "start_seconds": 200.7235,
+        "duration_seconds": 2
+      },
+      "after": {
+        "path": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+        "start_seconds": 208.979756,
+        "duration_seconds": 2
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "ground_truth": "normal",
+        "creative_family": "e1-normal-office",
+        "split": "targeted_weighted_challenge_not_independent_family",
+        "boundary_provenance": "constructed_DCS_at_true_native_shot_changes",
+        "baseline_exact_match": false,
+        "note": "NormalofficeA-B-Avisuallyreviewed; physicalcuts from nativeframes202.723500 and208.979756. Mixedvariantadds12dBandaREGISTERBONUS999888.combanner; underlyingprogrammeMUSTretain. Notselectedbasedonweightedscore."
+      }
+    },
+    {
+      "id": "normal-dynamic-hardcuts-loud-banner",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-multisignal-20261019/constructed-controls/dynamic-hardcut-loud-banner.mp4"
+      },
+      "before": {
+        "path": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+        "start_seconds": 200.7235,
+        "duration_seconds": 2
+      },
+      "after": {
+        "path": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+        "start_seconds": 208.979756,
+        "duration_seconds": 2
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "ground_truth": "mixed_programme_overlay",
+        "creative_family": "e1-normal-office",
+        "split": "targeted_weighted_challenge_not_independent_family",
+        "boundary_provenance": "constructed_DCS_at_true_native_shot_changes",
+        "baseline_exact_match": false,
+        "note": "NormalofficeA-B-Avisuallyreviewed; physicalcuts from nativeframes202.723500 and208.979756. Mixedvariantadds12dBandaREGISTERBONUS999888.combanner; underlyingprogrammeMUSTretain. Notselectedbasedonweightedscore."
+      }
+    }
+  ],
+  "ground_truth_cut_evidence": {
+    "source": "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+    "window": [
+      200,
+      212
+    ],
+    "purpose": "Locate physical shot edits in a visually reviewed normal programme window; independent of ad scoring. No weighted results computed.",
+    "cuts": [
+      {
+        "first_new_shot_seconds": 202.7235,
+        "adjacent_frame_RGB_MAE": 0.23022592138707335
+      },
+      {
+        "first_new_shot_seconds": 208.979756,
+        "adjacent_frame_RGB_MAE": 0.1483949482570806
+      }
+    ]
+  },
+  "variant": {
+    "path": "/tmp/media-dler-ad-multisignal-20261019/constructed-controls/dynamic-hardcut-loud-banner.mp4",
+    "sha256": "3d09fb030728973551bb026328462f8dfdeb77aa64de34be0f74647e2b343fe2",
+    "generation_command": [
+      "ffmpeg",
+      "-nostdin",
+      "-v",
+      "error",
+      "-n",
+      "-copyts",
+      "-ss",
+      "192.7235",
+      "-t",
+      "18.256256000000008",
+      "-i",
+      "/tmp/media-dler-asus-20261019/originals/E0001 戀愛博士_第01集_ 韓劇 _ 楓林網 - 線上看片 [6dcb8271bdee64b72b2c81e0].mp4",
+      "-filter_complex",
+      "[0:v]trim=start=202.7235:end=208.979756,setpts=PTS-STARTPTS,drawbox=x=0:y=0:w=iw:h=260:color=black:t=fill,drawtext=fontfile=/System/Library/Fonts/Supplemental/Arial.ttf:text='REGISTER BONUS 999888.com':fontsize=76:fontcolor=yellow:x=(w-text_w)/2:y=90[v];[0:a]atrim=start=202.7235:end=208.979756,asetpts=PTS-STARTPTS,volume=12dB[a]",
+      "-map",
+      "[v]",
+      "-map",
+      "[a]",
+      "-fps_mode",
+      "passthrough",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "veryfast",
+      "-crf",
+      "18",
+      "-c:a",
+      "aac",
+      "/tmp/media-dler-ad-multisignal-20261019/constructed-controls/dynamic-hardcut-loud-banner.mp4"
+    ],
+    "source_start_seconds": 202.7235,
+    "source_end_seconds": 208.979756
+  }
+}

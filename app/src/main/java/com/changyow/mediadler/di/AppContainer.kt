@@ -50,7 +50,9 @@ class AppContainer(application: Application, isAppForeground: () -> Boolean = { 
     val settingsRepository: SettingsRepository = DataStoreSettingsRepository(application)
     val sharingController = com.changyow.mediadler.sharing.SharingController(application)
     val historyStore = HistoryStore(application)
-    private val downloadWorkRoot = File(application.noBackupFilesDir, "download-work")
+    // Android 9 exposes /data/user/0 as a framework symlink; canonicalize the
+    // trusted base so task-local checkpoint paths can still reject symlinks.
+    private val downloadWorkRoot = File(application.noBackupFilesDir.canonicalFile, "download-work")
     val mediaStoreStorage = MediaStoreStorage(application)
     val safStorage = SafStorage(application)
     private val downloadPublisher = DownloadPublisher(settingsRepository, mediaStoreStorage, safStorage, downloadWorkRoot)

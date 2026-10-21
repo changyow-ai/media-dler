@@ -86,6 +86,7 @@ import com.changyow.mediadler.core.extract.UrlExtractor
 import com.changyow.mediadler.core.model.DownloadStatus
 import com.changyow.mediadler.core.model.DownloadTask
 import com.changyow.mediadler.core.model.EpisodeMetadata
+import com.changyow.mediadler.core.model.ItemInterruption
 import com.changyow.mediadler.core.model.SourceKind
 import com.changyow.mediadler.core.model.isActive
 import com.changyow.mediadler.core.model.isTerminal
@@ -132,6 +133,11 @@ fun HomeScreen() {
         scope.launch {
             try {
                 when (command) {
+                    HomeTaskCommand.SKIP_AD_ANALYSIS -> {
+                        if (!container.downloadRunner.skipAdAnalysis(task.id)) {
+                            Toast.makeText(context, "廣告分析可能已結束，目前無法略過", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                     HomeTaskCommand.PAUSE -> {
                         if (!container.downloadRunner.pauseTask(task.id)) {
                             Toast.makeText(context, "目前無法暫停此項目", Toast.LENGTH_SHORT).show()
@@ -244,6 +250,7 @@ fun HomeScreen() {
                         onPause = { submitTaskCommand(task, HomeTaskCommand.PAUSE) },
                         onResume = { submitTaskCommand(task, HomeTaskCommand.RESUME) },
                         onDownloadNow = { submitTaskCommand(task, HomeTaskCommand.DOWNLOAD_NOW) },
+                        onSkipAdAnalysis = { submitTaskCommand(task, HomeTaskCommand.SKIP_AD_ANALYSIS) },
                         pendingCommand = pendingCommands[task.id],
                         onRemove = { viewModel.remove(task.id) },
                         onEdit = { editingId = task.id },
@@ -316,7 +323,8 @@ private fun EmptyState(isFirstDownload: Boolean) {
 
 @Composable
 private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit, onCancel: () -> Unit,
-    onPause: () -> Unit, onResume: () -> Unit, onDownloadNow: () -> Unit, pendingCommand: HomeTaskCommand?,
+    onPause: () -> Unit, onResume: () -> Unit, onDownloadNow: () -> Unit, onSkipAdAnalysis: () -> Unit,
+    pendingCommand: HomeTaskCommand?,
     onRemove: () -> Unit, onEdit: () -> Unit, queueNumber: Int?) {
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
@@ -375,7 +383,10 @@ private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit,
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         // Keep an open menu's positions stable as live tasks change state.
-                        if (canPauseTask(menuTask)) {
+                        if (canSkipAdAnalysis(menuTask)) {
+                            DropdownMenuItem(text = { Text("略過分析") }, enabled = !busy && canSkipAdAnalysis(task),
+                                onClick = { showMenu = false; onSkipAdAnalysis() })
+                        } else if (canPauseTask(menuTask)) {
                             DropdownMenuItem(text = { Text("暫停下載") }, enabled = !busy && canPauseTask(task),
                                 leadingIcon = { Icon(Icons.Filled.Pause, contentDescription = null) },
                                 onClick = { showMenu = false; onPause() })
@@ -445,17 +456,23 @@ private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit,
                         Text(task.errorMessage ?: "未知錯誤", style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    } else {
-                        taskProgressDetail(task)?.let { detail ->
-                            Text(detail, style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
                     }
                 }
-                if (task.status == DownloadStatus.PAUSED) {
+                if (task.adPolicyMigrationRequired) {
+                    TextButton(onClick = {
+                        context.startActivity(Intent(context, ShareReceiverActivity::class.java)
+                            .putExtra(Intent.EXTRA_TEXT, task.pageUrl)
+                            .putExtra(ShareReceiverActivity.EXTRA_MANUAL_PICKER, true))
+                    }, enabled = !busy) { Text("重新建立下載") }
+                } else if (task.status == DownloadStatus.PAUSED) {
                     TextButton(onClick = onResume, enabled = !busy && canResumeTask(task)) {
                         Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                         Text("繼續下載", modifier = Modifier.padding(start = 4.dp))
+                    }
+                } else if (isAdAnalysisTask(task) || pendingCommand == HomeTaskCommand.SKIP_AD_ANALYSIS ||
+                    task.interruption == ItemInterruption.SKIP_AD_ANALYSIS) {
+                    TextButton(onClick = onSkipAdAnalysis, enabled = !busy && canSkipAdAnalysis(task)) {
+                        Text("略過分析")
                     }
                 } else if (task.status in setOf(DownloadStatus.QUEUED, DownloadStatus.EXTRACTING, DownloadStatus.DOWNLOADING)) {
                     IconButton(onClick = onPause, enabled = !busy && canPauseTask(task)) {
@@ -470,6 +487,12 @@ private fun TaskRow(task: DownloadTask, onOpen: () -> Unit, onRetry: () -> Unit,
                         Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                         Text("重試", modifier = Modifier.padding(start = 4.dp))
                     }
+                }
+            }
+            if (!failed) {
+                taskProgressDetail(task)?.let { detail ->
+                    Text(detail, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (active && (task.status != DownloadStatus.PAUSED || task.progress in 0f..1f)) {

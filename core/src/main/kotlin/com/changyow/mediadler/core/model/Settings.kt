@@ -81,9 +81,17 @@ data class AppSettings(
     val downloadAllWhenMultiple: Boolean = true,
     /** Null is unlimited. Read when a media download starts, in bytes per second. */
     val downloadRateLimitBytesPerSecond: Long? = null,
+    val adRemovalEnabled: Boolean = true,
+    val weightedAdAnalysisEnabled: Boolean = false,
     val autoUpdateYtDlpOnStartup: Boolean = false,
     val transcribeLanguage: TranscribeLanguage = TranscribeLanguage.AUTO,
     val transcribeEngine: TranscribeEngine = TranscribeEngine.ON_DEVICE,
     val transcribeModel: TranscribeModel = TranscribeModel.SENSE_VOICE,
     val cloud: CloudTranscribeConfig = CloudTranscribeConfig(),
-)
+) {
+    val adRemovalPolicy: AdRemovalPolicy get() = when {
+        !adRemovalEnabled -> AdRemovalPolicy.OFF
+        weightedAdAnalysisEnabled -> AdRemovalPolicy.WEIGHTED
+        else -> AdRemovalPolicy.CONFIRMED_ONLY
+    }
+}

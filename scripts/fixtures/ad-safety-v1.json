@@ -1,0 +1,469 @@
+{
+  "schema": 1,
+  "purpose": "Fixed feature-level safety stress cases and references to pre-existing independently labeled real/derived media. Synthetic vectors are not decoded-media accuracy evidence.",
+  "baseline_commit": "2ec92826179f48c020dc37503e50604b7451d65e",
+  "scorer_sha256": "7777aa29ca75cf050df83aa92d4774a77d6d1aede4d955d7f68f0a58b9056532",
+  "catalog_sha256": "012f69db615464da85fb10b9e5d51a95e628d8abf018cadbb92d947b7084e1e9",
+  "threshold": 55,
+  "synthetic_cases": [
+    {
+      "id": "synthetic-intro",
+      "categories": [
+        "intro"
+      ],
+      "truth": "retain_programme",
+      "coverage_seconds": [
+        0,
+        10
+      ],
+      "provenance": "synthetic_feature_vector_no_media_or_OCR_execution",
+      "label_evidence": "Authored scenario: underlying programme continues and must be retained. Not inferred from scorer output.",
+      "features": {
+        "scene": "continuous",
+        "gain_db": 0,
+        "text": "第一集",
+        "box": [
+          0.2,
+          0.3,
+          0.6,
+          0.2
+        ]
+      }
+    },
+    {
+      "id": "synthetic-outro",
+      "categories": [
+        "outro"
+      ],
+      "truth": "retain_programme",
+      "coverage_seconds": [
+        0,
+        10
+      ],
+      "provenance": "synthetic_feature_vector_no_media_or_OCR_execution",
+      "label_evidence": "Authored scenario: underlying programme continues and must be retained. Not inferred from scorer output.",
+      "features": {
+        "scene": "continuous",
+        "gain_db": 0,
+        "text": "全劇終",
+        "box": [
+          0.2,
+          0.3,
+          0.6,
+          0.2
+        ]
+      }
+    },
+    {
+      "id": "synthetic-credits",
+      "categories": [
+        "credits"
+      ],
+      "truth": "retain_programme",
+      "coverage_seconds": [
+        0,
+        10
+      ],
+      "provenance": "synthetic_feature_vector_no_media_or_OCR_execution",
+      "label_evidence": "Authored scenario: underlying programme continues and must be retained. Not inferred from scorer output.",
+      "features": {
+        "scene": "continuous",
+        "gain_db": 0,
+        "text": "演員 字幕製作",
+        "box": [
+          0.2,
+          0.3,
+          0.6,
+          0.2
+        ]
+      }
+    },
+    {
+      "id": "synthetic-large-title-card",
+      "categories": [
+        "large_card"
+      ],
+      "truth": "retain_programme",
+      "coverage_seconds": [
+        0,
+        10
+      ],
+      "provenance": "synthetic_feature_vector_no_media_or_OCR_execution",
+      "label_evidence": "Authored scenario: underlying programme continues and must be retained. Not inferred from scorer output.",
+      "features": {
+        "scene": "continuous",
+        "gain_db": 0,
+        "text": "第一集",
+        "box": [
+          0.2,
+          0.3,
+          0.6,
+          0.2
+        ]
+      }
+    },
+    {
+      "id": "synthetic-station-logo",
+      "categories": [
+        "station_logo"
+      ],
+      "truth": "retain_programme",
+      "coverage_seconds": [
+        0,
+        10
+      ],
+      "provenance": "synthetic_feature_vector_no_media_or_OCR_execution",
+      "label_evidence": "Authored scenario: underlying programme continues and must be retained. Not inferred from scorer output.",
+      "features": {
+        "scene": "continuous",
+        "gain_db": 0,
+        "text": "TV",
+        "box": [
+          0.02,
+          0.02,
+          0.08,
+          0.05
+        ]
+      }
+    },
+    {
+      "id": "synthetic-programme-promo-overlay",
+      "categories": [
+        "promo_overlay"
+      ],
+      "truth": "retain_programme",
+      "coverage_seconds": [
+        0,
+        10
+      ],
+      "provenance": "synthetic_feature_vector_no_media_or_OCR_execution",
+      "label_evidence": "Authored scenario: underlying programme continues and must be retained. Not inferred from scorer output.",
+      "features": {
+        "scene": "continuous",
+        "gain_db": 0,
+        "text": "example.com register",
+        "box": [
+          0.1,
+          0.02,
+          0.8,
+          0.08
+        ]
+      }
+    },
+    {
+      "id": "synthetic-volume-only",
+      "categories": [
+        "volume_jump"
+      ],
+      "truth": "retain_programme",
+      "coverage_seconds": [
+        0,
+        10
+      ],
+      "provenance": "synthetic_feature_vector_no_media_or_OCR_execution",
+      "label_evidence": "Authored scenario: underlying programme continues and must be retained. Not inferred from scorer output.",
+      "features": {
+        "scene": "continuous",
+        "gain_db": 12,
+        "text": "",
+        "box": null
+      }
+    },
+    {
+      "id": "synthetic-normal-discontinuity",
+      "categories": [
+        "discontinuity"
+      ],
+      "truth": "retain_programme",
+      "coverage_seconds": [
+        0,
+        10
+      ],
+      "provenance": "synthetic_feature_vector_no_media_or_OCR_execution",
+      "label_evidence": "Authored scenario: underlying programme continues and must be retained. Not inferred from scorer output.",
+      "features": {
+        "scene": "continuous",
+        "gain_db": 0,
+        "text": "",
+        "box": null
+      }
+    },
+    {
+      "id": "synthetic-normal-hardcut",
+      "categories": [
+        "hard_cut"
+      ],
+      "truth": "retain_programme",
+      "coverage_seconds": [
+        0,
+        10
+      ],
+      "provenance": "synthetic_feature_vector_no_media_or_OCR_execution",
+      "label_evidence": "Authored scenario: underlying programme continues and must be retained. Not inferred from scorer output.",
+      "features": {
+        "scene": "hard_cut",
+        "gain_db": 0,
+        "text": "",
+        "box": null
+      }
+    },
+    {
+      "id": "synthetic-normal-aba",
+      "categories": [
+        "ABA"
+      ],
+      "truth": "retain_programme",
+      "coverage_seconds": [
+        0,
+        10
+      ],
+      "provenance": "synthetic_feature_vector_no_media_or_OCR_execution",
+      "label_evidence": "Authored scenario: underlying programme continues and must be retained. Not inferred from scorer output.",
+      "features": {
+        "scene": "ABA",
+        "gain_db": 0,
+        "text": "",
+        "box": null
+      }
+    },
+    {
+      "id": "synthetic-normal-aba-loud-overlay",
+      "categories": [
+        "ABA",
+        "hard_cut",
+        "volume_jump",
+        "promo_overlay"
+      ],
+      "truth": "retain_programme",
+      "coverage_seconds": [
+        0,
+        10
+      ],
+      "provenance": "synthetic_feature_vector_no_media_or_OCR_execution",
+      "label_evidence": "Authored scenario: underlying programme continues and must be retained. Not inferred from scorer output.",
+      "features": {
+        "scene": "ABA",
+        "gain_db": 12,
+        "text": "example.com register",
+        "box": [
+          0.1,
+          0.02,
+          0.8,
+          0.08
+        ]
+      }
+    },
+    {
+      "id": "synthetic-large-title-card-hardcut",
+      "categories": [
+        "large_card",
+        "hard_cut"
+      ],
+      "truth": "retain_programme",
+      "coverage_seconds": [
+        0,
+        10
+      ],
+      "provenance": "synthetic_feature_vector_no_media_or_OCR_execution",
+      "label_evidence": "Authored scenario: underlying programme continues and must be retained. Not inferred from scorer output.",
+      "features": {
+        "scene": "hard_cut",
+        "gain_db": 0,
+        "text": "第一集",
+        "box": [
+          0.2,
+          0.3,
+          0.6,
+          0.2
+        ]
+      }
+    },
+    {
+      "id": "synthetic-full-ad",
+      "categories": [
+        "full_ad"
+      ],
+      "truth": "ad",
+      "coverage_seconds": [
+        0,
+        10
+      ],
+      "provenance": "synthetic_feature_vector_no_media_or_OCR_execution",
+      "label_evidence": "Authored scenario: complete interstitial advertisement replacing programme. Not inferred from scorer output.",
+      "features": {
+        "scene": "ABA",
+        "gain_db": 12,
+        "text": "example.com register",
+        "box": [
+          0.2,
+          0.3,
+          0.6,
+          0.2
+        ]
+      }
+    },
+    {
+      "id": "synthetic-ad-before-normal",
+      "categories": [
+        "adjacent_normal_before"
+      ],
+      "truth": "retain_programme",
+      "coverage_seconds": [
+        0,
+        10
+      ],
+      "provenance": "synthetic_feature_vector_no_media_or_OCR_execution",
+      "label_evidence": "Authored scenario: underlying programme continues and must be retained. Not inferred from scorer output.",
+      "features": {
+        "scene": "continuous",
+        "gain_db": 0,
+        "text": "",
+        "box": null
+      }
+    },
+    {
+      "id": "synthetic-ad-after-normal",
+      "categories": [
+        "adjacent_normal_after"
+      ],
+      "truth": "retain_programme",
+      "coverage_seconds": [
+        0,
+        10
+      ],
+      "provenance": "synthetic_feature_vector_no_media_or_OCR_execution",
+      "label_evidence": "Authored scenario: underlying programme continues and must be retained. Not inferred from scorer output.",
+      "features": {
+        "scene": "continuous",
+        "gain_db": 0,
+        "text": "",
+        "box": null
+      }
+    },
+    {
+      "id": "synthetic-unverified-full-ad",
+      "categories": [
+        "unverified_source"
+      ],
+      "truth": "ad",
+      "coverage_seconds": [
+        0,
+        10
+      ],
+      "provenance": "synthetic_feature_vector_no_media_or_OCR_execution",
+      "label_evidence": "Authored scenario: complete interstitial advertisement replacing programme. Not inferred from scorer output.",
+      "features": {
+        "scene": "ABA",
+        "gain_db": 12,
+        "text": "example.com register",
+        "box": [
+          0.2,
+          0.3,
+          0.6,
+          0.2
+        ],
+        "valid": false
+      }
+    }
+  ],
+  "archived_case_references": [
+    {
+      "path": "scripts/fixtures/ad-safety-history/cases-20261019.json",
+      "sha256": "9b971fb445d341e4eff74c5e0e43f08f72048ede3fd10f422047f5d0be26adba",
+      "id": "e1-ad-02"
+    },
+    {
+      "path": "scripts/fixtures/ad-safety-history/cases-20261019.json",
+      "sha256": "9b971fb445d341e4eff74c5e0e43f08f72048ede3fd10f422047f5d0be26adba",
+      "id": "e1-ad-04"
+    },
+    {
+      "path": "scripts/fixtures/ad-safety-history/cases-20261019.json",
+      "sha256": "9b971fb445d341e4eff74c5e0e43f08f72048ede3fd10f422047f5d0be26adba",
+      "id": "e1-ad-08"
+    },
+    {
+      "path": "scripts/fixtures/ad-safety-history/cases-20261019.json",
+      "sha256": "9b971fb445d341e4eff74c5e0e43f08f72048ede3fd10f422047f5d0be26adba",
+      "id": "unseen-phone-ad"
+    },
+    {
+      "path": "scripts/fixtures/ad-safety-history/cases-20261019.json",
+      "sha256": "9b971fb445d341e4eff74c5e0e43f08f72048ede3fd10f422047f5d0be26adba",
+      "id": "heldout-288588-family"
+    },
+    {
+      "path": "scripts/fixtures/ad-safety-history/cases-20261019.json",
+      "sha256": "9b971fb445d341e4eff74c5e0e43f08f72048ede3fd10f422047f5d0be26adba",
+      "id": "normal-credits-with-domain"
+    },
+    {
+      "path": "scripts/fixtures/ad-safety-history/cases-20261019.json",
+      "sha256": "9b971fb445d341e4eff74c5e0e43f08f72048ede3fd10f422047f5d0be26adba",
+      "id": "normal-shot-reverse-shot"
+    },
+    {
+      "path": "scripts/fixtures/ad-safety-history/cases-20261019.json",
+      "sha256": "9b971fb445d341e4eff74c5e0e43f08f72048ede3fd10f422047f5d0be26adba",
+      "id": "normal-scene-transition"
+    },
+    {
+      "path": "scripts/fixtures/ad-safety-history/cases-20261019.json",
+      "sha256": "9b971fb445d341e4eff74c5e0e43f08f72048ede3fd10f422047f5d0be26adba",
+      "id": "normal-loud"
+    },
+    {
+      "path": "scripts/fixtures/ad-safety-history/cases-20261019.json",
+      "sha256": "9b971fb445d341e4eff74c5e0e43f08f72048ede3fd10f422047f5d0be26adba",
+      "id": "normal-banner-overlay"
+    },
+    {
+      "path": "scripts/fixtures/ad-safety-history/challenges-weighted-20261019.json",
+      "sha256": "05010497bb8d99ff4d2e037a51e09b06293d2a4f7cc051361f405791a5242bd8",
+      "id": "normal-exact-two-hardcuts"
+    },
+    {
+      "path": "scripts/fixtures/ad-safety-history/challenges-weighted-20261019.json",
+      "sha256": "05010497bb8d99ff4d2e037a51e09b06293d2a4f7cc051361f405791a5242bd8",
+      "id": "normal-dynamic-hardcuts-loud-banner"
+    },
+    {
+      "path": "scripts/fixtures/ad-safety-history/expanded-cases-20261019.json",
+      "sha256": "b19179f52cb943707a304dee9da7534f6300a02f938374a302f50851048ebf51",
+      "id": "majimuri-device-opening"
+    },
+    {
+      "path": "scripts/fixtures/ad-safety-history/expanded-cases-20261019.json",
+      "sha256": "b19179f52cb943707a304dee9da7534f6300a02f938374a302f50851048ebf51",
+      "id": "majimuri-device-credits"
+    },
+    {
+      "path": "scripts/fixtures/ad-safety-history/expanded-cases-20261019.json",
+      "sha256": "b19179f52cb943707a304dee9da7534f6300a02f938374a302f50851048ebf51",
+      "id": "majimuri-device-hulu-preview"
+    },
+    {
+      "path": "scripts/fixtures/ad-safety-history/title-challenges-20261019.json",
+      "sha256": "2780e2d1cae296a8fc52fe7f3df25eb0edc7df135558233c7e137cfcffd8b7da",
+      "id": "majimuri-device-hulu-poster-card"
+    },
+    {
+      "path": "scripts/fixtures/ad-safety-history/title-challenges-20261019.json",
+      "sha256": "2780e2d1cae296a8fc52fe7f3df25eb0edc7df135558233c7e137cfcffd8b7da",
+      "id": "majimuri-device-character-intro-titles"
+    }
+  ],
+  "archived_results": {
+    "path": "scripts/fixtures/ad-safety-history/expanded-results-20261019.json",
+    "sha256": "be66c57eb2e4e44be70ef7fa2dac70308938126cc16e6f7a4303b93f86ff10dc"
+  },
+  "known_synthetic_safety_failures": [
+    "synthetic-normal-aba-loud-overlay",
+    "synthetic-large-title-card-hardcut"
+  ],
+  "real_coverage_gaps": [
+    "No labeled station-logo-only excerpt is present in the referenced saved definitions.",
+    "No separate labeled outro-only case; credits and end-preview excerpts are the nearest archived controls.",
+    "Media and raw feature reports must be recovered and verified before real cases can be rerun."
+  ]
+}

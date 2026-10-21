@@ -28,6 +28,8 @@ class DownloadPublisher(
     private val journal = CompletedArtifactPublication(workRoot)
     private val mutex = Mutex()
 
+    internal fun hasPublicationRecord(taskId: String): Boolean = journal.hasRecord(taskId)
+
     /** Queue invokes only after native/publication acknowledgement; never waits for an active publisher. */
     fun discard(taskId: String): Boolean {
         if (!mutex.tryLock()) return false

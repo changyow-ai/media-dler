@@ -1,0 +1,862 @@
+{
+  "schema": 1,
+  "sources": [
+    {
+      "id": "moving-high-E01",
+      "programme": "Moving 異能",
+      "url": "https://cdn15.yzzy-online.com/20230809/23407_08b145c4/2000k/hls/mixed.m3u8",
+      "page": "https://play.8maple.st/play/Y6hC-1-1.html",
+      "manifest_chain": [
+        {
+          "url": "https://cdn15.yzzy-online.com/20230809/23407_08b145c4/2000k/hls/mixed.m3u8",
+          "effective_url": "https://cdn15.yzzy-online.com/20230809/23407_08b145c4/2000k/hls/mixed.m3u8",
+          "path": "/tmp/media-dler-ad-expanded-20261019/moving-high-E01-manifest-0.m3u8",
+          "bytes": 34043
+        }
+      ],
+      "manifest": "/tmp/media-dler-ad-expanded-20261019/moving-high-E01-manifest-0.m3u8"
+    },
+    {
+      "id": "moving-sutong-E12",
+      "programme": "Moving 異能",
+      "url": "https://v.lzcdn24.com/20250331/25147_ee5bcab6/2000k/hls/mixed.m3u8",
+      "page": "https://play.8maple.st/play/Y6hC-4-12.html",
+      "manifest_chain": [
+        {
+          "url": "https://v.lzcdn24.com/20250331/25147_ee5bcab6/index.m3u8",
+          "effective_url": "https://v.lzcdn24.com/20250331/25147_ee5bcab6/index.m3u8",
+          "path": "/tmp/media-dler-ad-expanded-20261019/moving-sutong-E12-manifest-0.m3u8",
+          "bytes": 96
+        },
+        {
+          "url": "https://v.lzcdn24.com/20250331/25147_ee5bcab6/2000k/hls/mixed.m3u8",
+          "effective_url": "https://v.lzcdn24.com/20250331/25147_ee5bcab6/2000k/hls/mixed.m3u8",
+          "path": "/tmp/media-dler-ad-expanded-20261019/moving-sutong-E12-manifest-1.m3u8",
+          "bytes": 32281
+        }
+      ],
+      "manifest": "/tmp/media-dler-ad-expanded-20261019/moving-sutong-E12-manifest-1.m3u8"
+    },
+    {
+      "id": "heart-high-E01",
+      "programme": "心動製造所",
+      "url": "https://cdn.vvvip-plays33.cc/20261015/21262_965b31e5/3000k/hls/mixed.m3u8",
+      "page": "https://play.8maple.st/play/7kYC-1-1.html",
+      "manifest_chain": [
+        {
+          "url": "https://cdn.vvvip-plays33.cc/20261015/21262_965b31e5/index.m3u8",
+          "effective_url": "https://cdn.vvvip-plays33.cc/20261015/21262_965b31e5/index.m3u8",
+          "path": "/tmp/media-dler-ad-expanded-20261019/heart-high-E01-manifest-0.m3u8",
+          "bytes": 97
+        },
+        {
+          "url": "https://cdn.vvvip-plays33.cc/20261015/21262_965b31e5/3000k/hls/mixed.m3u8",
+          "effective_url": "https://cdn.vvvip-plays33.cc/20261015/21262_965b31e5/3000k/hls/mixed.m3u8",
+          "path": "/tmp/media-dler-ad-expanded-20261019/heart-high-E01-manifest-1.m3u8",
+          "bytes": 45275
+        }
+      ],
+      "manifest": "/tmp/media-dler-ad-expanded-20261019/heart-high-E01-manifest-1.m3u8"
+    },
+    {
+      "id": "majimuri-line1-E01",
+      "programme": "馬路無理學園",
+      "url": "https://vip.lz-cdn7.com/20220808/8384_e78068b1/1000k/hls/mixed.m3u8",
+      "page": "https://play.8maple.st/play/nE6C-1-1.html",
+      "manifest_chain": [
+        {
+          "url": "https://vip.lz-cdn7.com/20220808/8384_e78068b1/index.m3u8",
+          "effective_url": "https://vip.lz-cdn7.com/20220808/8384_e78068b1/index.m3u8",
+          "path": "/tmp/media-dler-ad-expanded-20261019/majimuri-line1-E01-manifest-0.m3u8",
+          "bytes": 96
+        },
+        {
+          "url": "https://vip.lz-cdn7.com/20220808/8384_e78068b1/1000k/hls/mixed.m3u8",
+          "effective_url": "https://vip.lz-cdn7.com/20220808/8384_e78068b1/1000k/hls/mixed.m3u8",
+          "path": "/tmp/media-dler-ad-expanded-20261019/majimuri-line1-E01-manifest-1.m3u8",
+          "bytes": 14059
+        }
+      ],
+      "manifest": "/tmp/media-dler-ad-expanded-20261019/majimuri-line1-E01-manifest-1.m3u8"
+    },
+    {
+      "id": "majimuri-line5-E01",
+      "programme": "馬路無理學園",
+      "url": "https://svip.yyzy-play.vip/20250206/22729_cc919737/2000k/hls/mixed.m3u8",
+      "page": "https://play.8maple.st/play/nE6C-5-1.html",
+      "manifest": "/tmp/media-dler-ad-expanded-20261019/majimuri-line5-E01-manifest-1.m3u8",
+      "unavailable_other_line": {
+        "id": "majimuri-line4-E01",
+        "host": "ikcdn01.ikzybf.com",
+        "reason": "DNS lookup failed"
+      }
+    }
+  ],
+  "acquisitions": [
+    {
+      "id": "moving-high-E01",
+      "network_bytes": 27836408,
+      "elapsed_seconds": 49.32518770103343,
+      "failures": []
+    },
+    {
+      "id": "moving-sutong-E12",
+      "network_bytes": 10606960,
+      "elapsed_seconds": 22.44452085113153,
+      "failures": []
+    },
+    {
+      "id": "heart-high-E01",
+      "network_bytes": 28546296,
+      "elapsed_seconds": 54.035563617013395,
+      "failures": []
+    },
+    {
+      "id": "majimuri-line1-E01",
+      "network_bytes": 11029772,
+      "elapsed_seconds": 16.758360715815797,
+      "failures": []
+    }
+  ],
+  "cases": [
+    {
+      "id": "moving-high-E01-r02",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/batch-001/moving-high-E01/candidate-002.mp4"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-high-E01/segment-0004.ts"
+      },
+      "after": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-high-E01/segment-0005.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "Moving 異能",
+        "source_id": "moving-high-E01",
+        "region_index": 2,
+        "start_seconds": 496.57939800000054,
+        "duration_seconds": 16.466666000000032,
+        "boundary_provenance": "real_hls_discontinuity",
+        "ground_truth": "ad",
+        "creative_family": "451451-A",
+        "split": "expanded_development",
+        "baseline_exact_match": true,
+        "label_evidence": "Complete ordered H264/AAC packet+codec fingerprint equality to previously visually/user confirmed ad reference; actual 1fps contact sheet retained."
+      }
+    },
+    {
+      "id": "moving-high-E01-r04",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/batch-001/moving-high-E01/candidate-004.mp4"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-high-E01/segment-0011.ts"
+      },
+      "after": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-high-E01/segment-0012.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "Moving 異能",
+        "source_id": "moving-high-E01",
+        "region_index": 4,
+        "start_seconds": 1813.1364769999948,
+        "duration_seconds": 17.66666599999985,
+        "boundary_provenance": "real_hls_discontinuity",
+        "ground_truth": "ad",
+        "creative_family": "451451-B",
+        "split": "expanded_development",
+        "baseline_exact_match": true,
+        "label_evidence": "Complete ordered H264/AAC packet+codec fingerprint equality to previously visually/user confirmed ad reference; actual 1fps contact sheet retained."
+      }
+    },
+    {
+      "id": "moving-high-E01-r06",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/batch-001/moving-high-E01/candidate-006.mp4"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-high-E01/segment-0017.ts"
+      },
+      "after": null,
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "playlist_end"
+      },
+      "annotations": {
+        "programme": "Moving 異能",
+        "source_id": "moving-high-E01",
+        "region_index": 6,
+        "start_seconds": 2484.1639080000004,
+        "duration_seconds": 16.46666600000026,
+        "boundary_provenance": "real_hls_discontinuity",
+        "ground_truth": "ad",
+        "creative_family": "451451-A",
+        "split": "expanded_development",
+        "baseline_exact_match": true,
+        "label_evidence": "Complete ordered H264/AAC packet+codec fingerprint equality to previously visually/user confirmed ad reference; actual 1fps contact sheet retained."
+      }
+    },
+    {
+      "id": "moving-high-E01-normal-1",
+      "candidate": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-high-E01/segment-0019.ts"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-high-E01/segment-0018.ts"
+      },
+      "after": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-high-E01/segment-0020.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "Moving 異能",
+        "source_id": "moving-high-E01",
+        "region_index": 3,
+        "segment_within_region": 81,
+        "start_seconds": 837.4951770000006,
+        "duration_seconds": 3.128122,
+        "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+        "ground_truth": "retain_programme",
+        "creative_family": "programme",
+        "split": "expanded_development",
+        "baseline_exact_match": false,
+        "label_evidence": "Primary visually reviewed complete 1fps original-TS contact sheet; normal programme action/dialogue; no media transformations."
+      }
+    },
+    {
+      "id": "moving-high-E01-normal-2",
+      "candidate": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-high-E01/segment-0022.ts"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-high-E01/segment-0021.ts"
+      },
+      "after": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-high-E01/segment-0023.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "Moving 異能",
+        "source_id": "moving-high-E01",
+        "region_index": 3,
+        "segment_within_region": 227,
+        "start_seconds": 1420.6610680000006,
+        "duration_seconds": 3.837167,
+        "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+        "ground_truth": "retain_programme",
+        "creative_family": "programme",
+        "split": "expanded_development",
+        "baseline_exact_match": false,
+        "label_evidence": "Primary visually reviewed complete 1fps original-TS contact sheet; normal programme action/dialogue; no media transformations."
+      }
+    },
+    {
+      "id": "moving-sutong-E12-r01",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/batch-001/moving-sutong-E12/candidate-001.mp4"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-sutong-E12/segment-0007.ts"
+      },
+      "after": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-sutong-E12/segment-0008.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "Moving 異能",
+        "source_id": "moving-sutong-E12",
+        "region_index": 1,
+        "start_seconds": 300.34170699999993,
+        "duration_seconds": 25.75999999999999,
+        "boundary_provenance": "real_hls_discontinuity",
+        "ground_truth": "ad",
+        "creative_family": "288588",
+        "split": "expanded_development",
+        "baseline_exact_match": true,
+        "label_evidence": "Complete ordered H264/AAC packet+codec fingerprint equality to previously visually/user confirmed ad reference; actual 1fps contact sheet retained."
+      }
+    },
+    {
+      "id": "moving-sutong-E12-r03",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/batch-001/moving-sutong-E12/candidate-003.mp4"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-sutong-E12/segment-0009.ts"
+      },
+      "after": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-sutong-E12/segment-0010.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "Moving 異能",
+        "source_id": "moving-sutong-E12",
+        "region_index": 3,
+        "start_seconds": 2009.7002219999927,
+        "duration_seconds": 25.75999999999999,
+        "boundary_provenance": "real_hls_discontinuity",
+        "ground_truth": "ad",
+        "creative_family": "288588",
+        "split": "expanded_development",
+        "baseline_exact_match": true,
+        "label_evidence": "Complete ordered H264/AAC packet+codec fingerprint equality to previously visually/user confirmed ad reference; actual 1fps contact sheet retained."
+      }
+    },
+    {
+      "id": "moving-sutong-E12-normal-1",
+      "candidate": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-sutong-E12/segment-0012.ts"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-sutong-E12/segment-0011.ts"
+      },
+      "after": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-sutong-E12/segment-0013.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "Moving 異能",
+        "source_id": "moving-sutong-E12",
+        "region_index": 2,
+        "segment_within_region": 105,
+        "start_seconds": 749.2744329999999,
+        "duration_seconds": 2.752756,
+        "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+        "ground_truth": "retain_programme",
+        "creative_family": "programme",
+        "split": "expanded_development",
+        "baseline_exact_match": false,
+        "label_evidence": "Primary visually reviewed complete 1fps original-TS contact sheet; normal programme action/dialogue; no media transformations."
+      }
+    },
+    {
+      "id": "moving-sutong-E12-normal-2",
+      "candidate": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-sutong-E12/segment-0015.ts"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-sutong-E12/segment-0014.ts"
+      },
+      "after": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/moving-sutong-E12/segment-0016.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "Moving 異能",
+        "source_id": "moving-sutong-E12",
+        "region_index": 2,
+        "segment_within_region": 294,
+        "start_seconds": 1503.486199,
+        "duration_seconds": 4.170833,
+        "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+        "ground_truth": "retain_programme",
+        "creative_family": "programme",
+        "split": "expanded_development",
+        "baseline_exact_match": false,
+        "label_evidence": "Primary visually reviewed complete 1fps original-TS contact sheet; normal programme action/dialogue; no media transformations."
+      }
+    },
+    {
+      "id": "heart-high-E01-r02",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/batch-001/heart-high-E01/candidate-002.mp4"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/heart-high-E01/segment-0004.ts"
+      },
+      "after": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/heart-high-E01/segment-0005.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "心動製造所",
+        "source_id": "heart-high-E01",
+        "region_index": 2,
+        "start_seconds": 496.07891300000034,
+        "duration_seconds": 16.466665999999975,
+        "boundary_provenance": "real_hls_discontinuity",
+        "ground_truth": "ad",
+        "creative_family": "451451-A",
+        "split": "expanded_development",
+        "baseline_exact_match": true,
+        "label_evidence": "Complete ordered H264/AAC packet+codec fingerprint equality to previously visually/user confirmed ad reference; actual 1fps contact sheet retained."
+      }
+    },
+    {
+      "id": "heart-high-E01-r04",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/batch-001/heart-high-E01/candidate-004.mp4"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/heart-high-E01/segment-0011.ts"
+      },
+      "after": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/heart-high-E01/segment-0012.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "心動製造所",
+        "source_id": "heart-high-E01",
+        "region_index": 4,
+        "start_seconds": 2012.5857660000001,
+        "duration_seconds": 17.66666599999985,
+        "boundary_provenance": "real_hls_discontinuity",
+        "ground_truth": "ad",
+        "creative_family": "451451-B",
+        "split": "expanded_development",
+        "baseline_exact_match": true,
+        "label_evidence": "Complete ordered H264/AAC packet+codec fingerprint equality to previously visually/user confirmed ad reference; actual 1fps contact sheet retained."
+      }
+    },
+    {
+      "id": "heart-high-E01-r06",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/batch-001/heart-high-E01/candidate-006.mp4"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/heart-high-E01/segment-0017.ts"
+      },
+      "after": null,
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "playlist_end"
+      },
+      "annotations": {
+        "programme": "心動製造所",
+        "source_id": "heart-high-E01",
+        "region_index": 6,
+        "start_seconds": 3322.37676700001,
+        "duration_seconds": 16.46666600000026,
+        "boundary_provenance": "real_hls_discontinuity",
+        "ground_truth": "ad",
+        "creative_family": "451451-A",
+        "split": "expanded_development",
+        "baseline_exact_match": true,
+        "label_evidence": "Complete ordered H264/AAC packet+codec fingerprint equality to previously visually/user confirmed ad reference; actual 1fps contact sheet retained."
+      }
+    },
+    {
+      "id": "heart-high-E01-normal-1",
+      "candidate": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/heart-high-E01/segment-0019.ts"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/heart-high-E01/segment-0018.ts"
+      },
+      "after": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/heart-high-E01/segment-0020.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "心動製造所",
+        "source_id": "heart-high-E01",
+        "region_index": 3,
+        "segment_within_region": 93,
+        "start_seconds": 884.5004840000004,
+        "duration_seconds": 5.296956,
+        "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+        "ground_truth": "retain_programme",
+        "creative_family": "programme",
+        "split": "expanded_development",
+        "baseline_exact_match": false,
+        "label_evidence": "Primary visually reviewed complete 1fps original-TS contact sheet; normal programme action/dialogue; no media transformations."
+      }
+    },
+    {
+      "id": "heart-high-E01-normal-2",
+      "candidate": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/heart-high-E01/segment-0022.ts"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/heart-high-E01/segment-0021.ts"
+      },
+      "after": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/heart-high-E01/segment-0023.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "心動製造所",
+        "source_id": "heart-high-E01",
+        "region_index": 3,
+        "segment_within_region": 262,
+        "start_seconds": 1560.6759780000002,
+        "duration_seconds": 3.920589,
+        "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+        "ground_truth": "retain_programme",
+        "creative_family": "programme",
+        "split": "expanded_development",
+        "baseline_exact_match": false,
+        "label_evidence": "Primary visually reviewed complete 1fps original-TS contact sheet; normal programme action/dialogue; no media transformations."
+      }
+    },
+    {
+      "id": "majimuri-line1-E01-r01",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/batch-001/majimuri-line1-E01/candidate-001.mp4"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/majimuri-line1-E01/segment-0007.ts"
+      },
+      "after": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/majimuri-line1-E01/segment-0008.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "馬路無理學園",
+        "source_id": "majimuri-line1-E01",
+        "region_index": 1,
+        "start_seconds": 300.5669390000001,
+        "duration_seconds": 25.75999999999999,
+        "boundary_provenance": "real_hls_discontinuity",
+        "ground_truth": "ad",
+        "creative_family": "288588",
+        "split": "expanded_development",
+        "baseline_exact_match": true,
+        "label_evidence": "Complete ordered H264/AAC packet+codec fingerprint equality to previously visually/user confirmed ad reference; actual 1fps contact sheet retained."
+      }
+    },
+    {
+      "id": "majimuri-line1-E01-normal-1",
+      "candidate": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/majimuri-line1-E01/segment-0010.ts"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/majimuri-line1-E01/segment-0009.ts"
+      },
+      "after": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/majimuri-line1-E01/segment-0011.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "馬路無理學園",
+        "source_id": "majimuri-line1-E01",
+        "region_index": 2,
+        "segment_within_region": 67,
+        "start_seconds": 596.7637770000001,
+        "duration_seconds": 1.267933,
+        "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+        "ground_truth": "retain_programme",
+        "creative_family": "programme",
+        "split": "expanded_development",
+        "baseline_exact_match": false,
+        "label_evidence": "Primary visually reviewed complete 1fps original-TS contact sheet; normal programme action/dialogue; no media transformations."
+      }
+    },
+    {
+      "id": "majimuri-line1-E01-normal-2",
+      "candidate": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/majimuri-line1-E01/segment-0013.ts"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/majimuri-line1-E01/segment-0012.ts"
+      },
+      "after": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-001/majimuri-line1-E01/segment-0014.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "馬路無理學園",
+        "source_id": "majimuri-line1-E01",
+        "region_index": 2,
+        "segment_within_region": 189,
+        "start_seconds": 1082.682561,
+        "duration_seconds": 5.1051,
+        "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+        "ground_truth": "retain_programme",
+        "creative_family": "programme",
+        "split": "expanded_development",
+        "baseline_exact_match": false,
+        "label_evidence": "Primary visually reviewed complete 1fps original-TS contact sheet; normal programme action/dialogue; no media transformations."
+      }
+    },
+    {
+      "id": "majimuri-line5-E01-r02",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/batch-002/majimuri-line5-E01/candidate-002.mp4"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-002/majimuri-line5-E01/segment-0004.ts"
+      },
+      "after": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-002/majimuri-line5-E01/segment-0005.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "馬路無理學園",
+        "source_id": "majimuri-line5-E01",
+        "region_index": 2,
+        "start_seconds": 497.56374499999976,
+        "duration_seconds": 16.466665999999975,
+        "boundary_provenance": "real_hls_discontinuity",
+        "ground_truth": "ad",
+        "creative_family": "451451-A",
+        "split": "expanded_development",
+        "baseline_exact_match": true,
+        "label_evidence": "Complete ordered H264/AAC packet+codec fingerprint equality to previously visually/user confirmed ad reference; actual 1fps contact sheet retained."
+      }
+    },
+    {
+      "id": "majimuri-line5-E01-r04",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/batch-002/majimuri-line5-E01/candidate-004.mp4"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-002/majimuri-line5-E01/segment-0011.ts"
+      },
+      "after": null,
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "playlist_end"
+      },
+      "annotations": {
+        "programme": "馬路無理學園",
+        "source_id": "majimuri-line5-E01",
+        "region_index": 4,
+        "start_seconds": 1396.3785700000012,
+        "duration_seconds": 17.66666599999985,
+        "boundary_provenance": "real_hls_discontinuity",
+        "ground_truth": "ad",
+        "creative_family": "451451-B",
+        "split": "expanded_development",
+        "baseline_exact_match": true,
+        "label_evidence": "Complete ordered H264/AAC packet+codec fingerprint equality to previously visually/user confirmed ad reference; actual 1fps contact sheet retained."
+      }
+    },
+    {
+      "id": "majimuri-line5-E01-normal-1",
+      "candidate": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-002/majimuri-line5-E01/segment-0013.ts"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-002/majimuri-line5-E01/segment-0012.ts"
+      },
+      "after": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-002/majimuri-line5-E01/segment-0014.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "馬路無理學園",
+        "source_id": "majimuri-line5-E01",
+        "region_index": 3,
+        "segment_within_region": 55,
+        "start_seconds": 735.4516169999997,
+        "duration_seconds": 3.336667,
+        "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+        "ground_truth": "retain_programme",
+        "creative_family": "programme",
+        "split": "expanded_development",
+        "baseline_exact_match": false,
+        "label_evidence": "Primary visually reviewed complete 1fps original-TS contact sheet; normal programme action/dialogue; no media transformations."
+      }
+    },
+    {
+      "id": "majimuri-line5-E01-normal-2",
+      "candidate": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-002/majimuri-line5-E01/segment-0016.ts"
+      },
+      "before": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-002/majimuri-line5-E01/segment-0015.ts"
+      },
+      "after": {
+        "path": "/private/tmp/media-dler-ad-expanded-20261019/batch-002/majimuri-line5-E01/segment-0017.ts"
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "馬路無理學園",
+        "source_id": "majimuri-line5-E01",
+        "region_index": 3,
+        "segment_within_region": 154,
+        "start_seconds": 1128.5443309999996,
+        "duration_seconds": 5.472133,
+        "boundary_provenance": "unmodified_programme_TS_with_test_only_candidate_boundaries_not_real_discontinuities",
+        "ground_truth": "retain_programme",
+        "creative_family": "programme",
+        "split": "expanded_development",
+        "baseline_exact_match": false,
+        "label_evidence": "Primary visually reviewed complete 1fps original-TS contact sheet; normal programme action/dialogue; no media transformations."
+      }
+    },
+    {
+      "id": "majimuri-device-opening",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/majisuka-E01-original.mp4",
+        "start_seconds": 0,
+        "duration_seconds": 45
+      },
+      "before": null,
+      "after": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/majisuka-E01-original.mp4",
+        "start_seconds": 45,
+        "duration_seconds": 2
+      },
+      "boundaries": {
+        "start": "playlist_start",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "馬路無理學園",
+        "source_id": "ASUS-preserved-original",
+        "ground_truth": "retain_programme",
+        "creative_family": "programme-opening",
+        "split": "expanded_development",
+        "boundary_provenance": "unaltered_programme_excerpt_with_test_only_boundaries",
+        "note": "Original programme opening/credits/end-card preview; not injected gambling advertising; retain underlying programme.",
+        "baseline_exact_match": false,
+        "label_evidence": "Primary visually reviewed actual original opening/credits/preview contact sheet; preserve programme including any burned-in promo overlays."
+      }
+    },
+    {
+      "id": "majimuri-device-credits",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/majisuka-E01-original.mp4",
+        "start_seconds": 1290,
+        "duration_seconds": 28
+      },
+      "before": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/majisuka-E01-original.mp4",
+        "start_seconds": 1288,
+        "duration_seconds": 2
+      },
+      "after": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/majisuka-E01-original.mp4",
+        "start_seconds": 1318,
+        "duration_seconds": 2
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "馬路無理學園",
+        "source_id": "ASUS-preserved-original",
+        "ground_truth": "retain_programme",
+        "creative_family": "programme-credits",
+        "split": "expanded_development",
+        "boundary_provenance": "unaltered_programme_excerpt_with_test_only_boundaries",
+        "note": "Original programme opening/credits/end-card preview; not injected gambling advertising; retain underlying programme.",
+        "baseline_exact_match": false,
+        "label_evidence": "Primary visually reviewed actual original opening/credits/preview contact sheet; preserve programme including any burned-in promo overlays."
+      }
+    },
+    {
+      "id": "majimuri-device-hulu-preview",
+      "candidate": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/majisuka-E01-original.mp4",
+        "start_seconds": 1337,
+        "duration_seconds": 40
+      },
+      "before": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/majisuka-E01-original.mp4",
+        "start_seconds": 1335,
+        "duration_seconds": 2
+      },
+      "after": {
+        "path": "/tmp/media-dler-ad-expanded-20261019/majisuka-E01-original.mp4",
+        "start_seconds": 1377,
+        "duration_seconds": 2
+      },
+      "boundaries": {
+        "start": "discontinuity",
+        "end": "discontinuity"
+      },
+      "annotations": {
+        "programme": "馬路無理學園",
+        "source_id": "ASUS-preserved-original",
+        "ground_truth": "retain_programme",
+        "creative_family": "programme-hulu-preview",
+        "split": "expanded_development",
+        "boundary_provenance": "unaltered_programme_excerpt_with_test_only_boundaries",
+        "note": "Original programme opening/credits/end-card preview; not injected gambling advertising; retain underlying programme.",
+        "baseline_exact_match": false,
+        "label_evidence": "Primary visually reviewed actual original opening/credits/preview contact sheet; preserve programme including any burned-in promo overlays."
+      }
+    }
+  ],
+  "labels_fixed_at_utc": "2026-10-19T13:36:03.745432+00:00",
+  "label_scope": "All new cases development/challenge; repeated known ad creative families, new programme contexts; no independent new creative accuracy claim.",
+  "source_failures": [
+    {
+      "id": "majimuri-line4-E01",
+      "reason": "DNS lookup failed for ikcdn01.ikzybf.com"
+    },
+    {
+      "id": "majimuri-line2-E01",
+      "reason": "HTTP successful empty master body"
+    },
+    {
+      "id": "majimuri-line3-E01",
+      "reason": "TLS unexpected EOF"
+    },
+    {
+      "id": "majimuri-line6-E01",
+      "reason": "Encrypted child HLS not supported by this conservative collection subset; no inference about ads"
+    }
+  ],
+  "acquisition": {
+    "reports": [
+      "/tmp/media-dler-ad-expanded-20261019/batch-001/moving-high-E01/acquisition.json",
+      "/tmp/media-dler-ad-expanded-20261019/batch-001/moving-sutong-E12/acquisition.json",
+      "/tmp/media-dler-ad-expanded-20261019/batch-001/heart-high-E01/acquisition.json",
+      "/tmp/media-dler-ad-expanded-20261019/batch-001/majimuri-line1-E01/acquisition.json",
+      "/tmp/media-dler-ad-expanded-20261019/batch-002/majimuri-line5-E01/acquisition.json"
+    ],
+    "network_segment_bytes": 97142044,
+    "media_transforms": "Ad clips remuxed without re-encoding; normalTS untouched;3 ASUS excerpts are read-only ranges. No added volume or banner in new24."
+  }
+}

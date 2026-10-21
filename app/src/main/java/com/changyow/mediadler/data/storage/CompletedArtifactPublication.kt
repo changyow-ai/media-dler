@@ -40,6 +40,9 @@ internal interface PublicationTarget {
 internal class CompletedArtifactPublication(private val workRoot: File) {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
+    // Even an unreadable record may own recovery data; absence is required before disposal.
+    fun hasRecord(taskId: String): Boolean = recordFile(taskId).exists()
+
     fun read(taskId: String): CompletedArtifact? {
         val record = recordFile(taskId)
         return if (record.isFile) json.decodeFromString<CompletedArtifact>(record.readText()) else null

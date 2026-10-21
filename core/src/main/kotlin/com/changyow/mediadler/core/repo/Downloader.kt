@@ -11,6 +11,13 @@ interface Downloader {
         onProgress: (DownloadProgress) -> Unit,
     ): Result<DownloadOutput?> = Result.success(null)
 
+    /** A skipped task must never recover an artifact produced by its earlier ad-analysis attempt. */
+    suspend fun recover(
+        processId: String,
+        skipAdAnalysis: Boolean,
+        onProgress: (DownloadProgress) -> Unit,
+    ): Result<DownloadOutput?> = if (skipAdAnalysis) Result.success(null) else recover(processId, onProgress)
+
     suspend fun download(
         request: DownloadRequest,
         processId: String,

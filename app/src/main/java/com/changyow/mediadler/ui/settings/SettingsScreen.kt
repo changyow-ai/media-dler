@@ -34,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -191,6 +192,22 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
         ) { page ->
             when (SettingsCategory.entries[page]) {
                 SettingsCategory.DOWNLOAD -> SettingsPage {
+                    SettingSection("去 AD") {
+                        SwitchSetting("下載時去 AD", settings.adRemovalEnabled) { enabled ->
+                            viewModel.update { it.copy(adRemovalEnabled = enabled) }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = settings.adRemovalEnabled, onCheckedChange = null,
+                                enabled = settings.adRemovalEnabled)
+                            Text("清除有可靠標記的廣告（必選）", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        SwitchSetting("使用權重判斷去廣告", settings.weightedAdAnalysisEnabled,
+                            enabled = settings.adRemovalEnabled) { enabled ->
+                            viewModel.update { it.copy(weightedAdAnalysisEnabled = enabled) }
+                        }
+                        Text("快速模式只移除完整影音指紋相符的已知廣告；標記只用來找候選，未確認的內容保留。權重分析會掃描更多候選，可能耗時較久。設定只套用到之後建立的任務。",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     SettingSection("分享模式") {
                         ChoiceChips(
                             options = ShareMode.entries,
@@ -661,15 +678,15 @@ private fun TextFieldSetting(
 }
 
 @Composable
-private fun SwitchSetting(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun SwitchSetting(label: String, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth()
-            .toggleable(value = checked, role = Role.Switch, onValueChange = onChange)
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-        Switch(checked = checked, onCheckedChange = null)
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }

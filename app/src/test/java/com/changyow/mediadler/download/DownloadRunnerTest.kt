@@ -23,6 +23,156 @@ import kotlin.test.assertTrue
 class DownloadRunnerTest {
     @get:Rule val temporary = TemporaryFolder()
 
+    @Test fun skipAnalysisWaitsForNativeCleanupThenReusesSameJobWithFullContentIntent() = runTest {
+        val cleanupStarted = CompletableDeferred<Unit>()
+        val releaseCleanup = CompletableDeferred<Unit>()
+        val downloader = FakeDownloader { call, index ->
+            if (index == 0) {
+                call.progress(DownloadProgress(DownloadPhase.AD_ANALYSIS, detail = "OCR", canResume = true))
+                try { awaitCancellation() } finally { withContext(NonCancellable) {
+                    cleanupStarted.complete(Unit)
+                    releaseCleanup.await()
+                } }
+            } else call.result.await()
+        }
+        val fixture = fixture(backgroundScope, downloader)
+        val ids = fixture.queue.submitPages(listOf(page(1), page(2)), FormatSelection.BestVideo, AdRemovalPolicy.WEIGHTED)
+        fixture.runner.wake("service", 1)
+        runCurrent()
+        val skipped = async { fixture.runner.skipAdAnalysis(ids.first()) }
+        runCurrent()
+        assertTrue(skipped.await())
+        val duplicate = async { fixture.runner.skipAdAnalysis(ids.first()) }
+        runCurrent()
+        assertTrue(duplicate.await())
+        assertTrue(cleanupStarted.isCompleted)
+        assertEquals(1, downloader.calls.size)
+        assertEquals(1, downloader.active)
+        assertEquals(DownloadRunner.Phase.STOPPING, fixture.runner.state.value.phase)
+        assertTrue(fixture.queue.get(ids.first())!!.skipAdAnalysis)
+        // A stale filtered artifact from the preceding attempt is unavailable to the new recovery overload.
+        downloader.recovered = DownloadOutput("content://old-filtered", "old.mp4", "video/mp4")
+        releaseCleanup.complete(Unit)
+        runCurrent()
+        assertEquals(2, downloader.calls.size)
+        assertEquals(ids.first(), downloader.calls.last().id)
+        assertTrue(downloader.calls.last().request.skipAdAnalysis)
+        assertEquals(AdRemovalPolicy.WEIGHTED, downloader.calls.last().request.adRemovalPolicy)
+        assertEquals(listOf(ids.first()), downloader.recoveryCalls)
+        assertEquals(1, fixture.extractor.urls.size)
+        assertEquals(1, downloader.maximumActive)
+        assertNull(fixture.queue.pauseReason())
+        assertTrue(fixture.listener.failed.isEmpty())
+        downloader.recovered = null
+        downloader.calls.last().succeed()
+        runCurrent()
+        assertEquals(ids.last(), downloader.calls.last().id)
+        assertFalse(downloader.calls.last().request.skipAdAnalysis)
+    }
+
+    @Test fun transferBoundaryRejectsSkipAndRetainsOrdinaryPause() = runTest {
+        val fixture = fixture(backgroundScope)
+        val id = fixture.queue.submit(request("1"))
+        fixture.runner.wake("service", 1)
+        runCurrent()
+        fixture.downloader.calls.single().progress(DownloadProgress(DownloadPhase.AD_ANALYSIS))
+        fixture.downloader.calls.single().progress(DownloadProgress(DownloadPhase.DOWNLOADING))
+        val skipped = async { fixture.runner.skipAdAnalysis(id) }
+        runCurrent()
+        assertFalse(skipped.await())
+        assertFalse(fixture.queue.get(id)!!.skipAdAnalysis)
+        val paused = async { fixture.runner.pauseTask(id) }
+        runCurrent()
+        assertTrue(paused.await())
+        assertEquals(DownloadStatus.PAUSED, fixture.queue.get(id)?.status)
+        assertEquals(1, fixture.downloader.maximumActive)
+    }
+
+    @Test fun lifecycleStopWinsOverPendingSkipUntilExplicitOwnerResume() = runTest {
+        val cleanup = CompletableDeferred<Unit>()
+        val downloader = FakeDownloader { call, index ->
+            if (index == 0) {
+                call.progress(DownloadProgress(DownloadPhase.AD_ANALYSIS))
+                try { awaitCancellation() } finally { withContext(NonCancellable) { cleanup.await() } }
+            } else call.result.await()
+        }
+        val fixture = fixture(backgroundScope, downloader)
+        val id = fixture.queue.submit(request("1"))
+        fixture.runner.wake("service", 1)
+        runCurrent()
+        val skipped = async { fixture.runner.skipAdAnalysis(id) }
+        runCurrent()
+        assertTrue(skipped.await())
+        fixture.runner.stop("service")
+        runCurrent()
+        cleanup.complete(Unit)
+        runCurrent()
+        assertEquals(1, downloader.calls.size)
+        assertEquals(DownloadStatus.QUEUED, fixture.queue.get(id)?.status)
+        assertTrue(fixture.queue.get(id)!!.skipAdAnalysis)
+        assertNull(fixture.queue.get(id)?.progressPhase)
+        assertEquals(QueuePauseKind.SYSTEM, fixture.queue.pauseReason()?.kind)
+        fixture.runner.wake("service", 2, userInitiated = true)
+        runCurrent()
+        assertEquals(2, downloader.calls.size)
+        assertTrue(downloader.calls.last().request.skipAdAnalysis)
+        assertEquals(1, downloader.maximumActive)
+    }
+
+    @Test fun skipIntentSurvivesSourceRefreshManualRetryAndRunnerRecreationWithFrozenPolicy() = runTest {
+        val downloader = FakeDownloader { call, index ->
+            if (index == 0) call.progress(DownloadProgress(DownloadPhase.AD_ANALYSIS))
+            call.result.await()
+        }
+        val fixture = fixture(backgroundScope, downloader)
+        val page = page(1)
+        val id = fixture.queue.submitPages(listOf(page), FormatSelection.BestVideo, AdRemovalPolicy.WEIGHTED).single()
+        fixture.runner.wake("service", 1)
+        runCurrent()
+        val skip = async { fixture.runner.skipAdAnalysis(id) }
+        runCurrent()
+        assertTrue(skip.await())
+        assertEquals(2, downloader.calls.size)
+        assertEquals(1, fixture.extractor.urls.size)
+        downloader.calls.last().fail(IOException("HTTP Error 403"))
+        runCurrent()
+        assertEquals(listOf(page.playbackUrl, page.playbackUrl), fixture.extractor.urls)
+        assertEquals(3, downloader.calls.size)
+        assertTrue(downloader.calls.drop(1).all { it.request.skipAdAnalysis })
+        assertTrue(downloader.calls.all { it.id == id && it.request.adRemovalPolicy == AdRemovalPolicy.WEIGHTED })
+        downloader.calls.last().fail(IOException("HTTP Error 410"))
+        runCurrent()
+        assertEquals(DownloadStatus.FAILED, fixture.queue.get(id)?.status)
+        val reopened = DownloadQueue(fixture.store, fixture.root)
+        assertTrue(reopened.retry(id))
+        val runner = DownloadRunner(reopened, QueuedRequestResolver(fixture.extractor), downloader, backgroundScope)
+        runner.wake("new-service", 1, userInitiated = true)
+        runCurrent()
+        assertEquals(4, downloader.calls.size)
+        assertEquals(3, fixture.extractor.urls.size)
+        assertEquals(id, downloader.calls.last().id)
+        assertTrue(downloader.calls.last().request.skipAdAnalysis)
+        assertEquals(AdRemovalPolicy.WEIGHTED, downloader.calls.last().request.adRemovalPolicy)
+        assertEquals(1, downloader.maximumActive)
+    }
+
+    @Test fun failedSkipPersistenceStopsCurrentAttemptWithoutSettingFullContentIntent() = runTest {
+        val fixture = fixture(backgroundScope)
+        val id = fixture.queue.submit(request("1"))
+        fixture.runner.wake("service", 1)
+        runCurrent()
+        fixture.downloader.calls.single().progress(DownloadProgress(DownloadPhase.AD_ANALYSIS))
+        fixture.store.failNextWrite = true
+        val skipped = async { fixture.runner.skipAdAnalysis(id) }
+        runCurrent()
+        assertFalse(skipped.await())
+        assertFalse(fixture.queue.get(id)!!.skipAdAnalysis)
+        assertEquals(QueuePauseKind.SYSTEM, fixture.queue.pauseReason()?.kind)
+        assertEquals(DownloadRunner.Phase.PAUSED, fixture.runner.state.value.phase)
+        assertEquals(1, fixture.downloader.calls.size)
+        assertEquals(0, fixture.downloader.active)
+    }
+
     @Test fun duplicateWakesAndServiceHandoverKeepSingleAttemptAndFifoOrder() = runTest {
         val fixture = fixture(backgroundScope)
         val ids = fixture.queue.submitRequests(listOf(request("1"), request("2"), request("3")))
