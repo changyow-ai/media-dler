@@ -30,8 +30,8 @@ android {
         minSdk = 28
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 13
-        versionName = "0.1.12"
+        versionCode = 14
+        versionName = "0.1.13"
 
         // yt-dlp / ffmpeg ship native libraries for these ABIs.
         // TEMP (Phase 1): arm64-v8a (devices) + x86_64 (emulator testing) only, to keep the
