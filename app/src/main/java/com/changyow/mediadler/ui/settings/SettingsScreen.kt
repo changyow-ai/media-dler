@@ -342,7 +342,7 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
                             onSelect = { lang -> viewModel.update { it.copy(transcribeLanguage = lang) } },
                         )
                         Text(
-                            "鎖定主要語言可避免短片頭被誤判；夾雜的其他語言仍會照原文輸出。",
+                            "主要語言是辨識提示，不保證混語正確；各模型支援不同。FireRedASR2 自動辨識、不接受鎖定。",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -352,16 +352,27 @@ fun SettingsScreen(onBack: (() -> Unit)? = null) {
                                 label = "模型",
                                 options = TranscribeModel.entries,
                                 selected = settings.transcribeModel,
-                                optionLabel = { m ->
-                                    if (m == TranscribeModel.SENSE_VOICE) "${m.label} ・建議" else m.label
-                                },
+                                optionLabel = { it.catalogLabel },
                                 onSelect = { m -> viewModel.update { it.copy(transcribeModel = m) } },
                             )
                             Text(
-                                transcribeModelHint(settings.transcribeModel),
+                                settings.transcribeModel.hint,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                            Text(
+                                "建議比較不是準確率排名。下載大小不是 RAM；大型模型可能耗時、發熱或記憶體不足。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            TextButton(onClick = {
+                                runCatching {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW,
+                                        Uri.parse(settings.transcribeModel.sourceUrl)))
+                                }.onFailure {
+                                    Toast.makeText(context, "無法開啟模型來源頁面", Toast.LENGTH_SHORT).show()
+                                }
+                            }) { Text("模型來源與使用條款") }
                             when (val state = modelState) {
                                 is SettingsViewModel.ModelState.Absent -> {
                                     Text(
@@ -552,20 +563,6 @@ private fun openDownloadBatterySettings(context: Context) {
 
 private fun qualityLabel(quality: VideoQuality): String =
     quality.maxHeight?.let { "${it}p" } ?: "最佳畫質"
-
-/**
- * One-line description for an on-device model (離線轉錄；不附帶於 App，需下載). whisper models share
- * one caveat — they are autoregressive and noticeably slower on phones than the sherpa models
- * (SenseVoice/Paraformer), so that's called out per-model and recommended against for long audio.
- */
-private fun transcribeModelHint(model: TranscribeModel): String = when (model) {
-    TranscribeModel.BASE -> "whisper base · 體積最小，但中文準度一般、速度慢（whisper 系列都較慢）"
-    TranscribeModel.SMALL -> "whisper small · 較準，但慢於即時（whisper 系列都較慢）"
-    TranscribeModel.TURBO_Q5 -> "whisper large-v3-turbo 量化 · 準、有標點，但中階機很慢（約 3–4× 即時）"
-    TranscribeModel.SENSE_VOICE -> "SenseVoice · 建議：中文又快又準、含標點（遠快於 whisper）"
-    TranscribeModel.PARAFORMER -> "Paraformer · 純中文準、速度快；但無標點"
-    TranscribeModel.QWEN3 -> "Qwen3-ASR · 實驗：品質高，但模型大（~900MB）、中階機記憶體可能不足而失敗"
-} + "（離線；不附帶於 App，需下載）"
 
 @Composable
 private fun SettingsPage(content: @Composable ColumnScope.() -> Unit) {

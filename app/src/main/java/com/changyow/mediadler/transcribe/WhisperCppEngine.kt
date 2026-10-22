@@ -103,7 +103,7 @@ class WhisperCppEngine(
 
                 // Convert the already-committed windows once per window; each live segment then only
                 // re-converts its own small delta instead of re-merging + converting the whole text.
-                val committed = OpenCcConverter.normalize(SegmentMerge.merge(parts), detected)
+                val committed = render(parts, "", detected)
                 val live = StringBuilder()
                 val callback = object : WhisperNative.WhisperCallback {
                     override fun onProgress(percent: Int) {
@@ -116,7 +116,14 @@ class WhisperCppEngine(
                     override fun isCancelled(): Boolean = isCancelled()
                 }
 
-                val text = WhisperNative.nativeFullTranscribe(ctx, slice, detected ?: "auto", threads, callback)
+                val text = try {
+                    WhisperNative.nativeFullTranscribe(ctx, slice, detected ?: "auto", threads, callback)
+                } catch (t: Throwable) {
+                    // fail() persists the current live text with the last completed window index.
+                    // Roll back previews from this failed window so a retry does not append it twice.
+                    onPartial(committed)
+                    throw t
+                }
                 if (isCancelled()) {
                     return@withContext result(parts, detected, lastCompleted, total, cancelled = true)
                 }
@@ -154,11 +161,10 @@ class WhisperCppEngine(
         cancelled = cancelled,
     )
 
-    /** Merges completed window parts with the in-flight buffer, then normalises Chinese to 正體. */
+    /** Normalize before matching seams: resumed priorText is already 正體, native text may not be. */
     private fun render(parts: List<String>, live: String, language: String?): String {
-        val merged = SegmentMerge.merge(parts)
-        val full = if (live.isBlank()) merged else if (merged.isBlank()) live else "$merged$live"
-        return OpenCcConverter.normalize(full, language)
+        val merged = SegmentMerge.merge(parts.map { OpenCcConverter.normalize(it, language) })
+        return joinLive(merged, OpenCcConverter.normalize(live, language))
     }
 
     /** Appends the in-flight (already-converted) live text to the committed text for a live preview. */

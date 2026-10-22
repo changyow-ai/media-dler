@@ -1,6 +1,7 @@
 package com.changyow.mediadler.transcribe
 
 import android.content.Context
+import com.changyow.mediadler.core.transcribe.ModelIntegrity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -35,7 +36,8 @@ class SherpaModelManager(private val context: Context) {
     private fun marker(model: SherpaModel): File = File(dir(model), ".complete")
 
     /** True only once the archive has fully extracted (marker present). */
-    fun isDownloaded(model: SherpaModel): Boolean = marker(model).exists()
+    fun isDownloaded(model: SherpaModel): Boolean = marker(model).exists() &&
+        model.requiredFiles.all { File(dir(model), it).let { f -> f.isFile && f.length() > 0 } }
 
     /** On-disk size of the extracted model, or 0 if absent. */
     fun sizeBytes(model: SherpaModel): Long =
@@ -62,7 +64,11 @@ class SherpaModelManager(private val context: Context) {
                 try {
                     // Download dominates; reserve the last 10% for extraction.
                     download(model, part) { onProgress(it * 0.9f) }
+                    model.archiveSha256?.let { ModelIntegrity.verify(part, model.approxBytes, it) }
                     extract(part, root) { onProgress(0.9f + it * 0.1f) }
+                    check(model.requiredFiles.all { File(target, it).let { f -> f.isFile && f.length() > 0 } }) {
+                        "模型封裝缺少必要的權重或 tokenizer：${model.id}"
+                    }
                     check(marker(model).createNewFile() || marker(model).exists()) {
                         "failed to finalise ${model.archiveName}"
                     }

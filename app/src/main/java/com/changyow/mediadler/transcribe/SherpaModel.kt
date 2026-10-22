@@ -8,8 +8,8 @@ import com.changyow.mediadler.core.model.TranscribeModel
  * model(s) + tokens / tokenizer), so [SherpaModelManager] downloads then extracts them; the archive's
  * own top-level directory ([archiveName]) becomes the on-disk model dir the engine reads from.
  *
- * SenseVoice/Paraformer are non-autoregressive (whole-window decode, far faster than whisper on
- * Chinese); Qwen3-ASR is high-quality but autoregressive, large, and slower — flagged experimental.
+ * Every entry has a native adapter in the pinned sherpa-onnx 1.13.2 runtime. New deployments are
+ * checksum-pinned; inference limits are independent of the durable 60-second checkpoint windows.
  */
 enum class SherpaModel(
     val id: String,
@@ -17,6 +17,10 @@ enum class SherpaModel(
     val archiveName: String,
     /** Compressed download size, used only for the data/Wi-Fi warning and the "約 X MB" hint. */
     val approxBytes: Long,
+    val archiveSha256: String? = null,
+    val requiredFiles: List<String> = emptyList(),
+    /** Hard cap for one native decode, not the checkpoint/resume window size. */
+    val inferenceSeconds: Int = 60,
 ) {
     // 2024-07-17 variant: keeps punctuation (the 2025-09-09 Cantonese-tuned rebuild drops it), which
     // the readable-sentence formatter relies on.
@@ -34,6 +38,25 @@ enum class SherpaModel(
         "qwen3-asr",
         "sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25",
         878_700_000L,
+        // Keep the existing archive and download cache. Only bound the native context length.
+        inferenceSeconds = 15,
+    ),
+    FIRE_RED_ASR2(
+        "fire-red-asr2-aed-int8",
+        "sherpa-onnx-fire-red-asr2-zh_en-int8-2026-02-26",
+        838_589_068L,
+        "43015b3f1643a5688b4821e8ed323473d38b798c4ec291471fe00df1bcfc4f1c",
+        listOf("encoder.int8.onnx", "decoder.int8.onnx", "tokens.txt"),
+        inferenceSeconds = 30,
+    ),
+    FUNASR_NANO(
+        "fun-asr-nano-2512-int8",
+        "sherpa-onnx-funasr-nano-int8-2025-12-30",
+        841_730_611L,
+        "eb43d7ccc2e86b243f6a03b7df361033dda66db9523d1a92bf6aca2b50c9476b",
+        listOf("encoder_adaptor.int8.onnx", "llm.int8.onnx", "embedding.int8.onnx",
+            "Qwen3-0.6B/merges.txt", "Qwen3-0.6B/tokenizer.json", "Qwen3-0.6B/vocab.json"),
+        inferenceSeconds = 15,
     );
 
     /** Download URL on the sherpa-onnx `asr-models` release. */
@@ -46,6 +69,8 @@ enum class SherpaModel(
             TranscribeModel.SENSE_VOICE -> SENSE_VOICE
             TranscribeModel.PARAFORMER -> PARAFORMER
             TranscribeModel.QWEN3 -> QWEN3
+            TranscribeModel.FIRE_RED_ASR2 -> FIRE_RED_ASR2
+            TranscribeModel.FUNASR_NANO -> FUNASR_NANO
             else -> error("${choice.name} is not a sherpa model")
         }
     }

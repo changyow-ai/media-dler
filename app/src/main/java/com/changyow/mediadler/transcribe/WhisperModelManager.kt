@@ -2,6 +2,7 @@ package com.changyow.mediadler.transcribe
 
 import android.content.Context
 import com.changyow.mediadler.core.model.TranscribeModel
+import com.changyow.mediadler.core.transcribe.ModelIntegrity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -12,16 +13,23 @@ import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 
 /** A downloadable ggml whisper model. Multilingual variants (no `.en`) so language auto-detect works. */
-enum class WhisperModel(val id: String, val fileName: String, val url: String, val approxBytes: Long) {
+enum class WhisperModel(val id: String, val fileName: String, val url: String, val approxBytes: Long,
+    val sha256: String? = null) {
     BASE("base", "ggml-base.bin",
         "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin", 147_951_465L),
     SMALL("small", "ggml-small.bin",
         "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin", 487_601_967L),
-    // Quantised large-v3-turbo (q5_0): turbo-level accuracy at ~small's footprint (574 MB vs 1.6 GB
-    // for the full turbo). Same JNI/ggml load path — only a new download entry.
+    // Existing quantised large-v3-turbo (q5_0): preserve its URL, filename and cache. Quantisation
+    // can change recognition quality; model size alone is not an accuracy comparison.
     TURBO_Q5("large-v3-turbo-q5_0", "ggml-large-v3-turbo-q5_0.bin",
         "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin",
-        574_041_600L);
+        574_041_600L),
+    LARGE_V3_Q5("large-v3-q5_0", "ggml-large-v3-q5_0.bin",
+        "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-large-v3-q5_0.bin",
+        1_081_140_203L, "d75795ecff3f83b5faa89d1900604ad8c780abd5739fae406de19f23ecd98ad1"),
+    BREEZE_25_Q5("breeze-asr-25-q5_0", "ggml-breeze-asr-25-q5_0.bin",
+        "https://huggingface.co/shdennlin/breeze-asr-25-ggml/resolve/36c726093efe1760d1dd39c3cfe8b6a7282437d1/ggml-breeze-asr-25-q5_0.bin",
+        1_080_732_091L, "f51573bd6ef9b1fac0bd09a1652eda58a1a638d824a08771ccdee1102fe5990a");
 
     companion object {
         /**
@@ -33,6 +41,8 @@ enum class WhisperModel(val id: String, val fileName: String, val url: String, v
             TranscribeModel.BASE -> BASE
             TranscribeModel.SMALL -> SMALL
             TranscribeModel.TURBO_Q5 -> TURBO_Q5
+            TranscribeModel.LARGE_V3_Q5 -> LARGE_V3_Q5
+            TranscribeModel.BREEZE_25_Q5 -> BREEZE_25_Q5
             else -> error("${choice.name} is not a whisper.cpp model")
         }
     }
@@ -53,7 +63,8 @@ class WhisperModelManager(private val context: Context) {
     fun isDownloaded(model: WhisperModel): Boolean {
         val f = file(model)
         // Guard against a truncated partial that was renamed: require a plausible size.
-        return f.exists() && f.length() > model.approxBytes / 2
+        return f.isFile && if (model.sha256 != null) f.length() == model.approxBytes
+            else f.length() > model.approxBytes / 2
     }
 
     /** On-disk size of the finalised model, or 0 if absent. */
@@ -77,6 +88,7 @@ class WhisperModelManager(private val context: Context) {
                 val part = File(dir, "${model.fileName}.part")
                 try {
                     download(model, part, onProgress)
+                    model.sha256?.let { ModelIntegrity.verify(part, model.approxBytes, it) }
                     check(part.renameTo(target)) { "failed to finalise ${model.fileName}" }
                 } catch (t: Throwable) {
                     // Never leave a half-written .part to be reused or mistaken for progress.
@@ -98,7 +110,7 @@ class WhisperModelManager(private val context: Context) {
             conn.connect()
             val code = conn.responseCode
             if (code !in 200..299) error("下載模型失敗（HTTP $code）")
-            val expected = conn.contentLength.toLong().takeIf { it > 0 } ?: model.approxBytes
+            val expected = conn.contentLengthLong.takeIf { it > 0 } ?: model.approxBytes
             var total = 0L
             conn.inputStream.use { input ->
                 part.outputStream().use { output ->
@@ -113,7 +125,7 @@ class WhisperModelManager(private val context: Context) {
                 }
             }
             // Reject a truncated download (dropped connection) so a corrupt model is never promoted.
-            val declared = conn.contentLength.toLong()
+            val declared = conn.contentLengthLong
             if (declared > 0 && total < declared) error("模型下載不完整（$total/$declared bytes）")
             if (total < model.approxBytes / 2) error("模型下載不完整（$total bytes）")
         } finally {

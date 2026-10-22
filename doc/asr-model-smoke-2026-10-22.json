@@ -1,0 +1,271 @@
+{
+  "checked_at": "2026-10-22",
+  "base": "00e1ea48d743d1b44272a381bd3f17f87f829515",
+  "scope": "Public audio only, host loading/inference smoke. Not Android, representative CER/WER or a fair speed ranking. Host was shared; no private audio or paid services.",
+  "fixture_sources": {
+    "zh_and_en": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17.tar.bz2",
+    "codeswitch": {
+      "dataset": "https://huggingface.co/datasets/ky552/ML2021_ASR_ST",
+      "revision": "1e121cc419e87eed7d4825400baa06f102931944",
+      "split": "test",
+      "row": 1279,
+      "file": "clips/week7_1-clips/1280-week7_1.wav",
+      "duration_seconds": 1.59,
+      "annotation": "放 進 你 的 training 裡 面",
+      "wav_sha256": "234934f0b8d6fe781a6f6cdebe7835ef5d2c290ebdd181b4736c79c28e5d2313",
+      "preprocessing": "16 kHz float32; stereo channels averaged to mono, no padding or concatenation"
+    },
+    "zh_and_en_sha256": {
+      "zh.wav": "b77f1794fe374a0ba1ee1dc458bfaf9349496cbbfc32780c50ba3c5a7ad8e373",
+      "en.wav": "eb1eb008904465b74c304aad8342e8c7d3c6e61ffe9f66adcaca9cf0f76a93f4"
+    }
+  },
+  "new_downloads_verified_sha256": {
+    "firered2": "43015b3f1643a5688b4821e8ed323473d38b798c4ec291471fe00df1bcfc4f1c",
+    "funasr": "eb43d7ccc2e86b243f6a03b7df361033dda66db9523d1a92bf6aca2b50c9476b",
+    "breeze25": "f51573bd6ef9b1fac0bd09a1652eda58a1a638d824a08771ccdee1102fe5990a",
+    "whisper_large_v3": "d75795ecff3f83b5faa89d1900604ad8c780abd5739fae406de19f23ecd98ad1"
+  },
+  "runs": {
+    "firered2": [
+      {
+        "runtime": "1.13.2",
+        "model": "sherpa-onnx-fire-red-asr2-zh_en-int8-2026-02-26",
+        "load_seconds": 5.691940001997864,
+        "cases": [
+          {
+            "fixture": "zh",
+            "duration": 5.592,
+            "text": "开放时间早上九点至下午五点",
+            "language": "",
+            "seconds": 8.328872397003579,
+            "tokens": [
+              "开",
+              "放",
+              "时",
+              "间",
+              "早",
+              "上",
+              "九",
+              "点",
+              "至",
+              "下",
+              "午",
+              "五",
+              "点"
+            ]
+          },
+          {
+            "fixture": "en",
+            "duration": 7.152,
+            "text": " THE TRIBAL CHIEFTAIN CALLED FOR THE BOY AND PRESENTED HIM WITH FIFTY PIECES OF GOLD",
+            "language": "",
+            "seconds": 16.9168316350042,
+            "tokens": [
+              " THE",
+              " T",
+              "RI",
+              "B",
+              "AL",
+              " CH",
+              "IE",
+              "FT",
+              "AIN",
+              " CALLED",
+              " FOR",
+              " THE",
+              " BOY",
+              " AND",
+              " PRESENT",
+              "ED",
+              " HIM",
+              " WITH",
+              " F",
+              "IF",
+              "TY",
+              " P",
+              "IE",
+              "CES",
+              " OF",
+              " GO",
+              "LD"
+            ]
+          }
+        ],
+        "rss_kib": 2629308,
+        "language_hints": "not supported by native AED"
+      },
+      {
+        "runtime": "1.13.2",
+        "model": "sherpa-onnx-fire-red-asr2-zh_en-int8-2026-02-26",
+        "load_seconds": 5.936640895000892,
+        "cases": [
+          {
+            "fixture": "codeswitch",
+            "duration": 1.59,
+            "text": "放进你的圈里里面",
+            "language": "",
+            "seconds": 5.761588262001169,
+            "tokens": [
+              "放",
+              "进",
+              "你",
+              "的",
+              "圈",
+              "里",
+              "里",
+              "面"
+            ]
+          }
+        ],
+        "rss_kib": 2319036
+      }
+    ],
+    "funasr": [
+      {
+        "runtime": "1.13.2",
+        "model": "sherpa-onnx-funasr-nano-int8-2025-12-30",
+        "load_seconds": 9.528918190000695,
+        "cases": [
+          {
+            "fixture": "zh",
+            "duration": 5.592,
+            "text": "开饭时间早上九点至下午五点。",
+            "language": "",
+            "seconds": 1.9627893360011512,
+            "tokens": [
+              "开",
+              "饭",
+              "时间",
+              "早上",
+              "九",
+              "点",
+              "至",
+              "下午",
+              "五",
+              "点",
+              "。"
+            ]
+          },
+          {
+            "fixture": "en",
+            "duration": 7.152,
+            "text": "The tribal chieftain called for the boy and presented him with fifty pieces of gold.",
+            "language": "",
+            "seconds": 2.5773628859969904,
+            "tokens": [
+              "The",
+              " tribal",
+              " ch",
+              "ie",
+              "ft",
+              "ain",
+              " called",
+              " for",
+              " the",
+              " boy",
+              " and",
+              " presented",
+              " him",
+              " with",
+              " fifty",
+              " pieces",
+              " of",
+              " gold",
+              "."
+            ]
+          },
+          {
+            "fixture": "codeswitch",
+            "duration": 1.59,
+            "text": "放进你的TRAINING里面。",
+            "language": "",
+            "seconds": 0.762301517999731,
+            "tokens": [
+              "放进",
+              "你的",
+              "TRAIN",
+              "ING",
+              "里面",
+              "。"
+            ]
+          }
+        ],
+        "rss_kib": 1786000,
+        "language_hints": "auto; max_new_tokens=256, itn=true"
+      }
+    ],
+    "breeze25": [
+      {
+        "model": "Breeze-ASR-25-Q5_0",
+        "whisper_commit": "23ee03506a91ac3d3f0071b40e66a430eebdfa1d",
+        "backend": "host CPU, same greedy parameters as app JNI",
+        "cases": [
+          {
+            "fixture": "zh",
+            "exit": 0,
+            "seconds": 139.15014411100128,
+            "text": "開放時間早上 9 點至下午 5 點"
+          },
+          {
+            "fixture": "en",
+            "exit": 0,
+            "seconds": 149.98912321600073,
+            "text": "The tribal chieftain called for the boy and presented him with fifty pieces of gold."
+          }
+        ],
+        "peak_child_rss_kib": 1519492,
+        "language_hints": {
+          "zh": "zh with existing JNI initial prompt",
+          "en": "auto"
+        }
+      },
+      {
+        "fixture": "codeswitch",
+        "language_hint": "auto",
+        "exit": 0,
+        "seconds": 186.76248646000022,
+        "text": "放進你的 training 裡面",
+        "rss_kib": 1518740
+      }
+    ],
+    "whisper_large_v3": [
+      {
+        "runtime": "whisper.cpp 23ee03506a91ac3d3f0071b40e66a430eebdfa1d",
+        "threads": 2,
+        "cases": [
+          {
+            "fixture": "zh",
+            "exit": 0,
+            "seconds": 137.3742011430004,
+            "text": "開放時間早上九點至下午五點"
+          },
+          {
+            "fixture": "en",
+            "exit": 0,
+            "seconds": 203.62544348100346,
+            "text": " The tribal chieftain called for the boy and presented him with fifty pieces of gold."
+          },
+          {
+            "fixture": "codeswitch",
+            "exit": 0,
+            "seconds": 145.79685542700463,
+            "text": "放进你的圈里面"
+          }
+        ],
+        "rss_kib": 1522528,
+        "language_hints": "auto for all fixtures"
+      }
+    ],
+    "sensevoice_retained_baseline": [
+      {
+        "fixture": "codeswitch",
+        "duration": 1.59,
+        "text": "放进你的圈利里面。",
+        "language": "<|zh|>",
+        "seconds": 0.09484553399670403,
+        "runtime": "1.13.2"
+      }
+    ]
+  }
+}

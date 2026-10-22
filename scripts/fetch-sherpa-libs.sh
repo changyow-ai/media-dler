@@ -2,7 +2,7 @@
 # Fetch the sherpa-onnx prebuilt Android native libs (libsherpa-onnx-jni.so + libonnxruntime.so)
 # and drop them into app/src/main/jniLibs/<abi>/. These are NOT committed to git (see .gitignore);
 # run this once after cloning (and after bumping SHERPA_VERSION) so the on-device sherpa engine
-# (SenseVoice / Paraformer / Qwen3) has its runtime libraries.
+# (SenseVoice / Paraformer / Qwen3 / FireRedASR2 / Fun-ASR-Nano) has its runtime libraries.
 #
 # The Kotlin API for sherpa-onnx is vendored under app/src/main/java/com/k2fsa/sherpa/onnx/ and is
 # pinned to the same SHERPA_VERSION — bump both together.

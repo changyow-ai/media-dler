@@ -6,6 +6,7 @@ import com.changyow.mediadler.core.model.OnDeviceBackend
 import com.changyow.mediadler.core.model.TranscribeModel
 import com.changyow.mediadler.core.repo.SettingsRepository
 import com.changyow.mediadler.core.transcribe.BoundedAudioWindows
+import com.changyow.mediadler.core.transcribe.InferenceSlices
 import com.changyow.mediadler.core.transcribe.SegmentMerge
 import com.changyow.mediadler.core.transcribe.PcmSignal
 import com.changyow.mediadler.core.transcribe.Transcript
@@ -17,13 +18,14 @@ import kotlinx.coroutines.withContext
 
 /**
  * On-device [StreamingEngine] backed by sherpa-onnx (ONNX Runtime, JNI). Handles the sherpa-backed
- * models — SenseVoice / Paraformer (non-autoregressive, strong + fast on Chinese) and Qwen3-ASR
- * (autoregressive, high-quality but heavy). Pipeline mirrors [WhisperCppEngine]: ensure model →
+ * models, including bounded-context FireRedASR2 AED / Fun-ASR-Nano / Qwen3-ASR.
+ * Pipeline mirrors [WhisperCppEngine]: ensure model →
  * window the audio (~60 s windows = resume checkpoints) → decode each window's 16 kHz mono float PCM
  * via OfflineRecognizer → merge overlaps → normalise Chinese to 正體.
  *
- * Unlike whisper there is no within-window progress callback (these models decode a whole window in
- * one shot), so progress advances per window — fine because they are fast. The model is read from
+ * Native decode has no abort callback. Bounded-context models check progress/cancellation between
+ * smaller inference slices; durable checkpoints stay at the original 60-second boundaries.
+ * The model is read from
  * [settings] per run, so a model change takes effect on the next job without rebuilding the engine.
  */
 class SherpaOnnxEngine(
@@ -77,7 +79,8 @@ class SherpaOnnxEngine(
             val parts = ArrayList<String>()
             if (priorText.isNotBlank()) parts.add(priorText)
             // Paraformer is Chinese-only, so seed zh up front; SenseVoice fills from result.lang.
-            var detected: String? = knownLanguage ?: defaultLang(model)
+            var detected: String? = if (model == SherpaModel.FIRE_RED_ASR2) fireRedOutputLanguage(priorText)
+                else knownLanguage ?: defaultLang(model)
             var lastCompleted = effectiveStart
 
             // Diagnose empty PCM separately from a model finding no speech.
@@ -104,33 +107,56 @@ class SherpaOnnxEngine(
                     // SenseVoice/Whisper may hallucinate text on all-zero PCM. Do not use an
                     // energy threshold here: arbitrarily quiet real speech must still be decoded.
                     lastCompleted = index + 1
-                    onCheckpoint(lastCompleted, total, render(parts, detected), detected)
+                    onCheckpoint(lastCompleted, total, mergeSherpaTranscript(parts, detected), detected)
                     if (!decision.hasNext) break
                     index++
                     continue
                 }
 
-                // One-shot decode; reflect progress at window boundaries (no within-window callback).
-                onProgress(0.05f + 0.93f * windowFraction(index, 0f, total))
-                val stream = recognizer.createStream()
-                val text: String
-                val lang: String
-                try {
-                    stream.acceptWaveform(slice, AudioToPcm.TARGET_SAMPLE_RATE)
-                    recognizer.decode(stream)
-                    val r = recognizer.getResult(stream)
-                    text = r.text
-                    lang = r.lang
-                } finally {
-                    stream.release()
+                // Preserve checkpoint coordinates. SenseVoice/Paraformer still decode whole windows;
+                // the LLM exports cannot fit 60 seconds plus output in their fixed 512-token cache.
+                val ranges = InferenceSlices.plan(slice.size,
+                    model.inferenceSeconds * AudioToPcm.TARGET_SAMPLE_RATE,
+                    2 * AudioToPcm.TARGET_SAMPLE_RATE)
+                val windowParts = ArrayList<String>()
+                for ((partIndex, range) in ranges.withIndex()) {
+                    if (isCancelled()) {
+                        return@withContext result(parts, detected, lastCompleted, total, cancelled = true)
+                    }
+                    onProgress(0.05f + 0.93f * windowFraction(index,
+                        partIndex.toFloat() / ranges.size, total))
+                    val samples = if (ranges.size == 1) slice
+                        else slice.copyOfRange(range.start, range.endExclusive)
+                    if (PcmSignal.isDigitalSilence(samples)) continue
+                    val stream = recognizer.createStream()
+                    try {
+                        if (model == SherpaModel.QWEN3) {
+                            qwenLanguageHint(knownLanguage)?.let { stream.setOption("language", it) }
+                        }
+                        stream.acceptWaveform(samples, AudioToPcm.TARGET_SAMPLE_RATE)
+                        recognizer.decode(stream)
+                        val r = recognizer.getResult(stream)
+                        if (detected == null) detected = normalizeLang(r.lang)
+                        // AED has no LID output. Its bilingual Han output identifies Chinese script
+                        // for OpenCC, without labelling every English-only transcript as Chinese.
+                        if (detected == null && model == SherpaModel.FIRE_RED_ASR2) {
+                            detected = fireRedOutputLanguage(r.text)
+                        }
+                        windowParts.add(r.text)
+                    } finally {
+                        stream.release()
+                    }
+                    if (isCancelled()) {
+                        return@withContext result(parts, detected, lastCompleted, total, cancelled = true)
+                    }
+                    // Do not publish uncheckpointed slice text: TranscriptionManager.fail() persists
+                    // the last live text with completedWindows. Publishing here would make retry
+                    // append this window twice after a later inner slice fails.
                 }
-                if (isCancelled()) {
-                    return@withContext result(parts, detected, lastCompleted, total, cancelled = true)
-                }
-                if (detected == null) detected = normalizeLang(lang)
-                parts.add(text)
+                // A failed/cancelled inner slice never advances the durable checkpoint.
+                parts.add(mergeSherpaTranscript(windowParts, detected))
                 lastCompleted = index + 1
-                val merged = render(parts, detected)
+                val merged = mergeSherpaTranscript(parts, detected)
                 onPartial(merged)
                 onProgress(0.05f + 0.93f * windowFraction(index, 1f, total))
                 onCheckpoint(lastCompleted, total, merged, detected)
@@ -138,7 +164,7 @@ class SherpaOnnxEngine(
                 index++
             }
             onProgress(1f)
-            check(render(parts, detected).isNotBlank()) {
+            check(mergeSherpaTranscript(parts, detected).isNotBlank()) {
                 "音訊已解碼（最長視窗 $maxSliceSamples samples），但未辨識到語音。" +
                     "請確認影片有人聲，或選擇正確語言／其他模型後重試。"
             }
@@ -170,15 +196,11 @@ class SherpaOnnxEngine(
         total: Int,
         cancelled: Boolean,
     ): StreamResult = StreamResult(
-        transcript = Transcript(text = render(parts, language).trim(), detectedLanguage = language),
+        transcript = Transcript(text = mergeSherpaTranscript(parts, language).trim(), detectedLanguage = language),
         completedWindows = completed,
         totalWindows = total,
         cancelled = cancelled,
     )
-
-    /** Merges completed window parts (de-duplicating overlaps), then normalises Chinese to 正體. */
-    private fun render(parts: List<String>, language: String?): String =
-        OpenCcConverter.normalize(SegmentMerge.merge(parts), language)
 
     /** Global progress fraction for window [index] at [withinWindow] of its own work. */
     private fun windowFraction(index: Int, withinWindow: Float, total: Int): Float =
@@ -190,3 +212,7 @@ class SherpaOnnxEngine(
         const val OVERLAP_MS = 3_000L  // de-duplicated by SegmentMerge
     }
 }
+
+/** Match inner-slice and checkpoint seams in the same script before removing their overlap. */
+internal fun mergeSherpaTranscript(parts: List<String>, language: String?): String =
+    SegmentMerge.merge(parts.map { OpenCcConverter.normalize(it, language) })
