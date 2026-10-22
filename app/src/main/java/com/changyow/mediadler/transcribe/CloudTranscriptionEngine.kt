@@ -4,7 +4,9 @@ import android.content.Context
 import android.net.Uri
 import com.changyow.mediadler.core.model.CloudTranscribeConfig
 import com.changyow.mediadler.core.repo.SettingsRepository
+import com.changyow.mediadler.core.transcribe.BoundedAudioWindows
 import com.changyow.mediadler.core.transcribe.SegmentMerge
+import com.changyow.mediadler.core.transcribe.PcmSignal
 import com.changyow.mediadler.core.transcribe.Transcript
 import com.changyow.mediadler.core.transcribe.WindowPlanner
 import kotlinx.coroutines.Dispatchers
@@ -58,10 +60,11 @@ class CloudTranscriptionEngine(
         // over-cap (and OOM-prone) upload.
         val windowMs = if (config.compressAudio) COMPRESSED_WINDOW_MS else WAV_WINDOW_MS
         val durationMs = AudioToPcm.durationMs(context, uri)
-        val planned = durationMs?.let { WindowPlanner.plan(it, windowMs, OVERLAP_MS) }
-        val total = planned?.size ?: 0 // 0 ⇒ unknown duration (open-ended)
-        // Self-heal a poisoned checkpoint that points past the last window (see SherpaOnnxEngine).
-        val effectiveStart = if (planned != null && startWindow >= planned.size && priorText.isBlank()) 0 else startWindow
+        val windows = BoundedAudioWindows(durationMs, windowMs, OVERLAP_MS, AudioToPcm.TARGET_SAMPLE_RATE)
+        // A failed all-blank run has no transcript worth preserving. Restart it even when the
+        // source duration is unknown, otherwise an old checkpoint can keep skipping the only audio.
+        val effectiveStart = if (priorText.isBlank()) 0 else startWindow.coerceAtLeast(0)
+        var total = windows.totalAt(effectiveStart)
 
         val parts = ArrayList<String>()
         if (priorText.isNotBlank()) parts.add(priorText)
@@ -71,26 +74,27 @@ class CloudTranscriptionEngine(
         val scratch = File(context.cacheDir, "transcribe/cloud").apply { mkdirs() }
         try {
             var index = effectiveStart
-            while (planned == null || index < planned.size) {
+            while (true) {
                 if (isCancelled()) {
                     return@withContext result(parts, detected, lastCompleted, total, cancelled = true)
                 }
                 onProgress(fractionAt(index, total))
-                val window = planned?.get(index) ?: WindowPlanner.openWindow(index, windowMs, OVERLAP_MS)
-                // The final (or only) planned window decodes to natural EOF: the floored-to-ms endUs
-                // cutoff can race the last frames on short clips.
-                val decodeEndMs = if (planned != null && index == planned.lastIndex) Long.MAX_VALUE else window.endMs
-                val pcm = AudioToPcm.decodeRange(context, uri, window.startMs, decodeEndMs)
-                if (pcm.isEmpty()) {
-                    if (planned == null) break // unknown duration: empty slice = past end-of-stream
-                    // Don't advance the resume checkpoint past a window that should have held audio but
-                    // decoded empty (likely a decode failure) — persisting it makes a retry skip the
-                    // window forever (poisoned-checkpoint bug). Benign tail slivers still advance.
-                    val expectedMs = minOf(window.endMs, durationMs ?: window.endMs) - window.startMs
-                    if (expectedMs < EMPTY_WINDOW_SKIP_MS) {
-                        lastCompleted = index + 1
-                        onCheckpoint(lastCompleted, total, render(parts, detected), detected)
-                    }
+                val window = windows.windowAt(index)
+                // A full estimated tail is followed by another bounded window, not treated as EOF.
+                val pcm = AudioToPcm.decodeRange(context, uri, window.startMs, window.endMs)
+                val decision = windows.afterDecode(index, pcm.size)
+                check(decision.action != BoundedAudioWindows.Action.MISSING_EXPECTED_AUDIO) {
+                    "音訊解碼為空（視窗 $index），未跳過此段，請確認來源音軌後重試。"
+                }
+                // Do not infer or checkpoint a duplicate overlap-only tail / confirmed out-of-range EOF.
+                if (decision.action == BoundedAudioWindows.Action.END_OF_INPUT) break
+                total = decision.totalWindows
+                if (PcmSignal.isDigitalSilence(pcm)) {
+                    // SenseVoice/Whisper may hallucinate text on all-zero PCM. Do not use an
+                    // energy threshold here: arbitrarily quiet real speech must still be decoded.
+                    lastCompleted = index + 1
+                    onCheckpoint(lastCompleted, total, render(parts, detected), detected)
+                    if (!decision.hasNext) break
                     index++
                     continue
                 }
@@ -114,7 +118,11 @@ class CloudTranscriptionEngine(
                 onProgress(fractionAt(index + 1, total))
                 onPartial(merged)
                 onCheckpoint(lastCompleted, total, merged, detected)
+                if (!decision.hasNext) break
                 index++
+            }
+            check(render(parts, detected).isNotBlank()) {
+                "音訊已解碼，但未辨識到語音。請確認人聲或選擇正確語言／其他模型後重試。"
             }
             onProgress(1f)
             result(parts, detected, lastCompleted, maxOf(total, lastCompleted), cancelled = false)
@@ -249,7 +257,6 @@ class CloudTranscriptionEngine(
         // WAV: 5 min @ 16 kHz mono 16-bit ≈ 9.5 MB → ~12.5 MB once base64'd, safely under limits and
         // the upstream ~60 s timeout. Compressed (m4a) windows are ~1/5 the size, so they can run the
         // full default length without bloating the request body.
-        const val EMPTY_WINDOW_SKIP_MS = 3_000L // empties shorter than this are benign tail slivers
         const val WAV_WINDOW_MS = 5 * 60_000L
         const val COMPRESSED_WINDOW_MS = WindowPlanner.DEFAULT_WINDOW_MS
         const val OVERLAP_MS = WindowPlanner.DEFAULT_OVERLAP_MS

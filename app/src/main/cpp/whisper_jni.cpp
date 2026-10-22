@@ -47,6 +47,19 @@ static void segment_bridge(struct whisper_context* ctx, struct whisper_state*, i
     }
 }
 
+// Empty text can mean no speech; native failures must remain failures so the caller does not
+// checkpoint a missing window or publish a partial transcript as a complete success.
+static jstring fail_transcription(JNIEnv* env, const std::string& message) {
+    if (!env->ExceptionCheck()) {
+        jclass exception = env->FindClass("java/lang/IllegalStateException");
+        if (exception != nullptr) {
+            env->ThrowNew(exception, message.c_str());
+            env->DeleteLocalRef(exception);
+        }
+    }
+    return nullptr;
+}
+
 extern "C" {
 
 JNIEXPORT jlong JNICALL
@@ -73,10 +86,11 @@ Java_com_changyow_mediadler_transcribe_WhisperNative_nativeFullTranscribe(
         JNIEnv* env, jobject, jlong ptr, jfloatArray samples, jstring language, jint threads,
         jobject callback) {
     auto* ctx = reinterpret_cast<whisper_context*>(ptr);
-    if (ctx == nullptr) return env->NewStringUTF("");
+    if (ctx == nullptr) return fail_transcription(env, "whisper context is not initialized");
 
     const jsize n = env->GetArrayLength(samples);
     jfloat* data = env->GetFloatArrayElements(samples, nullptr);
+    if (data == nullptr) return nullptr; // Preserve the pending allocation exception.
 
     whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
     params.n_threads       = threads > 0 ? threads : 4;
@@ -135,8 +149,9 @@ Java_com_changyow_mediadler_transcribe_WhisperNative_nativeFullTranscribe(
     env->ReleaseFloatArrayElements(samples, data, JNI_ABORT);
     if (rc != 0) {
         LOGE("whisper_full failed rc=%d", rc);
-        return env->NewStringUTF("");
+        return fail_transcription(env, "whisper transcription failed (code " + std::to_string(rc) + ")");
     }
+    if (env->ExceptionCheck()) return nullptr;
 
     std::string out;
     const int nseg = whisper_full_n_segments(ctx);

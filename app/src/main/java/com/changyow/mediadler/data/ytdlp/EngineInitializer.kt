@@ -1,6 +1,7 @@
 package com.changyow.mediadler.data.ytdlp
 
 import android.app.Application
+import com.changyow.mediadler.core.transcribe.FfmpegPcm
 import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
@@ -208,6 +209,23 @@ class EngineInitializer(private val application: Application) {
             // executeNative has acknowledged native exit before any staged files are removed.
             files.directory.deleteRecursively()
             throw error
+        }
+    }
+
+    /**
+     * Decodes a local audio window with the already-bundled FFmpeg, bypassing platform extractor and
+     * codec bugs. The caller owns the temporary output, timeout, and bounded PCM read. Native process
+     * supervision retains ownership until cancellation has stopped FFmpeg and its output readers.
+     */
+    suspend fun decodeAudioRange(input: File, output: File, startMs: Long, endMs: Long) {
+        require(input.isFile && input.canRead()) { "無法讀取轉錄音訊" }
+        require(output.parentFile?.isDirectory == true) { "PCM 暫存目錄不存在" }
+        val arguments = FfmpegPcm.arguments(input, output, startMs, endMs)
+        executeNative { paths, process ->
+            check(paths.ffmpeg.canExecute()) { "音訊解碼引擎不完整" }
+            // No shell and no interpolated code: source/output paths are positional arguments.
+            process.execute(listOf("-c", "import os, sys; os.execv(sys.argv[1], sys.argv[1:])",
+                paths.ffmpeg.absolutePath) + arguments) {}
         }
     }
 

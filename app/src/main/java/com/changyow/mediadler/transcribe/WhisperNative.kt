@@ -29,7 +29,7 @@ object WhisperNative {
     /**
      * Transcribes 16 kHz mono float PCM in [samples]. [language] is an ISO code or "auto".
      * [callback] (nullable) streams per-segment text and progress. Returns the concatenated
-     * segment text (empty on failure).
+     * segment text (empty when no speech is recognized). Native failures throw an exception.
      */
     external fun nativeFullTranscribe(
         ptr: Long,

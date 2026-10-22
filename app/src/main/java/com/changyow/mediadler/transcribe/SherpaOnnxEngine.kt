@@ -2,13 +2,13 @@ package com.changyow.mediadler.transcribe
 
 import android.content.Context
 import android.net.Uri
-import android.util.Log
 import com.changyow.mediadler.core.model.OnDeviceBackend
 import com.changyow.mediadler.core.model.TranscribeModel
 import com.changyow.mediadler.core.repo.SettingsRepository
+import com.changyow.mediadler.core.transcribe.BoundedAudioWindows
 import com.changyow.mediadler.core.transcribe.SegmentMerge
+import com.changyow.mediadler.core.transcribe.PcmSignal
 import com.changyow.mediadler.core.transcribe.Transcript
-import com.changyow.mediadler.core.transcribe.WindowPlanner
 import com.changyow.mediadler.util.NetworkStatus
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import kotlinx.coroutines.Dispatchers
@@ -63,13 +63,11 @@ class SherpaOnnxEngine(
         // Plan windows from container duration so PCM is decoded one window at a time (bounded memory).
         // Unknown duration ⇒ stream open-ended windows, stopping at the first empty slice.
         val durationMs = AudioToPcm.durationMs(context, uri)
-        val planned = durationMs?.let { WindowPlanner.plan(it, WINDOW_MS, OVERLAP_MS) }
-        val total = planned?.size ?: 0
-        // Self-heal a poisoned checkpoint: an earlier failure may have advanced completedWindows to/past
-        // the window count (e.g. an empty-decode window wrongly checkpointed), so a resume would begin
-        // beyond the last window and process nothing — a baffling "0 samples" empty. With no prior text
-        // to preserve, restart from 0 rather than skipping the whole clip.
-        val effectiveStart = if (planned != null && startWindow >= planned.size && priorText.isBlank()) 0 else startWindow
+        val windows = BoundedAudioWindows(durationMs, WINDOW_MS, OVERLAP_MS, AudioToPcm.TARGET_SAMPLE_RATE)
+        // A failed all-blank run has no transcript worth preserving. Restart it even when the
+        // source duration is unknown, otherwise an old checkpoint can keep skipping the only audio.
+        val effectiveStart = if (priorText.isBlank()) 0 else startWindow.coerceAtLeast(0)
+        var total = windows.totalAt(effectiveStart)
 
         val recognizer = OfflineRecognizer(
             assetManager = null,
@@ -82,49 +80,35 @@ class SherpaOnnxEngine(
             var detected: String? = knownLanguage ?: defaultLang(model)
             var lastCompleted = effectiveStart
 
-            // On-device decode telemetry: when a window that should hold real audio (≥ EMPTY_DIAG_MIN_MS
-            // of expected content) decodes to an empty slice, record a one-line dump. Surfaced in the
-            // failure message below so the bug is debuggable where logcat isn't (e.g. locked-down S23U).
-            val emptyDiag = StringBuilder()
+            // Diagnose empty PCM separately from a model finding no speech.
             var maxSliceSamples = 0
 
             var index = effectiveStart
-            while (planned == null || index < planned.size) {
+            while (true) {
                 if (isCancelled()) {
                     return@withContext result(parts, detected, lastCompleted, total, cancelled = true)
                 }
-                val window = planned?.get(index) ?: WindowPlanner.openWindow(index, WINDOW_MS, OVERLAP_MS)
+                val window = windows.windowAt(index)
                 val stats = AudioToPcm.DecodeStats()
-                // For the final (or only) planned window, decode to natural EOF instead of the exact
-                // window end: the floored-to-ms endUs cutoff can race the last frames on short clips.
-                val decodeEndMs = if (planned != null && index == planned.lastIndex) Long.MAX_VALUE else window.endMs
-                val slice = AudioToPcm.decodeRange(context, uri, window.startMs, decodeEndMs, stats)
-                if (slice.isEmpty()) {
-                    // A window that should contain audio but decoded empty is the symptom of a
-                    // device-specific decode failure; capture details (benign tail slivers < the
-                    // threshold are skipped quietly as before).
-                    val expectedMs = minOf(window.endMs, durationMs ?: window.endMs) - window.startMs
-                    val suspicious = expectedMs >= EMPTY_DIAG_MIN_MS
-                    if (suspicious) {
-                        emptyDiag.append(
-                            "• win=$index [${window.startMs}–${window.endMs}ms] 預期≈${expectedMs / 1000}s 卻空 → " +
-                                "${stats.summary()}\n",
-                        )
-                    }
-                    if (planned == null) break // unknown duration: empty slice = past end-of-stream
-                    // Don't advance the resume checkpoint past a window that should have held audio but
-                    // decoded empty (a likely decode failure): persisting it makes a retry skip the
-                    // window and never recover — the poisoned-checkpoint bug that silently masked every
-                    // earlier decode fix. Benign tail slivers (< threshold) still advance so a silent
-                    // end doesn't re-decode on every resume.
-                    if (!suspicious) {
-                        lastCompleted = index + 1
-                        onCheckpoint(lastCompleted, total, render(parts, detected), detected)
-                    }
+                // A full estimated tail is followed by another bounded window, not treated as EOF.
+                val slice = AudioToPcm.decodeRange(context, uri, window.startMs, window.endMs, stats)
+                val decision = windows.afterDecode(index, slice.size)
+                check(decision.action != BoundedAudioWindows.Action.MISSING_EXPECTED_AUDIO) {
+                    "音訊解碼為空（視窗 $index），未跳過此段，請確認來源音軌後重試。\n${stats.summary()}"
+                }
+                // Do not infer or checkpoint a duplicate overlap-only tail / confirmed out-of-range EOF.
+                if (decision.action == BoundedAudioWindows.Action.END_OF_INPUT) break
+                total = decision.totalWindows
+                maxSliceSamples = maxOf(maxSliceSamples, slice.size)
+                if (PcmSignal.isDigitalSilence(slice)) {
+                    // SenseVoice/Whisper may hallucinate text on all-zero PCM. Do not use an
+                    // energy threshold here: arbitrarily quiet real speech must still be decoded.
+                    lastCompleted = index + 1
+                    onCheckpoint(lastCompleted, total, render(parts, detected), detected)
+                    if (!decision.hasNext) break
                     index++
                     continue
                 }
-                maxSliceSamples = maxOf(maxSliceSamples, slice.size)
 
                 // One-shot decode; reflect progress at window boundaries (no within-window callback).
                 onProgress(0.05f + 0.93f * windowFraction(index, 0f, total))
@@ -140,14 +124,6 @@ class SherpaOnnxEngine(
                 } finally {
                     stream.release()
                 }
-                // TEMP DEBUG: raw sherpa output before merge/OpenCC. Remove before release.
-                Log.d(
-                    "SherpaDbg",
-                    "model=$model win=$index slice=${slice.size} samples (${slice.size / AudioToPcm.TARGET_SAMPLE_RATE}s) " +
-                        "svLang='${senseVoiceLanguageHint(knownLanguage)}' knownLang=$knownLanguage " +
-                        "=> rawText='${text}' rawLang='${lang}' textLen=${text.length}",
-                )
-
                 if (isCancelled()) {
                     return@withContext result(parts, detected, lastCompleted, total, cancelled = true)
                 }
@@ -158,32 +134,17 @@ class SherpaOnnxEngine(
                 onPartial(merged)
                 onProgress(0.05f + 0.93f * windowFraction(index, 1f, total))
                 onCheckpoint(lastCompleted, total, merged, detected)
+                if (!decision.hasNext) break
                 index++
             }
             onProgress(1f)
-            // Empty final transcript: surface an actionable diagnostic instead of silently saving a
-            // blank "success", so the decode-empty vs model-empty split is visible on-device.
-            if (render(parts, detected).isBlank()) {
-                error(
-                    emptyResultMessage(emptyDiag, maxSliceSamples) +
-                        "\n[start=$startWindow→$effectiveStart planned=${planned?.size ?: -1} dur=${durationMs}ms]",
-                )
+            check(render(parts, detected).isNotBlank()) {
+                "音訊已解碼（最長視窗 $maxSliceSamples samples），但未辨識到語音。" +
+                    "請確認影片有人聲，或選擇正確語言／其他模型後重試。"
             }
             result(parts, detected, lastCompleted, maxOf(total, lastCompleted), cancelled = false)
         } finally {
             recognizer.release()
-        }
-    }
-
-    /** Builds the on-device failure message for an empty transcript (decode-empty vs model-empty). */
-    private fun emptyResultMessage(emptyDiag: StringBuilder, maxSliceSamples: Int): String = buildString {
-        append("轉錄結果為空。")
-        if (emptyDiag.isNotEmpty()) {
-            append("偵測到應有聲音卻解碼為空的視窗（疑似裝置解碼層）：\n")
-            append(emptyDiag)
-        } else {
-            val secs = maxSliceSamples / AudioToPcm.TARGET_SAMPLE_RATE
-            append("音訊已解碼（最長視窗 $maxSliceSamples samples ≈ ${secs}s）但模型輸出為空（疑似模型／ONNX 層）。")
         }
     }
 
@@ -227,6 +188,5 @@ class SherpaOnnxEngine(
     private companion object {
         const val WINDOW_MS = 60_000L  // checkpoint/resume granularity
         const val OVERLAP_MS = 3_000L  // de-duplicated by SegmentMerge
-        const val EMPTY_DIAG_MIN_MS = 3_000L // below this, an empty slice is a benign tail sliver
     }
 }

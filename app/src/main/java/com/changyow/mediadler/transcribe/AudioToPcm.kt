@@ -5,6 +5,15 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
+import android.os.SystemClock
+import com.changyow.mediadler.appContainer
+import com.changyow.mediadler.core.transcribe.AudioDecodeFallback
+import com.changyow.mediadler.core.transcribe.FfmpegPcm
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withTimeoutOrNull
+import java.io.File
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -12,8 +21,9 @@ import java.nio.ByteOrder
 
 /**
  * Decodes any container/codec Android can read (mp4/m4a/aac/opus/mp3/…) into 16 kHz mono float PCM
- * for whisper, using the platform [MediaExtractor]/[MediaCodec] — no ffmpeg dependency. Downmix to
- * mono and linear-resample to 16 kHz happen here.
+ * for ASR. The normal path uses [MediaExtractor]/[MediaCodec]; an empty result or decoder error
+ * retries the same range with the FFmpeg runtime already bundled for downloads, entirely offline.
+ * Silence is nonempty PCM and does not trigger a retry.
  *
  * To keep memory bounded for hour-long audio, the engine decodes one **time window** at a time via
  * [decodeRange] (a 60 s window of 16 kHz mono float is ~3.8 MB, vs ~230 MB for a whole hour). Each
@@ -57,6 +67,24 @@ object AudioToPcm {
         endMs: Long,
         stats: DecodeStats? = null,
     ): FloatArray = withContext(Dispatchers.IO) {
+        require(startMs >= 0 && endMs > startMs) { "invalid audio range [$startMs, $endMs)" }
+        AudioDecodeFallback.decode(
+            primary = { decodePlatformRange(context, uri, startMs, endMs, stats) },
+            fallback = {
+                stats?.fallbackUsed = true
+                decodeWithFfmpeg(context, uri, startMs, endMs).also { stats?.fallbackSamples = it.size }
+            },
+        )
+    }
+
+    /** Kept separate so platform resources are released before the independent decoder starts. */
+    private suspend fun decodePlatformRange(
+        context: Context,
+        uri: Uri,
+        startMs: Long,
+        endMs: Long,
+        stats: DecodeStats?,
+    ): FloatArray {
         val extractor = MediaExtractor()
         try {
             extractor.setDataSource(context, uri, null)
@@ -85,25 +113,62 @@ object AudioToPcm {
                 }
                 hasCsd0 = inputFormat.containsKey("csd-0")
             }
-            // Position the read cursor robustly. Some devices' MediaExtractor mishandle an AAC-priming
-            // edit list (elst media_time>0, written by every yt-dlp/ffmpeg m4a) and report NO samples at
-            // the unseeked initial position — the S23U fed=0 / sampleTime=-1 empty-decode case. Try the
-            // default cursor first, then explicit seeks, and record which one actually yields a sample.
+            // A reported S23U failure fed no packets. Retry positioning without assuming its cause
+            // is the model or the container edit list. Presence is determined by the track index:
+            // negative timestamps can be valid decoder pre-roll, not necessarily end-of-stream.
             positionExtractor(extractor, startMs, startUs, stats)
 
             val codec = MediaCodec.createDecoderByType(mime)
-            codec.configure(inputFormat, null, null, 0)
-            codec.start()
-            stats?.codecName = runCatching { codec.name }.getOrDefault("?")
             try {
+                codec.configure(inputFormat, null, null, 0)
+                codec.start()
+                stats?.codecName = runCatching { codec.name }.getOrDefault("?")
                 val decoded = drainToMonoFloat(extractor, codec, inputFormat, startUs, endUs, stats)
-                resampleTo16k(decoded.samples, decoded.sampleRate)
+                return resampleTo16k(decoded.samples, decoded.sampleRate)
             } finally {
                 runCatching { codec.stop() }
                 codec.release()
             }
         } finally {
             extractor.release()
+        }
+    }
+
+    /** Decode local files only; content URI grants are used through ContentResolver, never sent out. */
+    private suspend fun decodeWithFfmpeg(context: Context, uri: Uri, startMs: Long, endMs: Long): FloatArray {
+        val scratch = File(context.cacheDir, "transcribe/pcm-${UUID.randomUUID()}")
+        check(scratch.mkdirs()) { "無法建立音訊解碼暫存目錄" }
+        try {
+            val input = when (uri.scheme) {
+                null, "file" -> File(requireNotNull(uri.path) { "missing audio file path" })
+                "content" -> File(scratch, "input").also { copy ->
+                    context.contentResolver.openInputStream(uri).use { source ->
+                        requireNotNull(source) { "無法讀取音訊" }
+                        copy.outputStream().use { output ->
+                            val buffer = ByteArray(64 * 1024)
+                            while (true) {
+                                currentCoroutineContext().ensureActive()
+                                val count = source.read(buffer)
+                                if (count < 0) break
+                                output.write(buffer, 0, count)
+                            }
+                        }
+                    }
+                }
+                else -> error("音訊解碼只接受本機檔案")
+            }
+            val output = File(scratch, "audio.pcm")
+            val decoded = withTimeoutOrNull(180_000L) {
+                context.appContainer.engine.decodeAudioRange(input, output, startMs, endMs)
+                true
+            }
+            check(decoded == true) { "音訊解碼逾時，已保留輸入檔案，請重試。" }
+            val maxSamples = if (endMs == Long.MAX_VALUE) FfmpegPcm.MAX_EOF_SAMPLES else
+                ((endMs - startMs) * TARGET_SAMPLE_RATE / 1000 + TARGET_SAMPLE_RATE)
+                    .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+            return FfmpegPcm.read(output, maxSamples)
+        } finally {
+            scratch.deleteRecursively()
         }
     }
 
@@ -117,38 +182,31 @@ object AudioToPcm {
      * unseeked cursor first (keeps the working path unchanged for normal files), then explicit seeks
      * with each sync mode, stopping at the first that exposes a real sample. The chosen strategy and
      * the resulting [MediaExtractor.getSampleTime] are recorded so a single on-device failure makes
-     * the edit-list positioning bug fully diagnosable without logcat.
+     * a positioning failure diagnosable without logcat.
      */
     private fun positionExtractor(extractor: MediaExtractor, startMs: Long, startUs: Long, stats: DecodeStats?) {
         // Unseeked cursor — only valid as a strategy at the very start (no seek was requested).
-        if (startMs == 0L && extractor.sampleTime >= 0) {
+        if (startMs == 0L && extractor.sampleTrackIndex >= 0) {
             stats?.let { it.seekStrategy = "none"; it.firstSampleTimeUs = extractor.sampleTime }
             return
         }
+        // Decode pre-roll and trim it rather than jumping past the first samples of the range.
         val modes = listOf(
-            "closest" to MediaExtractor.SEEK_TO_CLOSEST_SYNC,
             "prev" to MediaExtractor.SEEK_TO_PREVIOUS_SYNC,
+            "closest" to MediaExtractor.SEEK_TO_CLOSEST_SYNC,
             "next" to MediaExtractor.SEEK_TO_NEXT_SYNC,
         )
         for ((name, mode) in modes) {
             extractor.seekTo(startUs, mode)
             val t = extractor.sampleTime
-            if (t >= 0) {
+            if (extractor.sampleTrackIndex >= 0) {
                 stats?.let { it.seekStrategy = name; it.firstSampleTimeUs = t }
                 return
             }
         }
-        // Last resort at the file head: if the edit list makes time 0 unreachable, seek just past the
-        // priming region. Costs ~50 ms of leading audio (inaudible for transcription) but recovers a
-        // file that would otherwise decode to nothing.
-        if (startMs == 0L) {
-            extractor.seekTo(50_000L, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
-            val t = extractor.sampleTime
-            if (t >= 0) {
-                stats?.let { it.seekStrategy = "skip50ms"; it.firstSampleTimeUs = t }
-                return
-            }
-        }
+        // Do not skip the first 50 ms to coax this extractor into producing samples: that can
+        // discard the only consonant in a very short utterance. The independent decoder retries
+        // the original full range instead.
         // Nothing exposed a sample; leave the cursor where the last seek left it and let the loop
         // report the empty decode. firstSampleTimeUs stays at the sentinel so the dump shows "no sample".
         stats?.seekStrategy = "none-worked"
@@ -192,6 +250,8 @@ object AudioToPcm {
         var hasCsd0: Boolean = false
         var seekStrategy: String = "?"
         var firstSampleTimeUs: Long = Long.MIN_VALUE
+        var fallbackUsed: Boolean = false
+        var fallbackSamples: Int = 0
 
         fun summary(): String =
             "codec=$codecName mime=$inputMime in=${inputSampleRate}Hz/${inputChannels}ch " +
@@ -200,7 +260,7 @@ object AudioToPcm {
                 "seek=$seekStrategy firstSample=${firstSampleTimeUs}us " +
                 "fed=${inputBuffersFed}buf/${inputBytesFed}B outBuf=$outputBuffers rawBytes=$rawBytes " +
                 "outPts=$firstOutPtsUs..${lastOutPtsUs}us inEos=$sawInputEos outEos=$sawOutputEos " +
-                "eosBeforeData=$eosOutputBeforeData"
+                "eosBeforeData=$eosOutputBeforeData ffmpeg=$fallbackUsed/$fallbackSamples samples"
     }
 
     /**
@@ -209,7 +269,7 @@ object AudioToPcm {
      * are trimmed: SEEK_TO_CLOSEST_SYNC can land seconds before the requested window start, and
      * keeping that pre-roll would inflate the inter-window overlap beyond what [SegmentMerge] dedups.
      */
-    private fun drainToMonoFloat(
+    private suspend fun drainToMonoFloat(
         extractor: MediaExtractor,
         codec: MediaCodec,
         inputFormat: MediaFormat,
@@ -226,35 +286,41 @@ object AudioToPcm {
         var pcmEncoding = inputFormat.getIntegerOrDefault(MediaFormat.KEY_PCM_ENCODING, ENCODING_PCM_16BIT)
         val timeoutUs = 10_000L
 
+        var lastActivityMs = SystemClock.elapsedRealtime()
         while (!sawOutputEos) {
+            currentCoroutineContext().ensureActive()
+            check(SystemClock.elapsedRealtime() - lastActivityMs < 30_000L) {
+                "音訊解碼器逾時，重試其他解碼器"
+            }
             if (!sawInputEos) {
                 val inIndex = codec.dequeueInputBuffer(timeoutUs)
                 if (inIndex >= 0) {
                     val sampleTime = extractor.sampleTime
                     // Stop feeding once we've passed the requested span; flush with EOS.
-                    if (sampleTime < 0 || (endUs != Long.MAX_VALUE && sampleTime >= endUs)) {
+                    if (extractor.sampleTrackIndex < 0 || (endUs != Long.MAX_VALUE && sampleTime >= endUs)) {
                         // No data was queued for this span (empty window); send a bare EOS to drain.
                         codec.queueInputBuffer(inIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
                         sawInputEos = true
                         stats?.sawInputEos = true
                     } else {
-                        val inBuf = codec.getInputBuffer(inIndex)!!
+                        val inBuf = codec.getInputBuffer(inIndex)!!.also { it.clear() }
                         val size = extractor.readSampleData(inBuf, 0)
                         if (size < 0) {
                             codec.queueInputBuffer(inIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
                             sawInputEos = true
                             stats?.sawInputEos = true
                         } else {
-                            extractor.advance()
+                            val hasNext = extractor.advance()
                             // Look ahead: if the next sample is past the span (or EOF), THIS is the last
                             // data buffer, so carry the EOS flag on it instead of queuing a separate
                             // zero-size EOS buffer. Some decoders (notably Samsung) don't flush pending
                             // output on a bare EOS buffer, which strands the whole transcript for short
                             // clips where every frame is still buffered when EOS arrives.
                             val nextTime = extractor.sampleTime
-                            val isLast = nextTime < 0 || (endUs != Long.MAX_VALUE && nextTime >= endUs)
+                            val isLast = !hasNext || (endUs != Long.MAX_VALUE && nextTime >= endUs)
                             val flags = if (isLast) MediaCodec.BUFFER_FLAG_END_OF_STREAM else 0
                             codec.queueInputBuffer(inIndex, 0, size, sampleTime, flags)
+                            lastActivityMs = SystemClock.elapsedRealtime()
                             stats?.let { it.inputBuffersFed++; it.inputBytesFed += size }
                             if (isLast) {
                                 sawInputEos = true
@@ -268,6 +334,7 @@ object AudioToPcm {
             val outIndex = codec.dequeueOutputBuffer(info, timeoutUs)
             when {
                 outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                    lastActivityMs = SystemClock.elapsedRealtime()
                     val f = codec.outputFormat
                     sampleRate = f.getIntegerOrDefault(MediaFormat.KEY_SAMPLE_RATE, sampleRate)
                     channels = f.getIntegerOrDefault(MediaFormat.KEY_CHANNEL_COUNT, channels)
@@ -275,18 +342,24 @@ object AudioToPcm {
                     stats?.formatChanged = true
                 }
                 outIndex >= 0 -> {
+                    lastActivityMs = SystemClock.elapsedRealtime()
                     val outBuf = codec.getOutputBuffer(outIndex)!!
                     if (info.size > 0) {
                         // Drop pre-roll decoded before the requested window start (seek slop).
                         val bytesPerFrame = channels.coerceAtLeast(1) * bytesPerSample(pcmEncoding)
-                        val skip = if (startUs > 0 && info.presentationTimeUs < startUs && bytesPerFrame > 0) {
+                        val skip = if (info.presentationTimeUs < startUs && bytesPerFrame > 0) {
                             val framesAhead = (startUs - info.presentationTimeUs) * sampleRate / 1_000_000L
                             (framesAhead * bytesPerFrame).coerceIn(0L, info.size.toLong()).toInt()
                         } else {
                             0
                         }
-                        if (skip < info.size) {
-                            val len = info.size - skip
+                        val available = if (endUs != Long.MAX_VALUE) {
+                            val framesBeforeEnd = ((endUs - info.presentationTimeUs).coerceAtLeast(0L) *
+                                sampleRate / 1_000_000L)
+                            (framesBeforeEnd * bytesPerFrame).coerceAtMost(info.size.toLong()).toInt()
+                        } else info.size
+                        if (skip < available) {
+                            val len = available - skip
                             val chunk = ByteArray(len)
                             outBuf.position(info.offset + skip)
                             outBuf.get(chunk, 0, len)
@@ -326,6 +399,9 @@ object AudioToPcm {
 
     /** Interleaved PCM bytes → mono float in [-1, 1]. Supports 16-bit int and float PCM. */
     private fun toMonoFloat(bytes: ByteArray, channels: Int, pcmEncoding: Int): FloatArray {
+        require(pcmEncoding == ENCODING_PCM_16BIT || pcmEncoding == ENCODING_PCM_FLOAT) {
+            "unsupported PCM encoding: $pcmEncoding"
+        }
         val ch = channels.coerceAtLeast(1)
         val bb = java.nio.ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
         return when (pcmEncoding) {

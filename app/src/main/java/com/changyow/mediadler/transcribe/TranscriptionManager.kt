@@ -91,7 +91,14 @@ class TranscriptionManager(
                 id = id, sourceUri = sourceUri, isUrl = isUrl, label = label,
                 status = TranscriptStatus.QUEUED, createdAt = now,
             )
-            existing.status == TranscriptStatus.COMPLETED -> return id // show existing result
+            existing.status == TranscriptStatus.COMPLETED && existing.text.isNotBlank() -> return id
+            // Older versions marked empty decoder/model output COMPLETED and removed its input.
+            // A fresh share supplies a readable source; do not keep returning that blank result.
+            existing.status == TranscriptStatus.COMPLETED -> existing.copy(
+                sourceUri = sourceUri, status = TranscriptStatus.QUEUED, progress = 0f, text = "",
+                completedWindows = 0, totalWindows = 0, language = null, error = null,
+                seen = false, createdAt = now,
+            )
             existing.status == TranscriptStatus.RUNNING ||
                 existing.status == TranscriptStatus.QUEUED -> return id // already in flight
             // FAILED resumes from its checkpoint; CANCELLED restarts clean.
@@ -167,6 +174,8 @@ class TranscriptionManager(
     }
 
     fun complete(id: String, text: String, language: String?) {
+        // All paths, including embedded captions, must preserve the input on an empty result.
+        check(text.isNotBlank()) { "未辨識到語音，已保留輸入檔案供重試。" }
         // Finished in the foreground ⇒ the user was watching it stream, so treat it as already seen
         // and don't auto-open it next launch. Finished in the background ⇒ leave it unseen so launch
         // surfaces it as a reminder.

@@ -49,7 +49,7 @@ enum class TranscribeModel(val label: String, val backend: OnDeviceBackend) {
     SMALL("small（較準）", OnDeviceBackend.WHISPER_CPP),
     TURBO_Q5("large-v3-turbo 量化（更準）", OnDeviceBackend.WHISPER_CPP),
     SENSE_VOICE("SenseVoice（中文快又準）", OnDeviceBackend.SHERPA),
-    PARAFORMER("Paraformer（純中文最準）", OnDeviceBackend.SHERPA),
+    PARAFORMER("Paraformer（川渝方言）", OnDeviceBackend.SHERPA),
     QWEN3("Qwen3-ASR（實驗 · 大 · 較慢）", OnDeviceBackend.SHERPA),
 }
 
