@@ -49,6 +49,11 @@ def features(commercial=False, valid=True):
             for t in (1, 2, 3)]}}}
 
 
+def loaded_media(codecs=('h264', 'aac')):
+    return {'public': {'status': 'ok', 'metadata': {
+        'streams': [{'codec_name': codec} for codec in codecs]}}}
+
+
 class WallTimeProfileTests(unittest.TestCase):
     def test_exclusive_nested_exception_timing_and_counts_reconcile(self):
         now = [0.0]
@@ -522,11 +527,49 @@ class RuntimeTests(unittest.TestCase):
         self.assertFalse(plan['coverage']['complete'])
         self.assertFalse(plan['coverage']['candidate_ocr_evidence_complete'])
 
+    def test_dense_playlist_plan_fits_android_limit_and_reuses_full_progress(self):
+        self.original['manifest'] = manifest([1] * 200)
+        self.input.write_text(json.dumps(self.original))
+        output = io.StringIO()
+        with patch.object(runtime, 'MAX_CANDIDATES', 1), patch('sys.stdout', output):
+            plan = self.run_scan(lambda _: features(commercial=True))
+            self.assertLessEqual(self.plan.stat().st_size, 4 * 1024 * 1024)
+            self.assertEqual(plan['skipped_segment_indices'], [0])
+            self.assertEqual(plan['skipped_ads'], 1)
+            self.assertEqual(plan['coverage']['eligible_candidates'], 10230)
+            self.assertEqual(plan['coverage']['unscanned_candidates'], 10229)
+            self.assertFalse(plan['coverage']['complete'])
+            self.assertLess(len(plan['regions']), 10230)
+            self.assertEqual(self.run_scan(lambda _: self.fail('frozen plan rescanned')), plan)
+        final = json.loads(output.getvalue().split('HLS_AD_PROGRESS ')[-1])
+        self.assertEqual((final['completed'], final['total'], final['unknown']), (10230, 10230, 10229))
+
+    def test_omission_source_gate_requires_final_validator_codecs(self):
+        _, regions, _ = ads.parse_manifest(manifest([5]), self.original['url'])
+        scanner = runtime.FeatureScanner(self.root, self.root,
+            ads.SegmentCache(self.root, 'a' * 64, {}), regions, '/ffmpeg', '/ffprobe', probe)
+        for codecs in [('h264', 'aac'), ('hevc', 'aac'), ('mpeg2video', 'aac'), ('h264', 'mp3'), ('h264',)]:
+            with self.subTest(codecs=codecs), \
+                 patch.object(scanner, 'remux', return_value=self.root / 'candidate.ts'), \
+                 patch.object(probe, 'load_slice', return_value=loaded_media(codecs)), \
+                 patch.object(probe, 'extract_ocr', return_value={'status': 'ok', 'samples': []}), \
+                 patch.object(probe, 'bridge_evidence', return_value={'status': 'unknown'}):
+                result = scanner.process(next(runtime.candidates(regions)))
+                supported = codecs == ('h264', 'aac')
+                self.assertEqual(result['candidate_gate'], 'valid' if supported else 'unknown')
+                if not supported:
+                    self.assertIn('candidate:requires_requested_streams:aac,h264', result['errors'])
+                    plan = self.run_scan(lambda _: result)
+                    self.assertEqual(plan['manifest'], self.original['manifest'])
+                    self.assertEqual(plan['skipped_ads'], 0)
+                    self.plan.unlink()
+                    shutil.rmtree(self.root / 'analysis-checkpoint')
+
     def test_playlist_edge_absence_is_expected_but_present_failure_is_unknown(self):
         _, regions, _ = ads.parse_manifest(manifest([5]), self.original['url'])
         cache = ads.SegmentCache(self.root, 'a' * 64, {})
         scanner = runtime.FeatureScanner(self.root, self.root, cache, regions, '/ffmpeg', '/ffprobe', probe)
-        loaded = {'public': {'status': 'ok'}}
+        loaded = loaded_media()
         def candidate_ocr(media, role, *_, **kwargs):
             return {'status': 'ok', 'samples': []}
         with patch.object(scanner, 'remux', return_value=self.root / 'candidate.ts'), \
@@ -568,7 +611,7 @@ class RuntimeTests(unittest.TestCase):
         scanner = runtime.FeatureScanner(self.root, self.root, cache, regions, '/ffmpeg', '/ffprobe', probe)
         group = next(group for group in runtime.candidates(regions) if group['region_indices'] == [1])
         def loaded(*args, **kwargs):
-            return {'public': {'status': 'ok'}}
+            return loaded_media()
         def sampled(media, role, *args, **kwargs):
             samples = []
             for fraction in kwargs['fractions']:
@@ -644,7 +687,7 @@ class RuntimeTests(unittest.TestCase):
         group = next(group for group in runtime.candidates(regions) if group['region_indices'] == [1])
         def loaded(*args, **kwargs):
             self.assertEqual(kwargs, {'summary_mode': 'weighted_decision'})
-            return {'public': {'status': 'ok'}}
+            return loaded_media()
         with patch.object(scanner, 'remux', return_value=self.root / 'candidate.ts'), \
              patch.object(probe, 'load_slice', side_effect=loaded), \
              patch.object(probe, 'bridge_evidence', return_value={'status': 'unknown'}), \
@@ -683,7 +726,7 @@ class RuntimeTests(unittest.TestCase):
             regions, '/ffmpeg', '/ffprobe', probe, scorer=scorer)
         group = next(group for group in runtime.candidates(regions) if group['region_indices'] == [1])
         with patch.object(scanner, 'remux', return_value=self.root / 'candidate.ts'), \
-             patch.object(probe, 'load_slice', return_value={'public': {'status': 'ok'}}), \
+             patch.object(probe, 'load_slice', return_value=loaded_media()), \
              patch.object(probe, 'bridge_evidence', return_value={'status': 'unknown'}), \
              patch.object(scorer, 'scene_score', return_value={'points': 5}), \
              patch.object(scorer, 'audio_score', return_value={'points': 0}), \

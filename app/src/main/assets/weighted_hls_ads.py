@@ -39,6 +39,8 @@ MAX_CONTEXT_ENTRIES = 64
 MAX_REGION_FILES = 8
 MAX_OCR_ENTRIES = 512
 MAX_AUDIT_BYTES = 64 * 1024 * 1024
+# Match EightMapleHlsAds.Files.readResult; diagnostics must fit with the decision.
+MAX_PLAN_BYTES = 4 * 1024 * 1024
 
 
 class WallTimeProfile:
@@ -233,6 +235,26 @@ def candidate_population(regions):
         count += 1
     digest.update(b']')
     return prefix, count, digest.hexdigest()
+
+
+def require_supported_video_streams(streams):
+    if sorted(stream.get('codec_name', '') for stream in streams) != ['aac', 'h264']:
+        raise ads.Unknown('requires_requested_streams:aac,h264')
+
+
+def limit_plan_diagnostics(plan):
+    if len(ads.canonical(plan)) <= MAX_PLAN_BYTES:
+        return
+    rows, plan['regions'] = plan['regions'], []
+    plan['regions_omitted'] = len(rows)
+    remaining = MAX_PLAN_BYTES - len(ads.canonical(plan))
+    for row in rows:
+        size = len(ads.canonical(row)) + 1
+        if size > remaining:
+            break
+        plan['regions'].append(row)
+        remaining -= size
+    plan['regions_omitted'] -= len(plan['regions'])
 
 
 def select_groups(rows, known=()):
@@ -530,6 +552,7 @@ class FeatureScanner:
             media['candidate'] = self.probe.load_slice({'path': str(path)},
                 'candidate', self.work, self.ffmpeg, self.ffprobe,
                 summary_mode=FEATURE_SUMMARY_PROFILE)
+            require_supported_video_streams(media['candidate']['public']['metadata'].get('streams', []))
             self.source_timing(media['candidate'], group['duration_seconds'])
         except (ads.Unknown, self.probe.Unknown, ValueError, KeyError, TypeError, OSError) as exc:
             media['candidate'] = None
@@ -609,10 +632,9 @@ def classify(input_path, catalog_path, policy_path, plan_path, ffmpeg, ffprobe):
         if plan['policy'] != POLICY:
             raise ads.FilterError('Wrong frozen weighted policy')
         check_cached(plan, root, original)
-        progress = AnalysisProgress(completed=len(plan['regions']),
+        progress = AnalysisProgress(completed=plan['coverage']['eligible_candidates'],
             total=plan['coverage']['eligible_candidates'],
-            unknown=sum(row['status'] == 'unknown' or any(':ocr:' in error for error in row['errors'])
-                        for row in plan['regions']), ads_count=plan['skipped_ads'],
+            unknown=plan['coverage']['unknown_candidates'], ads_count=plan['skipped_ads'],
             elapsed_seconds=plan.get('cost', {}).get('elapsed_seconds', 0))
         progress.emit('restoring')
         progress.emit('complete')
@@ -779,6 +801,7 @@ def classify(input_path, catalog_path, policy_path, plan_path, ffmpeg, ffprobe):
         'selection_policy': 'score_descending_duration_ascending_then_region_indices_disjoint',
         'selection_ambiguity': any(row.get('overlapping_passing_ranges') for row in rows),
         'coverage': {'source_regions': len(regions), 'eligible_candidates': eligible, 'candidates_scanned': scanned,
+                     'unknown_candidates': progress.unknown,
                      'reduced_ocr_sampling': sampling['planned_candidate_frames'] < sampling['scorer_expected_candidate_frames'],
                      'candidate_ocr_skipped_by_score_bound': bounded_ocr,
                      'candidate_ocr_evidence_complete': unsupported is None and eligible == scanned
@@ -828,6 +851,7 @@ def classify(input_path, catalog_path, policy_path, plan_path, ffmpeg, ffprobe):
     plan['cost'].update(elapsed_seconds=saved_elapsed + timing['total_seconds'],
         cumulative_elapsed_seconds=saved_elapsed + timing['total_seconds'],
         current_attempt_elapsed_seconds=timing['total_seconds'], timing=timing)
+    limit_plan_diagnostics(plan)
     try:
         ads.atomic_json(plan_path, plan, replace=False)
     except FileExistsError:
@@ -918,8 +942,8 @@ def validate_media(path, expected, result_path, ffmpeg, ffprobe, audio_only=Fals
         if audio_only:
             if len(streams) != 1 or streams[0].get('codec_type') != 'audio':
                 raise ads.Unknown('requires_exactly_one_audio_stream_and_no_video')
-        elif sorted(s.get('codec_name', '') for s in streams) != ['aac', 'h264']:
-            raise ads.Unknown('requires_requested_streams:aac,h264')
+        else:
+            require_supported_video_streams(streams)
         actual = float(data['format']['duration'])
         if not math.isfinite(actual) or abs(actual - expected) > 1:
             raise ads.Unknown('retained_duration_mismatch')
