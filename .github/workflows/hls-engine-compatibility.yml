@@ -1,0 +1,60 @@
+name: HLS engine compatibility
+
+on:
+  push:
+    paths:
+      - 'app/src/main/assets/*.py'
+      - 'app/src/test/python/**'
+      - '.github/workflows/hls-engine-compatibility.yml'
+  pull_request:
+    paths:
+      - 'app/src/main/assets/*.py'
+      - 'app/src/test/python/**'
+      - '.github/workflows/hls-engine-compatibility.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hls-engine-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-hls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # Coverage only: production accepts compatible APIs, not these versions.
+        engine: ['2025.11.12', '2026.08.19', '2026.10.26', 'latest']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Ensure real-media tests cannot silently skip
+        run: |
+          if ! command -v ffmpeg || ! command -v ffprobe; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+          ffmpeg -version
+          ffprobe -version
+      - name: Download official yt-dlp zipapp
+        env:
+          ENGINE_VERSION: ${{ matrix.engine }}
+        run: |
+          if [ "$ENGINE_VERSION" = latest ]; then
+            url='https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp'
+          else
+            url="https://github.com/yt-dlp/yt-dlp/releases/download/$ENGINE_VERSION/yt-dlp"
+          fi
+          curl --fail --location --retry 3 "$url" --output "$RUNNER_TEMP/yt-dlp"
+          python "$RUNNER_TEMP/yt-dlp" --version
+      - name: Test real HLS download, rollback, retained cache and media receipt
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          HLS_RESUME_YTDLP: ${{ runner.temp }}/yt-dlp
+        run: python -m unittest discover -s app/src/test/python -p 'test_hls_resume.py' -v

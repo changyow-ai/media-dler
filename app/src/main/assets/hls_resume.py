@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Per-process native HLS checkpoint adapter (yt-dlp 2025.11.12 and 2026.08.19).
+"""Per-process native HLS checkpoint adapter with capability-based compatibility.
 
 The sidecar is authoritative. Native .ytdl can advance even when append fails.
 Every restart rolls back the last committed fragment before native HLS starts.
@@ -19,13 +19,6 @@ from urllib.parse import unquote, urljoin, urlsplit
 
 class ResumeError(RuntimeError):
     pass
-
-
-def check_engine_version(version):
-    # The archive can be updated independently of the app. Private downloader
-    # semantics must be exercised before a new version may truncate old output.
-    if version not in {'2025.11.12', '2026.08.19'}:
-        raise ResumeError('此 yt-dlp 版本尚未驗證 HLS 續傳（{}），已保留暫存；請使用支援此引擎的 App 版本'.format(version))
 
 
 def atomic_json(path, value):
@@ -325,24 +318,38 @@ class CheckpointStore:
 
 
 def check_private_api(hls_class, fragment_class):
-    """Fail closed on a different downloader protocol before modifying files."""
-    if (hls_class._append_fragment is not fragment_class._append_fragment
-            or hls_class._download_fragment is not fragment_class._download_fragment):
-        raise ResumeError('Bundled yt-dlp overrides the HLS fragment protocol')
+    """Check the actual checkpoint protocol, never a release/version allowlist.
+
+    The engine is updated independently of the app. Compatible releases, nightly
+    builds and forks may run; incompatible APIs must fail before output is touched.
+    """
+    def incompatible(detail):
+        return ResumeError('yt-dlp HLS API is incompatible with checkpoint recovery ({}); '
+                           'temporary files preserved'.format(detail))
+
+    def method(owner, name):
+        function = getattr(owner, name, None)
+        if not callable(function):
+            raise incompatible('missing callable ' + name)
+        return function
+
+    for name in ('_append_fragment', '_download_fragment'):
+        if method(hls_class, name) is not method(fragment_class, name):
+            raise incompatible('HLS overrides ' + name)
     checks = [
-        (fragment_class._start_frag_download, ('self', 'ctx', 'info_dict'),
+        (method(fragment_class, '_start_frag_download'), ('self', 'ctx', 'info_dict'),
          ('fragment_index', 'complete_frags_downloaded_bytes', 'total_frags'), ('add_progress_hook', 'ProgressCalculator')),
-        (fragment_class._hook_progress, ('self', 'status', 'info_dict'), ('info_dict',), ('_progress_hooks',)),
-        (fragment_class._download_fragment, ('self', 'ctx', 'frag_url', 'info_dict', 'headers', 'request_data'),
+        (method(fragment_class, '_hook_progress'), ('self', 'status', 'info_dict'), ('info_dict',), ('_progress_hooks',)),
+        (method(fragment_class, '_download_fragment'), ('self', 'ctx', 'frag_url', 'info_dict', 'headers', 'request_data'),
          ('tmpfilename', 'fragment_index', 'fragment_filename_sanitized'), ('download', 'temp_name', 'filesize_or_none')),
-        (hls_class.real_download, ('self', 'filename', 'info_dict'),
+        (method(hls_class, 'real_download'), ('self', 'filename', 'info_dict'),
          ('hls_media_playlist_data', 'format_index', 'fragment_index'),
          ('_prepare_and_start_frag_download', 'download_and_append_fragments', 'urljoin')),
-        (fragment_class._append_fragment, ('self', 'ctx', 'frag_content'),
+        (method(fragment_class, '_append_fragment'), ('self', 'ctx', 'frag_content'),
          ('dest_stream', 'fragment_filename_sanitized'), ('write', 'flush', '_write_ytdl_file')),
-        (fragment_class._prepare_frag_download, ('self', 'ctx'),
+        (method(fragment_class, '_prepare_frag_download'), ('self', 'ctx'),
          ('tmpfilename', 'fragment_index', 'dest_stream'), ('temp_name', '_read_ytdl_file')),
-        (fragment_class._write_ytdl_file, ('self', 'ctx'),
+        (method(fragment_class, '_write_ytdl_file'), ('self', 'ctx'),
          ('downloader', 'current_fragment', 'index'), ('ytdl_filename',)),
     ]
     def constant_values(values):
@@ -356,17 +363,23 @@ def check_private_api(hls_class, fragment_class):
 
     for function, parameters, constants, names in checks:
         code = getattr(function, '__code__', None)
-        if (code is None or tuple(inspect.signature(function).parameters) != parameters
+        try:
+            signature = tuple(inspect.signature(function).parameters)
+        except (TypeError, ValueError):
+            raise incompatible('cannot inspect ' + getattr(function, '__name__', 'method')) from None
+        if (code is None or signature != parameters
                 or not all(value in tuple(constant_values(code.co_consts)) for value in constants)
                 or not all(value in code.co_names for value in names)):
-            raise ResumeError('Bundled yt-dlp HLS API is incompatible with checkpoint recovery')
+            raise incompatible('changed protocol in ' + getattr(function, '__name__', 'method'))
 
 
 def install_adapter(store):
-    from yt_dlp.version import __version__
-    check_engine_version(__version__)
-    from yt_dlp.downloader.hls import HlsFD
-    from yt_dlp.downloader.fragment import FragmentFD
+    try:
+        from yt_dlp.downloader.hls import HlsFD
+        from yt_dlp.downloader.fragment import FragmentFD
+    except ImportError:
+        raise ResumeError('yt-dlp HLS downloader API is unavailable; temporary files preserved') from None
+    # Complete all compatibility checks before patching classes or preparing files.
     check_private_api(HlsFD, FragmentFD)
     original_download = HlsFD.real_download
     original_append = HlsFD._append_fragment

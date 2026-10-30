@@ -9,6 +9,7 @@ import tempfile
 import unittest
 import sys
 from unittest.mock import Mock, patch
+from types import ModuleType
 
 # Import the production asset without adding host bytecode to the APK assets.
 sys.dont_write_bytecode = True
@@ -21,12 +22,6 @@ MANIFEST = '#EXTM3U\n#EXT-X-TARGETDURATION:5\n#EXTINF:5,\na.ts\n#EXT-X-DISCONTIN
 
 
 class CheckpointTests(unittest.TestCase):
-    def test_only_exercised_engine_versions_can_enable_recovery(self):
-        for version in ('2025.11.12', '2026.08.19'):
-            hls_resume.check_engine_version(version)
-        with self.assertRaises(hls_resume.ResumeError):
-            hls_resume.check_engine_version('2099.01.01')
-
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -223,6 +218,126 @@ class CheckpointTests(unittest.TestCase):
         for uri in ['a.mp4', 'https://user@example.test/a.ts', 'a.ts#fragment', 'a.ts#']:
             with self.subTest(uri=uri), self.assertRaises(hls_resume.ResumeError):
                 hls_resume.validate_manifest(MANIFEST.replace('\na.ts\n', '\n' + uri + '\n'))
+
+
+class EngineCompatibilityTests(unittest.TestCase):
+    setUp = CheckpointTests.setUp
+    checkpoint = CheckpointTests.checkpoint
+
+    def engine(self, version):
+        # Minimal Python implementations of the adapter's required protocol.
+        # The real engine and HTTP download/rollback cases are exercised below.
+        class FragmentFD:
+            def _start_frag_download(self, ctx, info_dict):
+                progress = ProgressCalculator(ctx['complete_frags_downloaded_bytes'])
+                self.add_progress_hook(progress)
+                return ctx['fragment_index'], ctx['total_frags']
+
+            def _hook_progress(self, status, info_dict):
+                status['info_dict'] = info_dict
+                for hook in self._progress_hooks:
+                    hook(status)
+
+            def _download_fragment(self, ctx, frag_url, info_dict, headers=None, request_data=None):
+                filename = '%s-Frag%d' % (ctx['tmpfilename'], ctx['fragment_index'])
+                self.filesize_or_none(self.temp_name(filename))
+                ctx['dl'].download(filename, info_dict)
+                ctx['fragment_filename_sanitized'] = filename
+                return True
+
+            def _append_fragment(self, ctx, frag_content):
+                ctx['dest_stream'].write(frag_content)
+                ctx['dest_stream'].flush()
+                self._write_ytdl_file(ctx)
+                return ctx['fragment_filename_sanitized']
+
+            def _prepare_frag_download(self, ctx):
+                ctx['tmpfilename'] = self.temp_name(ctx['filename'])
+                self._read_ytdl_file(ctx)
+                return ctx['fragment_index'], ctx['dest_stream']
+
+            def _write_ytdl_file(self, ctx):
+                return self.ytdl_filename(ctx['filename']), {
+                    'downloader': {'current_fragment': {'index': ctx['fragment_index']}}}
+
+        class HlsFD(FragmentFD):
+            def real_download(self, filename, info_dict):
+                ctx = {'fragment_index': 0}
+                self._prepare_and_start_frag_download(ctx, info_dict)
+                self.download_and_append_fragments(ctx, [], info_dict)
+                return urljoin(filename, info_dict['hls_media_playlist_data']), info_dict.get('format_index')
+
+        modules = {name: ModuleType(name) for name in (
+            'yt_dlp', 'yt_dlp.version', 'yt_dlp.downloader',
+            'yt_dlp.downloader.hls', 'yt_dlp.downloader.fragment')}
+        modules['yt_dlp'].__path__ = []
+        modules['yt_dlp.downloader'].__path__ = []
+        if version is not None:
+            modules['yt_dlp.version'].__version__ = version
+        modules['yt_dlp.downloader.hls'].HlsFD = HlsFD
+        modules['yt_dlp.downloader.fragment'].FragmentFD = FragmentFD
+        return modules, HlsFD, FragmentFD
+
+    def test_compatible_engine_is_accepted_regardless_of_version_metadata(self):
+        for version in ('2025.11.12', '2026.08.19', '2026.10.26',
+                        '2099.01.01', '2026.10.30.123456', 'custom-build', None):
+            with self.subTest(version=version):
+                modules, hls, fragment = self.engine(version)
+                original = hls.real_download
+                with patch.dict(sys.modules, modules):
+                    hls_resume.install_adapter(self.store)
+                self.assertIsNot(hls.real_download, original)
+                self.assertIsNot(hls._append_fragment, fragment._append_fragment)
+                self.assertFalse(self.store.path.exists())
+                self.assertFalse(self.part.exists())
+
+    def assert_rejected_without_changes(self, modules, hls, detail):
+        self.part.write_bytes(b'AAABBBincomplete')
+        self.checkpoint()
+        self.journal.write_text('corrupt but retained')
+        files = (self.part, self.store.path, self.journal, self.spec)
+        before = [path.read_bytes() for path in files]
+        originals = dict(vars(hls))
+        with patch.dict(sys.modules, modules):
+            with self.assertRaisesRegex(hls_resume.ResumeError, detail) as caught:
+                hls_resume.install_adapter(self.store)
+        self.assertIn('temporary files preserved', str(caught.exception))
+        self.assertEqual([path.read_bytes() for path in files], before)
+        self.assertEqual(dict(vars(hls)), originals)
+
+    def test_missing_method_preserves_files_and_class_definitions(self):
+        modules, hls, fragment = self.engine('2026.10.26')
+        del fragment._write_ytdl_file
+        self.assert_rejected_without_changes(modules, hls, 'missing callable _write_ytdl_file')
+
+    def test_changed_signature_is_rejected_even_for_previously_allowed_version(self):
+        modules, hls, fragment = self.engine('2025.11.12')
+        def _download_fragment(self, ctx):
+            return True
+        fragment._download_fragment = _download_fragment
+        self.assert_rejected_without_changes(modules, hls, 'changed protocol in _download_fragment')
+
+    def test_changed_protocol_is_rejected_with_unchanged_signature(self):
+        modules, hls, fragment = self.engine('2099.01.01')
+        def _append_fragment(self, ctx, frag_content):
+            return True
+        fragment._append_fragment = _append_fragment
+        self.assert_rejected_without_changes(modules, hls, 'changed protocol in _append_fragment')
+
+    def test_hls_override_is_rejected_before_installation(self):
+        modules, hls, fragment = self.engine('custom-build')
+        hls._append_fragment = lambda self, ctx, frag_content: None
+        self.assert_rejected_without_changes(modules, hls, 'HLS overrides _append_fragment')
+
+    def test_uninspectable_signature_reports_compatibility_error(self):
+        modules, hls, fragment = self.engine('custom-build')
+        fragment._download_fragment.__signature__ = 'invalid'
+        self.assert_rejected_without_changes(modules, hls, 'cannot inspect _download_fragment')
+
+    def test_missing_downloader_class_reports_compatibility_error(self):
+        modules, hls, fragment = self.engine('custom-build')
+        del modules['yt_dlp.downloader.fragment'].FragmentFD
+        self.assert_rejected_without_changes(modules, hls, 'HLS downloader API is unavailable')
 
 
 class AdCacheTests(unittest.TestCase):
