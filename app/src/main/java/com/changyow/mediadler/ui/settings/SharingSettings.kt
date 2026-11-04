@@ -27,6 +27,9 @@ internal fun SharingSettings(controller: SharingController) {
     var password by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
+    var upnpPort by remember { mutableStateOf(state.upnpPort.toString()) }
+    var savingUpnp by remember { mutableStateOf(false) }
+    var upnpMessage by remember { mutableStateOf<String?>(null) }
     Text("分享目前下載資料夾與子目錄，其他裝置可唯讀存取。請連上相同的 Wi-Fi 或有線區網。",
         style = MaterialTheme.typography.bodySmall)
     DropdownSetting(
@@ -43,10 +46,27 @@ internal fun SharingSettings(controller: SharingController) {
             Text("UPnP／DLNA")
             SelectionContainer { Text(state.upnpStatus, style = MaterialTheme.typography.bodySmall) }
         }
-        Switch(state.upnpEnabled, { controller.setEnabled(context, upnp = true, enabled = it) })
+        Switch(state.upnpEnabled, { controller.setEnabled(context, upnp = true, enabled = it) }, enabled = !savingUpnp)
     }
     Text("播放器可自動找到 media-dler。啟用期間，同區網裝置可瀏覽與播放分享的檔案。",
         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    OutlinedTextField(upnpPort, { upnpPort = it; upnpMessage = null }, label = { Text("UPnP 連接埠") }, singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), enabled = !savingUpnp, modifier = Modifier.fillMaxWidth())
+    Text("預設 8192，可設定 1024～65535。儲存後會重新啟動執行中的 UPnP；變更連接埠後，播放器收藏需重新加入。保持手機 IP、連接埠與檔案路徑不變，才能沿用播放網址。",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    OutlinedButton(onClick = {
+        savingUpnp = true
+        scope.launch {
+            try {
+                controller.saveUpnpPort(context, upnpPort.trim().toIntOrNull() ?: 0)
+                upnpPort = controller.state.value.upnpPort.toString()
+                upnpMessage = "UPnP 連接埠已儲存"
+            } catch (failure: CancellationException) { throw failure }
+            catch (failure: Exception) { upnpMessage = failure.message ?: "無法儲存" }
+            finally { savingUpnp = false }
+        }
+    }, enabled = !savingUpnp) { Text(if (savingUpnp) "儲存中…" else "儲存 UPnP 連接埠") }
+    upnpMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text("SFTP")

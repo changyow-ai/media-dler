@@ -10,6 +10,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.changyow.mediadler.core.sharing.SharingIdleTimeout
 import com.changyow.mediadler.core.sharing.SharingSessionSnapshot
+import com.changyow.mediadler.core.sharing.UpnpServer
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -34,6 +36,45 @@ class SharingSessionRecoveryTest {
     }
 
     @After fun cleanup() { context.deleteOwnPreferences() }
+
+    @Test fun upnpPortDefaultsAndPersistsWhileSharingIsOff() = runBlocking {
+        val controller = controller()
+        assertEquals(UpnpServer.DEFAULT_HTTP_PORT, controller.state.value.upnpPort)
+        val deviceId = controller.deviceId
+        controller.saveUpnpPort(context, 28192)
+        assertEquals(28192, controller.state.value.upnpPort)
+        assertEquals(28192, controller().state.value.upnpPort)
+        assertEquals(deviceId, controller().deviceId)
+        assertNull(store.read())
+        assertEquals(0, context.serviceStarts)
+    }
+
+    @Test fun upnpPortChangePreservesActiveSessionAndRequestsReconfiguration() = runBlocking {
+        val saved = snapshot()
+        assertTrue(store.write(saved, saved.idleTimeout))
+        val controller = controller()
+        val original = controller.state.value
+        controller.saveUpnpPort(context, 28192)
+        assertEquals(original.copy(upnpPort = 28192), controller.state.value)
+        assertEquals(saved, store.read())
+        assertEquals(saved.recoveryReadUpperBoundElapsedMillis, controller.activityStartMillis(saved.sessionRevision))
+        assertEquals(1, context.serviceStarts)
+        assertEquals(28192, controller().state.value.upnpPort)
+    }
+
+    @Test fun invalidOrUnsavedUpnpPortDoesNotChangeConfiguration() = runBlocking {
+        val controller = controller()
+        for (port in listOf(-1, 0, 1023, 65536)) {
+            try { controller.saveUpnpPort(context, port); fail("Invalid port accepted: $port") }
+            catch (_: IllegalArgumentException) { }
+        }
+        context.failCommits = true
+        try { controller.saveUpnpPort(context, 28192); fail("Failed preference write accepted") }
+        catch (_: IllegalStateException) { }
+        assertEquals(UpnpServer.DEFAULT_HTTP_PORT, controller.state.value.upnpPort)
+        assertEquals(UpnpServer.DEFAULT_HTTP_PORT, controller().state.value.upnpPort)
+        assertEquals(0, context.serviceStarts)
+    }
 
     @Test fun recreationRestoresOnlyDesiredProtocolWithoutExtendingDeadline() {
         val saved = snapshot()
@@ -171,6 +212,10 @@ class SharingSessionRecoveryTest {
                 override fun edit(): SharedPreferences.Editor {
                     val editor = actual.edit()
                     return object : SharedPreferences.Editor by editor {
+                        override fun putInt(key: String?, value: Int): SharedPreferences.Editor {
+                            editor.putInt(key, value)
+                            return this
+                        }
                         override fun commit(): Boolean {
                             commitAttempts++
                             return !failCommits && editor.commit()

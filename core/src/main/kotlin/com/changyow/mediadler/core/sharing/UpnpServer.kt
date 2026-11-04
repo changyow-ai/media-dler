@@ -29,6 +29,7 @@ class UpnpServer(
     private val address: InetAddress,
     private val deviceId: UUID,
     private val name: String = "media-dler",
+    private val listenPort: Int = DEFAULT_HTTP_PORT,
 ) : Closeable {
     private var service: UpnpServiceImpl? = null
     private var directory: FolderDirectory? = null
@@ -37,20 +38,20 @@ class UpnpServer(
 
     fun start() {
         check(service == null)
-        val config = object : DefaultUpnpServiceConfiguration(0, 0, false) {
+        val config = object : DefaultUpnpServiceConfiguration(listenPort, 0, false) {
             // This device only serves files; do not discover/fetch other LAN device descriptors.
             override fun getExclusiveServiceTypes(): Array<ServiceType>? = null
             override fun createNetworkAddressFactory(streamListenPort: Int, multicastResponsePort: Int): NetworkAddressFactory =
-                SingleAddressNetwork(address)
+                SingleAddressNetwork(address, streamListenPort)
             override fun createStreamClient(): StreamClient<*> = UpnpHttpClient(address)
             override fun createStreamServer(networkAddressFactory: NetworkAddressFactory): StreamServer<*> =
-                UpnpHttpServer(files).also { transport = it }
+                UpnpHttpServer(files, networkAddressFactory.streamListenPort).also { transport = it }
         }
         val upnp = UpnpServiceImpl(config)
         service = upnp
         try {
             upnp.startup()
-            check(httpPort > 0 && upnp.router.isEnabled) { "無法啟動 UPnP 網路服務" }
+            check(httpPort > 0 && upnp.router.isEnabled) { "無法啟動 UPnP 網路服務，請確認網路與 TCP $listenPort 連接埠可用" }
             val content = FolderDirectory(files, "http://${address.hostAddress}:$httpPort")
             directory = content
             val binder = AnnotationLocalServiceBinder()
@@ -84,6 +85,12 @@ class UpnpServer(
         service = null
         directory = null
         transport = null
+    }
+
+    companion object {
+        // VLC folder/media URLs include the HTTP endpoint's port.
+        // Keep it stable across service recreation; a busy port must fail, not change URLs.
+        const val DEFAULT_HTTP_PORT = 8192
     }
 }
 
@@ -148,12 +155,12 @@ private class FolderDirectory(private val files: SharedFiles, private val baseUr
 }
 
 /** Bind discovery and HTTP to the same selected Wi-Fi/Ethernet address, including test loopback. */
-private class SingleAddressNetwork(private val address: InetAddress) : NetworkAddressFactory {
+private class SingleAddressNetwork(private val address: InetAddress, private val listenPort: Int) : NetworkAddressFactory {
     private val iface = requireNotNull(NetworkInterface.getByInetAddress(address))
     override fun getMulticastGroup(): InetAddress = InetAddress.getByName("239.255.255.250")
     override fun getMulticastPort() = 1900
     override fun getMulticastResponsePort() = 0
-    override fun getStreamListenPort() = 0
+    override fun getStreamListenPort() = listenPort
     override fun getNetworkInterfaces(): MutableIterator<NetworkInterface> = mutableListOf(iface).iterator()
     override fun getBindAddresses(): MutableIterator<InetAddress> = mutableListOf(address).iterator()
     override fun hasUsableNetwork() = true

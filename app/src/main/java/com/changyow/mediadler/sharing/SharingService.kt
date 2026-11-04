@@ -150,7 +150,7 @@ class SharingService : Service() {
         val address = localAddress()
         val next = listOf(address?.hostAddress, settings.storageMode, settings.safTreeUri)
         if (configuration != next) { closeServers(); configuration = next }
-        if (!wanted.upnpEnabled) {
+        if (!wanted.upnpEnabled || upnp?.httpPort != wanted.upnpPort) {
             upnp?.close(); upnp = null; releaseMulticast()
             if (wanted.upnpStatus == "停止中…") controller.report(true, "已停止", expectedRevision = wanted.sessionRevision)
         }
@@ -167,7 +167,7 @@ class SharingService : Service() {
                 files.list("/") // Fail before advertising a revoked/unreadable root.
                 multicast = (applicationContext.getSystemService(WIFI_SERVICE) as WifiManager).createMulticastLock("media-dler:upnp")
                     .apply { setReferenceCounted(false); acquire() }
-                val started = UpnpServer(files, address, controller.deviceId)
+                val started = UpnpServer(files, address, controller.deviceId, listenPort = wanted.upnpPort)
                 started.start()
                 upnp = started
                 Log.i("SharingService", "UPnP listening on ${address.hostAddress}:${started.httpPort}")

@@ -26,11 +26,11 @@ import java.util.logging.Level
 import java.util.logging.Logger
 
 /** HTTP framing stays in HttpCore; jUPnP owns SOAP, descriptors, subscriptions and SSDP. */
-internal class UpnpHttpServer(private val files: SharedFiles) : StreamServer<StreamServerConfiguration> {
+internal class UpnpHttpServer(private val files: SharedFiles, private val listenPort: Int) : StreamServer<StreamServerConfiguration> {
     private lateinit var server: HttpServer
     private val deliveries = Collections.synchronizedMap(WeakHashMap<Any, Delivery>())
     private val config = object : StreamServerConfiguration {
-        override fun getListenPort() = 0
+        override fun getListenPort() = this@UpnpHttpServer.listenPort
     }
     override fun getConfiguration() = config
     override fun getPort(): Int = if (::server.isInitialized) server.localPort else 0
@@ -40,9 +40,9 @@ internal class UpnpHttpServer(private val files: SharedFiles) : StreamServer<Str
         deliveries.clear()
     }
     override fun init(bindAddress: InetAddress, router: Router) {
-        server = ServerBootstrap.bootstrap().setLocalAddress(bindAddress).setListenerPort(0)
+        server = ServerBootstrap.bootstrap().setLocalAddress(bindAddress).setListenerPort(listenPort)
             .setCanonicalHostName(bindAddress.hostAddress)
-            .setSocketConfig(SocketConfig.custom().setSoTimeout(Timeout.ofSeconds(30)).build())
+            .setSocketConfig(SocketConfig.custom().setSoReuseAddress(true).setSoTimeout(Timeout.ofSeconds(30)).build())
             .setStreamListener(object : Http1StreamListener {
                 override fun onRequestHead(connection: HttpConnection, request: HttpRequest) = Unit
                 override fun onResponseHead(connection: HttpConnection, response: HttpResponse) {

@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import com.changyow.mediadler.core.sharing.SharingIdleTimeout
 import com.changyow.mediadler.core.sharing.SharingSessionSnapshot
+import com.changyow.mediadler.core.sharing.UpnpServer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +28,7 @@ data class SharingState(
     val sftpStatus: String = "已停止",
     val username: String = "media",
     val port: Int = 2222,
+    val upnpPort: Int = UpnpServer.DEFAULT_HTTP_PORT,
     val hasPassword: Boolean = false,
     val credentialRevision: Int = 0,
     val idleTimeout: SharingIdleTimeout = SharingIdleTimeout.DEFAULT,
@@ -63,6 +65,7 @@ class SharingController(context: Context, private val elapsedRealtime: () -> Lon
     private fun initialState(): SharingState {
         val initial = SharingState(
             username = prefs.getString("username", "media") ?: "media", port = prefs.getInt("port", 2222),
+            upnpPort = prefs.getInt("upnp_port", UpnpServer.DEFAULT_HTTP_PORT),
             hasPassword = prefs.contains("hash"),
             idleTimeout = SharingIdleTimeout.fromMinutes(prefs.getInt(SharingSessionStore.POLICY, SharingIdleTimeout.DEFAULT.minutes)),
         )
@@ -96,6 +99,16 @@ class SharingController(context: Context, private val elapsedRealtime: () -> Lon
         SftpCredentials(state.value.username, decode.decode(prefs.getString("salt", null) ?: return null),
             decode.decode(prefs.getString("hash", null) ?: return null))
     }.getOrNull()
+
+    suspend fun saveUpnpPort(context: Context, port: Int) = withContext(Dispatchers.IO) {
+        require(port in 1024..65535) { "連接埠需介於 1024～65535" }
+        synchronized(sessionLock) {
+            if (state.value.upnpPort == port) return@withContext
+            check(prefs.edit().putInt("upnp_port", port).commit()) { "無法儲存 UPnP 連接埠" }
+            mutable.update { it.copy(upnpPort = port) }
+        }
+        if (state.value.upnpEnabled) requestService(context)
+    }
 
     suspend fun saveLogin(context: Context, username: String, password: String, port: Int) = withContext(Dispatchers.IO) {
         require(username.matches(Regex("[A-Za-z0-9._-]{1,32}"))) { "帳號限 1～32 個英數字、點、底線或連字號" }
