@@ -5,7 +5,6 @@ import org.apache.hc.core5.http.impl.Http1StreamListener
 import org.apache.hc.core5.http.impl.bootstrap.HttpServer
 import org.apache.hc.core5.http.impl.bootstrap.ServerBootstrap
 import org.apache.hc.core5.http.io.SocketConfig
-import org.apache.hc.core5.http.io.entity.BasicHttpEntity
 import org.apache.hc.core5.http.io.entity.ByteArrayEntity
 import org.apache.hc.core5.http.protocol.HttpCoreContext
 import org.apache.hc.core5.io.CloseMode
@@ -15,11 +14,9 @@ import org.jupnp.transport.Router
 import org.jupnp.transport.spi.StreamServer
 import org.jupnp.transport.spi.StreamServerConfiguration
 import org.jupnp.transport.spi.UpnpStream
-import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.net.InetAddress
 import java.net.URI
-import java.nio.channels.Channels
 import java.util.Collections
 import java.util.WeakHashMap
 import java.util.logging.Level
@@ -109,31 +106,8 @@ internal class UpnpHttpServer(private val files: SharedFiles, private val listen
     private fun media(request: ClassicHttpRequest, response: ClassicHttpResponse) {
         if (request.method !in listOf("GET", "HEAD")) { response.code = 405; return }
         val path = objectPath(request.path.substringAfter("/media/").substringBefore('?'))
-        val entry = files.stat(path)
-        if (entry.directory || entry.size < 0) { response.code = 404; return }
-        val etag = "\"${entry.size.toString(16)}-${entry.modifiedMillis.toString(16)}\""
-        val raw = request.getFirstHeader("Range")?.value?.takeIf {
-            request.getFirstHeader("If-Range")?.value.let { tag -> tag == null || tag == etag }
-        }
-        val range = ByteRange.parse(raw, entry.size)
-        if (range == null) {
-            response.code = 416
-            response.setHeader("Content-Range", "bytes */${entry.size}")
-            return
-        }
-        response.code = if (range.partial) 206 else 200
-        response.setHeader("Accept-Ranges", "bytes")
-        response.setHeader("ETag", etag)
-        response.setHeader("transferMode.dlna.org", "Streaming")
-        if (range.partial) response.setHeader("Content-Range", "bytes ${range.start}-${range.end}/${entry.size}")
-        val stream = if (request.method == "HEAD") ByteArrayInputStream(byteArrayOf()) else {
-            val channel = files.open(path)
-            try {
-                channel.position(range.start)
-                LimitedInputStream(Channels.newInputStream(channel), range.length)
-            } catch (failure: Throwable) { channel.close(); throw failure }
-        }
-        response.entity = BasicHttpEntity(stream, range.length, ContentType.parse(entry.mimeType))
+        serveSharedFile(files, path, request, response)
+        if (response.code == 200 || response.code == 206) response.setHeader("transferMode.dlna.org", "Streaming")
     }
 
     private class Delivery(router: Router) : UpnpStream(router.protocolFactory) {
@@ -174,17 +148,4 @@ internal data class ByteRange(val start: Long, val end: Long, val partial: Boole
             return if (end < start) null else ByteRange(start, end, true)
         }
     }
-}
-
-private class LimitedInputStream(private val source: InputStream, private var remaining: Long) : InputStream() {
-    override fun read(): Int {
-        if (remaining == 0L) return -1
-        return source.read().also { if (it >= 0) remaining-- }
-    }
-    override fun read(bytes: ByteArray, offset: Int, length: Int): Int {
-        if (length == 0) return 0
-        if (remaining == 0L) return -1
-        return source.read(bytes, offset, length.toLong().coerceAtMost(remaining).toInt()).also { if (it > 0) remaining -= it }
-    }
-    override fun close() = source.close()
 }

@@ -9,6 +9,7 @@ import androidx.core.content.ContextCompat
 import com.changyow.mediadler.core.sharing.SharingIdleTimeout
 import com.changyow.mediadler.core.sharing.SharingSessionSnapshot
 import com.changyow.mediadler.core.sharing.UpnpServer
+import com.changyow.mediadler.core.sharing.WebShareSession
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,7 +34,12 @@ data class SharingState(
     val credentialRevision: Int = 0,
     val idleTimeout: SharingIdleTimeout = SharingIdleTimeout.DEFAULT,
     val sessionRevision: Long = 0,
-)
+    val webSession: WebShareSession? = null,
+    val webStatus: String = "已停止",
+) {
+    val webEnabled: Boolean get() = webSession != null
+    val anyEnabled: Boolean get() = upnpEnabled || sftpEnabled || webEnabled
+}
 
 internal data class SftpCredentials(val username: String, val salt: ByteArray, val hash: ByteArray) {
     fun accepts(user: String, password: String): Boolean {
@@ -51,6 +57,7 @@ private fun passwordHash(password: String, salt: ByteArray): ByteArray {
 class SharingController(context: Context, private val elapsedRealtime: () -> Long = SystemClock::elapsedRealtime) {
     private val prefs = context.getSharedPreferences("local_sharing", Context.MODE_PRIVATE)
     private val sessions = SharingSessionStore(prefs)
+    private val webSessions = WebShareSessionStore(prefs)
     private val sessionLock = Any()
     private val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT, -1)
     private var checkpoint: SharingSessionSnapshot? = null
@@ -63,11 +70,13 @@ class SharingController(context: Context, private val elapsedRealtime: () -> Lon
         ?: UUID.randomUUID().also { prefs.edit().putString("device_id", it.toString()).apply() }
 
     private fun initialState(): SharingState {
+        val web = webSessions.read(elapsedRealtime(), bootCount)
         val initial = SharingState(
             username = prefs.getString("username", "media") ?: "media", port = prefs.getInt("port", 2222),
             upnpPort = prefs.getInt("upnp_port", UpnpServer.DEFAULT_HTTP_PORT),
             hasPassword = prefs.contains("hash"),
             idleTimeout = SharingIdleTimeout.fromMinutes(prefs.getInt(SharingSessionStore.POLICY, SharingIdleTimeout.DEFAULT.minutes)),
+            webSession = web, webStatus = if (web != null) "正在恢復分享…" else "已停止",
         )
         val saved = sessions.read() ?: return initial
         val restored = saved.restoredActivityMillis(elapsedRealtime(), bootCount)
@@ -159,11 +168,27 @@ class SharingController(context: Context, private val elapsedRealtime: () -> Lon
             if (!persist(next, reset = true)) return
             mutable.value = next
         }
-        if (state.value.let { it.upnpEnabled || it.sftpEnabled }) requestService(context)
+        if (state.value.anyEnabled) requestService(context)
+    }
+
+    fun setWebEnabled(context: Context, enabled: Boolean, minutes: Int = WebShareSession.DEFAULT_MINUTES) {
+        synchronized(sessionLock) {
+            val current = state.value
+            if (current.webEnabled == enabled) return
+            val session = if (enabled) WebShareSession.create(minutes, elapsedRealtime(), bootCount) else null
+            val next = current.copy(webSession = session, webStatus = if (enabled) "啟動中…" else "停止中…")
+            if (!webSessions.write(session) && !webSessions.write(session)) {
+                mutable.value = if (enabled) current.copy(webStatus = "無法儲存分享狀態")
+                else next.copy(webStatus = "已停止；無法儲存停止狀態")
+                if (enabled) return
+            } else mutable.value = next
+        }
+        requestService(context)
     }
 
     internal fun stopIfIdle(expected: SharingState): Boolean = synchronized(sessionLock) {
         if (state.value != expected) return false
+        if (!expected.upnpEnabled && !expected.sftpEnabled) return false
         val message = "閒置 ${expected.idleTimeout.label}，已自動關閉"
         val next = expected.copy(
             upnpEnabled = false, sftpEnabled = false, upnpStatus = message, sftpStatus = message,
@@ -183,7 +208,7 @@ class SharingController(context: Context, private val elapsedRealtime: () -> Lon
 
     internal fun recordRead(revision: Long, readElapsedMillis: Long) = synchronized(sessionLock) {
         val current = state.value
-        if (current.sessionRevision != revision || !current.let { it.upnpEnabled || it.sftpEnabled }) return
+        if (current.sessionRevision != revision || !current.upnpEnabled && !current.sftpEnabled) return
         lastActivityMillis = if (awaitingFirstRecoveredRead) readElapsedMillis else maxOf(lastActivityMillis, readElapsedMillis)
         awaitingFirstRecoveredRead = false
         val saved = checkpoint ?: return
@@ -202,7 +227,7 @@ class SharingController(context: Context, private val elapsedRealtime: () -> Lon
     }
 
     internal fun shouldRestart(): Boolean = synchronized(sessionLock) {
-        !recoverySuppressed && state.value.let { it.upnpEnabled || it.sftpEnabled }
+        state.value.webEnabled || !recoverySuppressed && state.value.let { it.upnpEnabled || it.sftpEnabled }
     }
 
     private fun persist(next: SharingState, reset: Boolean = false): Boolean {
@@ -239,9 +264,14 @@ class SharingController(context: Context, private val elapsedRealtime: () -> Lon
         else next.copy(sftpStatus = "$message；無法儲存停止狀態")
     }
     internal fun stopped(message: String = "已停止") = synchronized(sessionLock) {
-        val next = state.value.copy(upnpEnabled = false, sftpEnabled = false, upnpStatus = message, sftpStatus = message)
-        mutable.value = if (persist(next)) next else next.copy(
-            upnpStatus = "$message；無法儲存停止狀態", sftpStatus = "$message；無法儲存停止狀態",
+        val next = state.value.copy(upnpEnabled = false, sftpEnabled = false, webSession = null,
+            upnpStatus = message, sftpStatus = message, webStatus = message)
+        val saved = persist(next)
+        val webSaved = webSessions.write(null) || webSessions.write(null)
+        mutable.value = next.copy(
+            upnpStatus = if (saved) message else "$message；無法儲存停止狀態",
+            sftpStatus = if (saved) message else "$message；無法儲存停止狀態",
+            webStatus = if (webSaved) message else "$message；無法儲存停止狀態",
         )
     }
     internal fun serviceDestroyed() = synchronized(sessionLock) {
@@ -249,7 +279,26 @@ class SharingController(context: Context, private val elapsedRealtime: () -> Lon
         mutable.value = current.copy(
             upnpStatus = if (current.upnpEnabled) "等待系統恢復分享…" else if (current.upnpStatus == "停止中…") "已停止" else current.upnpStatus,
             sftpStatus = if (current.sftpEnabled) "等待系統恢復分享…" else if (current.sftpStatus == "停止中…") "已停止" else current.sftpStatus,
+            webStatus = if (current.webEnabled) "等待系統恢復分享…" else if (current.webStatus == "停止中…") "已停止" else current.webStatus,
         )
+    }
+
+    internal fun reportWeb(message: String, failed: Boolean = false, expectedSession: WebShareSession?) = synchronized(sessionLock) {
+        val current = state.value
+        if (current.webSession !== expectedSession || !current.webEnabled && message != "已停止") return
+        val next = current.copy(webStatus = message, webSession = if (failed) null else current.webSession)
+        mutable.value = if (!failed || webSessions.write(null) || webSessions.write(null)) next
+        else next.copy(webStatus = "$message；無法儲存停止狀態")
+    }
+
+    internal fun expireWeb(): Boolean = synchronized(sessionLock) {
+        val current = state.value
+        val session = current.webSession ?: return false
+        if (session.isValid(elapsedRealtime(), bootCount)) return false
+        val saved = webSessions.write(null) || webSessions.write(null)
+        mutable.value = current.copy(webSession = null,
+            webStatus = if (saved) "分享時間已到，已關閉" else "分享時間已到；無法儲存停止狀態")
+        true
     }
 
     private companion object { const val TAG = "SharingController" }

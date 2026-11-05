@@ -18,6 +18,8 @@ import com.changyow.mediadler.core.model.DownloadStatus
 import com.changyow.mediadler.core.sharing.SftpServer
 import com.changyow.mediadler.core.sharing.SharingActivity
 import com.changyow.mediadler.core.sharing.UpnpServer
+import com.changyow.mediadler.core.sharing.WebShareServer
+import com.changyow.mediadler.core.sharing.WebShareSession
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
@@ -35,6 +37,8 @@ class SharingService : Service() {
     private val controller get() = appContainer.sharingController
     private var upnp: UpnpServer? = null
     private var sftp: SftpServer? = null
+    private var web: WebShareServer? = null
+    private var webSession: WebShareSession? = null
     private var configuration: List<Any?>? = null
     private var credentialRevision = -1
     private var startId = 0
@@ -82,10 +86,10 @@ class SharingService : Service() {
                 catch (failure: CancellationException) { throw failure }
                 catch (failure: Exception) { servers.withLock { closeServers() }; controller.stopped("分享失敗：${failure.message}") }
                 getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification())
-                if (!controller.state.value.let { it.upnpEnabled || it.sftpEnabled }) {
+                if (!controller.state.value.anyEnabled) {
                     servers.withLock { closeServers() }
                     withContext(Dispatchers.Main) {
-                        if (!controller.state.value.let { it.upnpEnabled || it.sftpEnabled }) stopSelfResult(startId)
+                        if (!controller.state.value.anyEnabled) stopSelfResult(startId)
                     }
                 }
             }
@@ -103,12 +107,12 @@ class SharingService : Service() {
             while (isActive) {
                 wake?.let { lock ->
                     synchronized(lock) {
-                        if (isActive && controller.state.value.let { it.upnpEnabled || it.sftpEnabled }) lock.acquire(10 * 60_000L)
+                        if (isActive && controller.state.value.anyEnabled) lock.acquire(10 * 60_000L)
                     }
                 }
                 wifiWake?.let { lock ->
                     synchronized(lock) {
-                        if (isActive && controller.state.value.let { it.upnpEnabled || it.sftpEnabled } && !lock.isHeld) {
+                        if (isActive && controller.state.value.anyEnabled && !lock.isHeld) {
                             runCatching { lock.acquire() }.onFailure { Log.w("SharingService", "Unable to acquire sharing Wi-Fi lock", it) }
                         }
                     }
@@ -122,6 +126,14 @@ class SharingService : Service() {
                 updates.trySend(Unit)
             }
         }
+        scope.launch {
+            controller.state.map { it.webSession?.expiresAtElapsedMillis }.distinctUntilChanged().collectLatest { deadline ->
+                if (deadline != null) {
+                    delay((deadline - SystemClock.elapsedRealtime()).coerceAtLeast(0))
+                    updates.trySend(Unit)
+                }
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, id: Int): Int {
@@ -133,17 +145,19 @@ class SharingService : Service() {
     }
 
     private suspend fun reconcile() {
-        val wanted = controller.state.value
+        controller.expireWeb()
+        var wanted = controller.state.value
         if (sessionRevision != wanted.sessionRevision) {
             val previousActivity = controller.activityStartMillis(wanted.sessionRevision) ?: return
             activity.reset(previousActivity, wanted.sessionRevision)
             sessionRevision = wanted.sessionRevision
         }
-        if (stopIfIdle()) return
-        if (!wanted.let { it.upnpEnabled || it.sftpEnabled }) {
+        if (stopIfIdle()) wanted = controller.state.value
+        if (!wanted.anyEnabled) {
             closeServers()
             if (wanted.upnpStatus == "停止中…") controller.report(true, "已停止", expectedRevision = wanted.sessionRevision)
             if (wanted.sftpStatus == "停止中…") controller.report(false, "已停止", expectedRevision = wanted.sessionRevision)
+            if (wanted.webStatus == "停止中…") controller.reportWeb("已停止", expectedSession = wanted.webSession)
             return
         }
         val settings = appContainer.settingsRepository.settings.first()
@@ -156,12 +170,16 @@ class SharingService : Service() {
         }
         if (!wanted.sftpEnabled || credentialRevision != wanted.credentialRevision) { sftp?.close(); sftp = null }
         if (!wanted.sftpEnabled && wanted.sftpStatus == "停止中…") controller.report(false, "已停止", expectedRevision = wanted.sessionRevision)
+        if (!wanted.webEnabled || webSession !== wanted.webSession) { web?.close(); web = null; webSession = null }
+        if (!wanted.webEnabled && wanted.webStatus == "停止中…") controller.reportWeb("已停止", expectedSession = wanted.webSession)
         if (address == null) {
             if (wanted.upnpEnabled) controller.report(true, "等待 Wi-Fi 或乙太網路", expectedRevision = wanted.sessionRevision)
             if (wanted.sftpEnabled) controller.report(false, "等待 Wi-Fi 或乙太網路", expectedRevision = wanted.sessionRevision)
+            if (wanted.webEnabled) controller.reportWeb("等待 Wi-Fi 或乙太網路", expectedSession = wanted.webSession)
             return
         }
-        val files = activity.track(AndroidSharedFiles(this, settings))
+        val webFiles = AndroidSharedFiles(this, settings)
+        val files = activity.track(webFiles)
         if (wanted.upnpEnabled && upnp == null) {
             try {
                 files.list("/") // Fail before advertising a revoked/unreadable root.
@@ -193,15 +211,35 @@ class SharingService : Service() {
                 controller.report(false, "啟動失敗：協定套件無法初始化", true, wanted.sessionRevision)
             } catch (failure: Exception) { controller.report(false, "啟動失敗：${failure.message}", true, wanted.sessionRevision) }
         }
+        if (wanted.webEnabled && web == null) {
+            try {
+                webFiles.list("/")
+                val session = requireNotNull(wanted.webSession)
+                val started = WebShareServer(webFiles, address, session.expiresAtElapsedMillis,
+                    SystemClock::elapsedRealtime)
+                started.start()
+                web = started
+                webSession = session
+                Log.i("SharingService", "Web sharing listening on ${address.hostAddress}:${started.httpPort}")
+            } catch (failure: LinkageError) {
+                Log.e("SharingService", "Web sharing initialization failed", failure)
+                controller.reportWeb("啟動失敗：協定套件無法初始化", true, wanted.webSession)
+            } catch (failure: Exception) {
+                controller.reportWeb("啟動失敗：${failure.message}", true, wanted.webSession)
+            }
+        }
         upnp?.let { controller.report(true, "執行中 · ${address.hostAddress}:${it.httpPort}", expectedRevision = wanted.sessionRevision) }
         sftp?.let { controller.report(false, "sftp://${wanted.username}@${address.hostAddress}:${wanted.port}", expectedRevision = wanted.sessionRevision) }
+        web?.let { controller.reportWeb("http://${address.hostAddress}:${it.httpPort}/", expectedSession = wanted.webSession) }
     }
 
     private fun stopIfIdle(): Boolean {
         val state = controller.state.value
-        if (state.sessionRevision != sessionRevision || !state.let { it.upnpEnabled || it.sftpEnabled }) return false
+        if (state.sessionRevision != sessionRevision || !state.upnpEnabled && !state.sftpEnabled) return false
         if (!activity.expireIfIdle(state.idleTimeout.millis) { controller.stopIfIdle(state) }) return false
-        closeServers()
+        runCatching { upnp?.close() }; upnp = null
+        runCatching { sftp?.close() }; sftp = null
+        releaseMulticast()
         return true
     }
 
@@ -221,7 +259,8 @@ class SharingService : Service() {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val stop = PendingIntent.getService(this, 0, Intent(this, SharingService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val text = listOfNotNull(if (state.upnpEnabled) "UPnP：${state.upnpStatus}" else null,
-            if (state.sftpEnabled) "SFTP：${state.sftpStatus}" else null).joinToString("\n").ifEmpty { "正在停止分享" }
+            if (state.sftpEnabled) "SFTP：${state.sftpStatus}" else null,
+            if (state.webEnabled) "網頁：${state.webStatus}" else null).joinToString("\n").ifEmpty { "正在停止分享" }
         return NotificationCompat.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_stat_download)
             .setContentTitle("media-dler 區網分享").setContentText(text).setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(open).setOnlyAlertOnce(true).setOngoing(true).addAction(0, "停止分享", stop).build()
@@ -231,6 +270,8 @@ class SharingService : Service() {
     private fun closeServers() {
         runCatching { upnp?.close() }; upnp = null
         runCatching { sftp?.close() }; sftp = null
+        runCatching { web?.close() }; web = null
+        webSession = null
         releaseMulticast()
     }
     override fun onDestroy() {

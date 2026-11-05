@@ -190,6 +190,82 @@ class SharingSessionRecoveryTest {
         assertEquals(SharingIdleTimeout.TWO_HOURS, controller().state.value.idleTimeout)
     }
 
+    @Test fun webDefaultsOffAndRestoresTheSameDeadlineWithoutSftpCredentials() {
+        val controller = controller()
+        assertFalse(controller.state.value.webEnabled)
+        assertFalse(controller.shouldRestart())
+        controller.setWebEnabled(context, true)
+        assertTrue(controller.state.value.webEnabled)
+        assertFalse(controller.state.value.upnpEnabled)
+        assertFalse(controller.state.value.sftpEnabled)
+        assertEquals(1, context.serviceStarts)
+        val saved = controller.state.value.webSession!!
+        assertNull(store.read())
+        now += 60_000
+        val recovered = controller()
+        assertTrue(recovered.state.value.webEnabled)
+        assertTrue(recovered.shouldRestart())
+        assertEquals(saved, recovered.state.value.webSession)
+        recovered.stopped()
+        assertNull(store.read())
+        assertFalse(controller().state.value.webEnabled)
+    }
+
+    @Test fun webFixedDeadlineIsIndependentOfLegacyIdlePolicyAndReads() {
+        val controller = controller()
+        controller.setWebEnabled(context, true, 5)
+        val web = controller.state.value.webSession!!
+        controller.setEnabled(context, upnp = true, enabled = true)
+        controller.setIdleTimeout(context, SharingIdleTimeout.NEVER)
+        controller.recordRead(controller.state.value.sessionRevision, now + 60_000)
+        assertEquals(web, controller.state.value.webSession)
+        assertTrue(controller.stopIfIdle(controller.state.value))
+        assertTrue(controller.state.value.webEnabled)
+        assertFalse(controller.state.value.upnpEnabled)
+        controller.serviceDestroyed()
+        assertEquals(web, controller().state.value.webSession)
+        now = web.expiresAtElapsedMillis - 1
+        assertFalse(controller.expireWeb())
+        now++
+        assertTrue(controller.expireWeb())
+        assertFalse(controller.state.value.anyEnabled)
+        assertNull(store.read())
+        assertFalse(controller().state.value.webEnabled)
+    }
+
+    @Test fun webFailureDoesNotStopUpnpAndStaleReportsCannotChangeFreshSession() {
+        val saved = snapshot()
+        assertTrue(store.write(saved, saved.idleTimeout))
+        val controller = controller()
+        controller.setWebEnabled(context, true)
+        val first = controller.state.value.webSession
+        controller.reportWeb("啟動失敗", true, first)
+        assertFalse(controller.state.value.webEnabled)
+        assertTrue(controller.state.value.upnpEnabled)
+        assertEquals(saved.upnpEnabled, store.read()!!.upnpEnabled)
+        controller.setWebEnabled(context, true)
+        val fresh = controller.state.value
+        assertNotSame(first, fresh.webSession)
+        controller.reportWeb("啟動失敗", true, first)
+        assertEquals(fresh, controller.state.value)
+        assertTrue(controller().state.value.webEnabled)
+    }
+
+    @Test fun failedWebEnableIsNotActivatedAndFailedStopSuppressesRecovery() {
+        val controller = controller()
+        context.failCommits = true
+        controller.setWebEnabled(context, true)
+        assertFalse(controller.state.value.webEnabled)
+        assertEquals(0, context.serviceStarts)
+        context.failCommits = false
+        controller.setWebEnabled(context, true)
+        context.failCommits = true
+        controller.setWebEnabled(context, false)
+        assertFalse(controller.state.value.webEnabled)
+        assertFalse(controller.shouldRestart())
+        assertTrue(controller.state.value.webStatus.contains("無法儲存停止狀態"))
+    }
+
     private fun controller() = SharingController(context) { now }
 
     private fun snapshot(lastRead: Long = now - 90_000) = SharingSessionSnapshot.capture(

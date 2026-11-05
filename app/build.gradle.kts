@@ -30,8 +30,8 @@ android {
         minSdk = 28
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        versionCode = 18
-        versionName = "0.1.17"
+        versionCode = 19
+        versionName = "0.1.18"
 
         // yt-dlp / ffmpeg ship native libraries for these ABIs.
         // TEMP (Phase 1): arm64-v8a (devices) + x86_64 (emulator testing) only, to keep the
@@ -84,18 +84,22 @@ android {
             }
         }
         release {
-            // R8 is disabled for now: the bundled yt-dlp/ffmpeg engine must load
-            // reliably, and minification is a release-only variable we can't
-            // runtime-verify in this environment. ABI splits already give the
-            // meaningful size reduction; re-enable R8 once the engine is verified.
-            isMinifyEnabled = false
+            // Gradual adoption: shrink AndroidX/Google/Kotlin/kotlinx while
+            // preserving app models and other third-party reflection/JNI APIs.
+            isMinifyEnabled = true
+            isShrinkResources = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+                "proguard-r8-test-api.pro",
+            )
+            testProguardFiles("proguard-test-rules.pro")
             signingConfig = signingConfigs.findByName("release")
         }
     }
 
-    // One APK per ABI (plus a universal fallback) so each download is ~1/4 the
-    // size of the all-ABI universal APK. Native Python/ffmpeg dominates size,
-    // so this matters far more than R8 here.
+    // One APK per ABI (plus a universal fallback) avoids downloading native
+    // Python/ffmpeg and speech libraries for other CPU architectures.
     splits {
         abi {
             isEnable = isReleaseTask
